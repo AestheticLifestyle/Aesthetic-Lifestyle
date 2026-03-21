@@ -1486,11 +1486,18 @@ textarea.t-area:focus{border-color:var(--gold)}
         <button class="btn btn-gr btn-sm" style="margin-left:auto;white-space:nowrap" onclick="rGo('r-training',document.getElementById('ni-r-training'))">Start Today →</button>
       </div>
       <div class="g4">
-        <div class="card">
-          <div class="kl">Body Weight</div>
-          <div class="kv">98.4<span class="ku">kg</span></div>
-          <div class="kd nt" style="margin-top:5px">→ Stable this week</div>
-          <div class="mini-chart" style="margin-top:12px">
+        <div class="card" id="dash-weight-card">
+          <div class="kl" style="display:flex;align-items:center;justify-content:space-between">Body Weight <button class="btn btn-g btn-sm" style="padding:2px 8px;font-size:9px" onclick="toggleWeightInput()" id="log-weight-btn">Log Weight</button></div>
+          <div class="kv" id="dash-weight-val">98.4<span class="ku">kg</span></div>
+          <div class="kd nt" style="margin-top:5px" id="dash-weight-trend">→ Stable this week</div>
+          <div id="weight-input-area" style="display:none;margin-top:8px">
+            <div style="display:flex;gap:6px;align-items:center">
+              <input type="number" id="weight-log-inp" step="0.1" placeholder="e.g. 97.8" style="flex:1;background:var(--s3);border:1px solid var(--border);border-radius:8px;color:var(--t1);font-family:var(--fm);font-size:13px;padding:8px 10px;outline:none;-moz-appearance:textfield" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border)'">
+              <span style="font-size:12px;color:var(--t3)">kg</span>
+              <button class="btn btn-p btn-sm" style="padding:5px 12px" onclick="saveWeightLog()">Save</button>
+            </div>
+          </div>
+          <div class="mini-chart" style="margin-top:12px" id="dash-weight-chart">
             <div class="mc-bar" style="height:60%"></div><div class="mc-bar" style="height:58%"></div><div class="mc-bar active" style="height:62%"></div><div class="mc-bar active" style="height:65%"></div><div class="mc-bar today" style="height:63%"></div>
           </div>
         </div>
@@ -1526,7 +1533,7 @@ textarea.t-area:focus{border-color:var(--gold)}
             <div class="pbar" style="margin-bottom:14px"><div class="pfill" id="ci-pbar" style="width:12%;background:var(--orange)"></div></div>
             <div class="ci done" id="ci-weighin" onclick="toggleCI(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="ct">Morning weigh-in</span><span class="cm2">98.4 kg</span></div>
             <div class="ci" id="ci-cardio" onclick="toggleCI(this)"><div class="cb"></div><span class="ct">Cardio / 10,000 steps</span><span class="cm2" id="ci-cardio-status">0 / 10,000</span></div>
-            <div class="ci" id="ci-supplements" onclick="toggleCI(this)"><div class="cb"></div><span class="ct">Take supplements</span><span class="cm2" id="ci-supps-status">2 / 6 taken</span></div>
+            <div class="ci" id="ci-supplements" onclick="toggleSuppsFromChecklist(this)"><div class="cb"></div><span class="ct">Take supplements</span><span class="cm2" id="ci-supps-status">0 / 6 taken</span></div>
             <div class="ci" id="ci-meals" onclick="toggleCI(this)"><div class="cb"></div><span class="ct">Log all meals</span><span class="cm2" id="ci-meals-status">1 / 3 logged</span></div>
             <div class="ci" id="ci-protein" onclick="toggleCI(this)"><div class="cb"></div><span class="ct">Hit protein target</span><span class="cm2" id="ci-protein-status" style="color:var(--orange)">68 / 180g</span></div>
             <div class="ci" id="ci-workout" onclick="toggleCI(this)"><div class="cb"></div><span class="ct">Complete workout</span><span class="cm2" id="ci-workout-status" style="color:var(--orange)">Session 3 today</span></div>
@@ -2199,7 +2206,14 @@ textarea.t-area:focus{border-color:var(--gold)}
       <div><div style="font-family:var(--fd);font-size:18px;letter-spacing:1px" id="m-name">Niels van Berg</div><div style="font-size:11px;color:var(--t3)" id="m-meta">Fat loss · Week 8 · 81.4 kg</div></div>
       <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
         <span class="tag t-gr" id="m-status">On Track</span>
-        <button class="btn btn-p btn-sm">Edit Plans</button>
+        <div style="position:relative;display:inline-block" id="edit-plans-wrap">
+          <button class="btn btn-p btn-sm" onclick="toggleEditPlansMenu(event)">Edit Plans ▾</button>
+          <div id="edit-plans-menu" style="display:none;position:absolute;right:0;top:100%;margin-top:4px;background:var(--s1);border:1px solid var(--border);border-radius:10px;overflow:hidden;min-width:180px;z-index:10;box-shadow:0 8px 24px rgba(0,0,0,.4)">
+            <div onclick="editPlanChoice('training')" style="padding:10px 14px;font-size:12px;color:var(--t1);cursor:pointer;display:flex;align-items:center;gap:8px;transition:background .1s" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'"><span style="font-size:14px">💪</span> Edit Training Plan</div>
+            <div style="height:1px;background:var(--border)"></div>
+            <div onclick="editPlanChoice('nutrition')" style="padding:10px 14px;font-size:12px;color:var(--t1);cursor:pointer;display:flex;align-items:center;gap:8px;transition:background .1s" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'"><span style="font-size:14px">🍽</span> Edit Nutrition Plan</div>
+          </div>
+        </div>
         <div class="ibtn" onclick="closeModal()"><svg viewBox="0 0 12 12" fill="none"><path d="M1 1l10 10M11 1L1 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div>
       </div>
     </div>
@@ -2228,7 +2242,7 @@ textarea.t-area:focus{border-color:var(--gold)}
       </div>
       <div id="m-tr" style="display:none"><div style="font-size:13px;color:var(--t2);margin-bottom:12px">Program: <strong style="color:var(--t1)">PPL Hypertrophy v3</strong> · Week 8 of 12</div><div style="display:flex;flex-direction:column;gap:5px"><div style="display:grid;grid-template-columns:30px 1fr auto;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;background:var(--s2);border:1px solid var(--border)"><span style="font-family:var(--fd);font-size:18px;color:var(--t3);text-align:center">1</span><div><div style="font-size:13px;font-weight:500;color:var(--t1);margin-bottom:3px">Bench Press</div><div style="display:flex;gap:5px;align-items:center;font-size:11px;color:var(--t3)"><input class="set-inp" value="4" title="Sets"> sets ×<input class="set-inp" value="8-10" style="width:54px" title="Reps"> reps</div></div><button class="btn btn-r btn-sm" style="padding:4px 8px">✕</button></div><div style="display:grid;grid-template-columns:30px 1fr auto;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;background:var(--s2);border:1px solid var(--border)"><span style="font-family:var(--fd);font-size:18px;color:var(--t3);text-align:center">2</span><div><div style="font-size:13px;font-weight:500;color:var(--t1);margin-bottom:3px">Incline DB Press</div><div style="display:flex;gap:5px;align-items:center;font-size:11px;color:var(--t3)"><input class="set-inp" value="3"> sets ×<input class="set-inp" value="10-12" style="width:54px"> reps</div></div><button class="btn btn-r btn-sm" style="padding:4px 8px">✕</button></div></div><button class="btn btn-g btn-sm" style="margin-top:10px;width:100%">+ Add Exercise</button></div>
       <div id="m-nu" style="display:none"><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px"><div class="ms-item" style="border-top:2px solid var(--gold)"><div class="ms-label">Calories</div><div class="ms-val">2400</div></div><div class="ms-item" style="border-top:2px solid var(--green)"><div class="ms-label">Protein</div><div class="ms-val">195g</div></div><div class="ms-item" style="border-top:2px solid var(--blue)"><div class="ms-label">Carbs</div><div class="ms-val">260g</div></div><div class="ms-item" style="border-top:2px solid var(--red)"><div class="ms-label">Fats</div><div class="ms-val">70g</div></div></div><button class="btn btn-p btn-sm" onclick="applyAI()">Apply +200kcal AI suggestion</button></div>
-      <div id="m-ci" style="display:none"><div style="display:flex;flex-direction:column;gap:5px"><div class="card-sm" style="display:flex;align-items:center;gap:12px"><span style="font-size:11px;color:var(--t3);min-width:55px">Week 8</span><span style="font-family:var(--fm);font-size:12px;color:var(--t1)" id="m-ci-w">81.4 kg</span><span style="font-size:12px;color:var(--green)" id="m-ci-a">92%</span><span class="tag t-gr" style="margin-left:auto">Reviewed</span></div><div class="card-sm" style="display:flex;align-items:center;gap:12px"><span style="font-size:11px;color:var(--t3);min-width:55px">Week 7</span><span style="font-family:var(--fm);font-size:12px;color:var(--t1)">81.6 kg</span><span style="font-size:12px;color:var(--green)">88%</span><span class="tag t-gr" style="margin-left:auto">Reviewed</span></div><div class="card-sm" style="display:flex;align-items:center;gap:12px"><span style="font-size:11px;color:var(--t3);min-width:55px">Week 6</span><span style="font-family:var(--fm);font-size:12px;color:var(--t1)">82.0 kg</span><span style="font-size:12px;color:var(--gold)">79%</span><span class="tag t-or" style="margin-left:auto">Notes added</span></div></div></div>
+      <div id="m-ci" style="display:none"><div id="m-ci-list" style="display:flex;flex-direction:column;gap:5px"></div></div>
       <div id="m-timeline" style="display:none">
         <div style="position:relative;padding-left:20px">
           <div style="position:absolute;left:5px;top:0;bottom:0;width:2px;background:var(--border)"></div>
@@ -2810,8 +2824,7 @@ function openModal(id) {
   document.getElementById('m-note').textContent = d.note;
   document.getElementById('m-risk-title').textContent = d.risk;
   document.getElementById('m-risk-msg').textContent = d.riskMsg;
-  document.getElementById('m-ci-w').textContent = d.ciW;
-  document.getElementById('m-ci-a').textContent = d.ciA;
+  renderModalCheckins(id);
   document.getElementById('c-modal').classList.add('open');
   // FIX #5: reset tabs via scoped container
   mTab(document.querySelector('#modal-tabs-wrap .mtab'), 'm-ov');
@@ -2819,7 +2832,165 @@ function openModal(id) {
   selectCoachClient(id);
 }
 
-function closeModal() { document.getElementById('c-modal').classList.remove('open'); }
+function closeModal() {
+  document.getElementById('c-modal').classList.remove('open');
+  var menu = document.getElementById('edit-plans-menu');
+  if (menu) menu.style.display = 'none';
+}
+
+function toggleEditPlansMenu(e) {
+  e.stopPropagation();
+  var menu = document.getElementById('edit-plans-menu');
+  if (!menu) return;
+  menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+  // Close on outside click
+  setTimeout(function() {
+    document.addEventListener('click', function closeMenu() {
+      menu.style.display = 'none';
+      document.removeEventListener('click', closeMenu);
+    }, {once: true});
+  }, 10);
+}
+
+function editPlanChoice(type) {
+  var menu = document.getElementById('edit-plans-menu');
+  if (menu) menu.style.display = 'none';
+  if (type === 'training') {
+    mTab(document.querySelectorAll('#modal-tabs-wrap .mtab')[1], 'm-tr');
+    // Highlight the training tab
+    document.querySelectorAll('#modal-tabs-wrap .mtab').forEach(function(t) { t.classList.remove('active'); });
+    document.querySelectorAll('#modal-tabs-wrap .mtab')[1].classList.add('active');
+  } else if (type === 'nutrition') {
+    mTab(document.querySelectorAll('#modal-tabs-wrap .mtab')[2], 'm-nu');
+    document.querySelectorAll('#modal-tabs-wrap .mtab').forEach(function(t) { t.classList.remove('active'); });
+    document.querySelectorAll('#modal-tabs-wrap .mtab')[2].classList.add('active');
+  }
+}
+
+function renderModalCheckins(clientId) {
+  var list = document.getElementById('m-ci-list');
+  if (!list) return;
+  var meta = CLIENT_META[clientId];
+  if (!meta) return;
+  var currentWeek = meta.week || 3;
+  var html = '';
+
+  for (var w = currentWeek; w >= Math.max(1, currentWeek - 4); w--) {
+    // Generate weekly summary data from daily data
+    var weekStart = new Date();
+    weekStart.setDate(weekStart.getDate() - (currentWeek - w) * 7);
+    var totalSteps = 0, totalSleep = 0, totalHydration = 0, daysChecked = 0;
+    var dailyDetails = [];
+    for (var d = 0; d < 7; d++) {
+      var dayDate = new Date(weekStart);
+      dayDate.setDate(dayDate.getDate() - (6 - d));
+      var dk = dayDate.toISOString().slice(0, 10);
+      var dd = getDailyCheckinData(clientId, dk);
+      var activity = (CLIENT_ACTIVITY[clientId] || {})[dk] || {};
+      var checked = activity.checkin || (dd.steps > 5000);
+      if (checked) daysChecked++;
+      totalSteps += dd.steps;
+      totalSleep += parseFloat(dd.sleep);
+      totalHydration += parseFloat(dd.hydration);
+      dailyDetails.push({date: dk, day: dayDate.toLocaleDateString('en',{weekday:'short'}), weight: dd.weight, steps: dd.steps, sleep: dd.sleep, hydration: dd.hydration, mood: dd.mood, checked: checked});
+    }
+    var adherence = Math.round(daysChecked / 7 * 100);
+    var avgSteps = Math.round(totalSteps / 7);
+    var avgSleep = (totalSleep / 7).toFixed(1);
+    var avgHydration = (totalHydration / 7).toFixed(1);
+    var wWeight = getClientCurrentWeight(clientId);
+    // Slightly offset weight for past weeks
+    if (w < currentWeek) {
+      var wLog = WEIGHT_LOG[clientId] || [];
+      if (wLog.length > (currentWeek - w)) wWeight = wLog[wLog.length - 1 - (currentWeek - w)].weight;
+    }
+
+    var adColor = adherence >= 80 ? 'var(--green)' : adherence >= 50 ? 'var(--orange)' : 'var(--red)';
+    var tagClass = adherence >= 80 ? 't-gr' : adherence >= 50 ? 't-or' : 't-rd';
+    var tagText = w === currentWeek ? 'Current' : (adherence >= 70 ? 'Reviewed' : 'Needs Review');
+
+    html += '<div class="card-sm" style="cursor:pointer;transition:all .15s" onclick="toggleCheckinExpand(this)">';
+    // Header row
+    html += '<div style="display:flex;align-items:center;gap:12px">';
+    html += '<span style="font-size:11px;color:var(--t3);min-width:55px">Week ' + w + '</span>';
+    html += '<span style="font-family:var(--fm);font-size:12px;color:var(--t1)">' + wWeight + ' kg</span>';
+    html += '<span style="font-size:12px;color:' + adColor + '">' + adherence + '%</span>';
+    html += '<span class="tag ' + tagClass + '" style="margin-left:auto">' + tagText + '</span>';
+    html += '<svg viewBox="0 0 10 10" width="10" height="10" style="color:var(--t3);transition:transform .2s;flex-shrink:0"><path d="M2 3.5l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>';
+    html += '</div>';
+
+    // Expandable detail (hidden by default)
+    html += '<div class="checkin-expand" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">';
+
+    // Summary metrics
+    html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px">';
+    html += '<div style="text-align:center;padding:8px;background:var(--s2);border-radius:8px"><div style="font-size:9px;color:var(--t3);text-transform:uppercase;margin-bottom:3px">Avg Steps</div><div style="font-family:var(--fm);font-size:14px;color:var(--t1)">' + avgSteps.toLocaleString() + '</div></div>';
+    html += '<div style="text-align:center;padding:8px;background:var(--s2);border-radius:8px"><div style="font-size:9px;color:var(--t3);text-transform:uppercase;margin-bottom:3px">Avg Sleep</div><div style="font-family:var(--fm);font-size:14px;color:var(--t1)">' + avgSleep + 'h</div></div>';
+    html += '<div style="text-align:center;padding:8px;background:var(--s2);border-radius:8px"><div style="font-size:9px;color:var(--t3);text-transform:uppercase;margin-bottom:3px">Avg Water</div><div style="font-family:var(--fm);font-size:14px;color:var(--t1)">' + avgHydration + 'L</div></div>';
+    html += '<div style="text-align:center;padding:8px;background:var(--s2);border-radius:8px"><div style="font-size:9px;color:var(--t3);text-transform:uppercase;margin-bottom:3px">Check-ins</div><div style="font-family:var(--fm);font-size:14px;color:' + adColor + '">' + daysChecked + '/7</div></div>';
+    html += '</div>';
+
+    // Daily breakdown
+    html += '<div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Daily Breakdown</div>';
+    html += '<div style="display:grid;grid-template-columns:40px 55px 70px 50px 50px 30px;gap:4px;font-size:10px;color:var(--t3);padding:4px 0;border-bottom:1px solid var(--border)"><span>Day</span><span>Weight</span><span>Steps</span><span>Sleep</span><span>Water</span><span>Mood</span></div>';
+    dailyDetails.forEach(function(dd) {
+      var stepColor = dd.steps >= 8000 ? 'color:var(--green)' : dd.steps >= 5000 ? 'color:var(--orange)' : 'color:var(--red)';
+      var sleepColor = parseFloat(dd.sleep) >= 7 ? 'color:var(--green)' : parseFloat(dd.sleep) >= 6 ? 'color:var(--orange)' : 'color:var(--red)';
+      html += '<div style="display:grid;grid-template-columns:40px 55px 70px 50px 50px 30px;gap:4px;font-size:11px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);align-items:center">';
+      html += '<span style="color:var(--t3)">' + dd.day + '</span>';
+      html += '<span style="font-family:var(--fm);color:var(--t1)">' + dd.weight + '</span>';
+      html += '<span style="font-family:var(--fm);' + stepColor + '">' + dd.steps.toLocaleString() + '</span>';
+      html += '<span style="font-family:var(--fm);' + sleepColor + '">' + dd.sleep + 'h</span>';
+      html += '<span style="font-family:var(--fm);color:var(--blue)">' + dd.hydration + 'L</span>';
+      html += '<span>' + dd.mood + '</span>';
+      html += '</div>';
+    });
+
+    // Measurements if available for this week
+    var mHist = MEASUREMENT_HISTORY[clientId] || [];
+    var weekMeas = mHist.find(function(m) {
+      var mDate = new Date(m.date);
+      return Math.abs(mDate - weekStart) < 7 * 86400000;
+    });
+    if (weekMeas) {
+      html += '<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">';
+      html += '<div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Measurements</div>';
+      html += '<div style="display:flex;gap:12px;flex-wrap:wrap">';
+      [{k:'waist',l:'Waist'},{k:'chest',l:'Chest'},{k:'arms',l:'Arms'},{k:'thighs',l:'Thighs'}].forEach(function(f) {
+        html += '<div style="font-size:11px"><span style="color:var(--t3)">' + f.l + ': </span><span style="color:var(--t1);font-family:var(--fm)">' + weekMeas[f.k] + ' cm</span></div>';
+      });
+      html += '</div></div>';
+    }
+
+    // Coach note area
+    html += '<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">';
+    html += '<textarea id="coach-note-w' + w + '" placeholder="Add coach notes for Week ' + w + '..." style="width:100%;min-height:50px;background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--t1);font-family:var(--ff);font-size:11px;padding:8px;resize:vertical;outline:none;box-sizing:border-box" onfocus="this.style.borderColor=\'var(--gold)\'" onblur="this.style.borderColor=\'var(--border)\'"></textarea>';
+    html += '<div style="display:flex;gap:6px;margin-top:6px">';
+    html += '<button class="btn btn-p btn-sm" style="font-size:10px" onclick="event.stopPropagation();showToast(\'✓ Note saved for Week ' + w + '\')">Save Note</button>';
+    if (tagText === 'Needs Review') {
+      html += '<button class="btn btn-gr btn-sm" style="font-size:10px" onclick="event.stopPropagation();this.parentElement.parentElement.parentElement.parentElement.querySelector(\'.tag\').className=\'tag t-gr\';this.parentElement.parentElement.parentElement.parentElement.querySelector(\'.tag\').textContent=\'Reviewed\';showToast(\'✓ Week ' + w + ' marked as reviewed\')">Mark Reviewed</button>';
+    }
+    html += '</div></div>';
+
+    html += '</div>'; // close expand
+    html += '</div>'; // close card-sm
+  }
+  list.innerHTML = html;
+}
+
+function toggleCheckinExpand(card) {
+  var expand = card.querySelector('.checkin-expand');
+  var arrow = card.querySelector('svg');
+  if (!expand) return;
+  var isOpen = expand.style.display !== 'none';
+  // Close all others first
+  document.querySelectorAll('#m-ci-list .checkin-expand').forEach(function(el) { el.style.display = 'none'; });
+  document.querySelectorAll('#m-ci-list svg').forEach(function(el) { el.style.transform = ''; });
+  if (!isOpen) {
+    expand.style.display = 'block';
+    if (arrow) arrow.style.transform = 'rotate(180deg)';
+  }
+}
 
 function mTab(el, target) {
   // FIX #5: scope to modal-tabs-wrap only
@@ -3030,6 +3201,32 @@ const CLIENT_MEASUREMENTS = {
   rick: {weight:null, waist:null, chest:null, arms:null, thighs:null},
   stefan: {weight:null, waist:null, chest:null, arms:null, thighs:null},
   mike: {weight:null, waist:null, chest:null, arms:null, thighs:null}
+};
+
+// Weekly measurement history per client: array of {date, weight, waist, chest, arms, thighs}
+const MEASUREMENT_HISTORY = {
+  rick: [
+    {date:'2026-03-01', weight:102.0, waist:103, chest:110, arms:35, thighs:62},
+    {date:'2026-03-08', weight:100.5, waist:101, chest:110, arms:35.5, thighs:62},
+    {date:'2026-03-15', weight:98.4, waist:98, chest:110, arms:36, thighs:61.5}
+  ],
+  niels: [{date:'2026-03-15', weight:81.4, waist:82, chest:100, arms:37, thighs:58}],
+  stefan: [{date:'2026-03-15', weight:78.6, waist:78, chest:96, arms:34, thighs:56}],
+  mike: [{date:'2026-03-15', weight:84.2, waist:86, chest:102, arms:35.5, thighs:59}]
+};
+
+// Daily weight log per client: array of {date, weight}
+const WEIGHT_LOG = {
+  rick: [
+    {date:'2026-03-15', weight:99.1},
+    {date:'2026-03-16', weight:98.8},
+    {date:'2026-03-17', weight:98.6},
+    {date:'2026-03-18', weight:98.5},
+    {date:'2026-03-19', weight:98.4}
+  ],
+  niels: [{date:'2026-03-19', weight:81.4}],
+  stefan: [{date:'2026-03-19', weight:78.6}],
+  mike: [{date:'2026-03-19', weight:84.2}]
 };
 
 /* ============================================================
@@ -4837,6 +5034,81 @@ function openQuickPanel(clientId) {
   }
   html += '</div>';
 
+  // Progress & Body section
+  html += '<div class="qp-section">';
+  html += '<div class="qp-section-title">📊 Progress & Body</div>';
+
+  // Weight trend
+  var wLog = WEIGHT_LOG[clientId] || [];
+  if (wLog.length >= 2) {
+    var startW = wLog[0].weight;
+    var currW = wLog[wLog.length - 1].weight;
+    var totalDiff = Math.round((currW - startW) * 10) / 10;
+    var sign = totalDiff <= 0 ? '↓' : '↑';
+    var tColor = totalDiff <= 0 ? 'var(--green)' : 'var(--orange)';
+    html += '<div class="qp-metric"><span class="qp-metric-label">Start Weight</span><span class="qp-metric-val">' + startW + ' kg</span></div>';
+    html += '<div class="qp-metric"><span class="qp-metric-label">Current Weight</span><span class="qp-metric-val">' + currW + ' kg</span></div>';
+    html += '<div class="qp-metric"><span class="qp-metric-label">Total Change</span><span class="qp-metric-val" style="color:' + tColor + '">' + sign + ' ' + Math.abs(totalDiff) + ' kg</span></div>';
+    // Mini weight chart
+    var wVals = wLog.slice(-7).map(function(e){return e.weight});
+    var wMin = Math.min.apply(null, wVals);
+    var wMax = Math.max.apply(null, wVals);
+    var wRng = wMax - wMin || 1;
+    html += '<div style="display:flex;align-items:flex-end;gap:3px;height:40px;margin:8px 0 4px">';
+    wVals.forEach(function(v, i) {
+      var h = 20 + ((v - wMin) / wRng) * 60;
+      var c = i === wVals.length - 1 ? 'var(--green)' : 'rgba(59,255,166,.3)';
+      html += '<div style="flex:1;height:' + Math.round(h) + '%;background:' + c + ';border-radius:3px"></div>';
+    });
+    html += '</div>';
+    html += '<div style="display:flex;justify-content:space-between;font-size:9px;color:var(--t3)"><span>' + wLog[Math.max(0,wLog.length-7)].date.slice(5) + '</span><span>' + wLog[wLog.length-1].date.slice(5) + '</span></div>';
+  } else {
+    html += '<div class="qp-metric"><span class="qp-metric-label">Weight</span><span class="qp-metric-val">' + meta.weight + ' kg</span></div>';
+    html += '<div style="font-size:11px;color:var(--t3);padding:4px 0">No weight history yet</div>';
+  }
+
+  // Measurements
+  var mHist = MEASUREMENT_HISTORY[clientId] || [];
+  if (mHist.length > 0) {
+    var latest = mHist[mHist.length - 1];
+    var prev = mHist.length >= 2 ? mHist[mHist.length - 2] : null;
+    html += '<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">';
+    html += '<div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Measurements (' + latest.date.slice(5) + ')</div>';
+    var mFields = [{key:'waist',lbl:'Waist'},{key:'chest',lbl:'Chest'},{key:'arms',lbl:'Arms'},{key:'thighs',lbl:'Thighs'}];
+    mFields.forEach(function(mf) {
+      var val = latest[mf.key];
+      var diffStr = '';
+      if (prev) {
+        var d = Math.round((val - prev[mf.key]) * 10) / 10;
+        var dc = d < 0 ? 'color:var(--green)' : d > 0 ? 'color:var(--orange)' : 'color:var(--t3)';
+        diffStr = '<span style="font-size:10px;margin-left:4px;' + dc + '">' + (d <= 0 ? '' : '+') + d + '</span>';
+      }
+      html += '<div class="qp-metric"><span class="qp-metric-label">' + mf.lbl + '</span><span class="qp-metric-val">' + val + ' cm' + diffStr + '</span></div>';
+    });
+    html += '</div>';
+  } else {
+    html += '<div style="font-size:11px;color:var(--t3);padding:4px 0;margin-top:6px">No measurements logged yet</div>';
+  }
+
+  // Progress photos
+  var photos = PROGRESS_PHOTOS[clientId] || {};
+  var hasPhotos = photos.front || photos.side || photos.back;
+  if (hasPhotos) {
+    html += '<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">';
+    html += '<div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Progress Photos</div>';
+    html += '<div style="display:flex;gap:6px">';
+    ['front','side','back'].forEach(function(type) {
+      if (photos[type]) {
+        html += '<div style="flex:1;aspect-ratio:3/4;border-radius:6px;overflow:hidden;border:1px solid var(--border)"><img src="' + photos[type] + '" style="width:100%;height:100%;object-fit:cover"></div>';
+      } else {
+        html += '<div style="flex:1;aspect-ratio:3/4;border-radius:6px;background:var(--s2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--t3)">' + type + '</div>';
+      }
+    });
+    html += '</div>';
+    html += '</div>';
+  }
+  html += '</div>';
+
   document.getElementById('qp-body').innerHTML = html;
   document.getElementById('quick-panel').classList.add('open');
 }
@@ -6113,6 +6385,149 @@ function syncSteps() {
 }
 
 /* ============================================================
+   WEIGHT LOGGING — uses shared WEIGHT_LOG store
+============================================================ */
+function getClientWeightHistory(clientId) {
+  return (WEIGHT_LOG[clientId] || []).map(function(e) { return e.weight; });
+}
+
+function getClientCurrentWeight(clientId) {
+  var log = WEIGHT_LOG[clientId] || [];
+  return log.length ? log[log.length - 1].weight : (CLIENT_WEIGHTS[clientId] || 80);
+}
+
+function toggleWeightInput() {
+  var area = document.getElementById('weight-input-area');
+  if (!area) return;
+  if (area.style.display === 'none') {
+    area.style.display = 'block';
+    var inp = document.getElementById('weight-log-inp');
+    if (inp) { inp.value = ''; setTimeout(function() { inp.focus(); }, 50); }
+  } else {
+    area.style.display = 'none';
+  }
+}
+
+function saveWeightLog() {
+  var inp = document.getElementById('weight-log-inp');
+  if (!inp || !inp.value) { showToast('Enter your weight first'); return; }
+  var w = parseFloat(inp.value);
+  if (isNaN(w) || w < 30 || w > 300) { showToast('Enter a valid weight (30-300 kg)'); return; }
+  var clientId = activeCoachClient || 'rick';
+  var wLog = WEIGHT_LOG[clientId] || [];
+  var prevWeight = wLog.length ? wLog[wLog.length - 1].weight : w;
+  var newWeight = Math.round(w * 10) / 10;
+  var todayKey = new Date().toISOString().slice(0, 10);
+
+  // Add or update today's entry
+  var todayEntry = wLog.find(function(e) { return e.date === todayKey; });
+  if (todayEntry) { todayEntry.weight = newWeight; }
+  else { wLog.push({date: todayKey, weight: newWeight}); }
+  if (wLog.length > 30) wLog.shift();
+  WEIGHT_LOG[clientId] = wLog;
+
+  // Update CLIENT_WEIGHTS and CLIENT_META
+  CLIENT_WEIGHTS[clientId] = newWeight;
+  if (CLIENT_META[clientId]) CLIENT_META[clientId].weight = newWeight;
+
+  // Update dashboard card
+  var val = document.getElementById('dash-weight-val');
+  if (val) val.innerHTML = newWeight + '<span class="ku">kg</span>';
+
+  // Trend
+  var diff = Math.round((newWeight - prevWeight) * 10) / 10;
+  var trend = document.getElementById('dash-weight-trend');
+  if (trend) {
+    if (diff < -0.2) { trend.textContent = '↓ ' + Math.abs(diff) + ' kg since last'; trend.className = 'kd up'; }
+    else if (diff > 0.2) { trend.textContent = '↑ ' + diff + ' kg since last'; trend.className = 'kd dn'; }
+    else { trend.textContent = '→ Stable'; trend.className = 'kd nt'; }
+  }
+
+  // Update mini chart on dashboard
+  updateDashWeightChart(clientId);
+
+  // Update Progress tab
+  updateProgressTab(clientId);
+
+  // Update checklist weigh-in
+  var ci = document.getElementById('ci-weighin');
+  if (ci) {
+    var cm2 = ci.querySelector('.cm2');
+    if (cm2) cm2.textContent = newWeight + ' kg';
+    autoCheck('ci-weighin');
+  }
+
+  // Hide input
+  document.getElementById('weight-input-area').style.display = 'none';
+  showToast('Weight logged: ' + newWeight + ' kg ✓');
+}
+
+function updateDashWeightChart(clientId) {
+  var chart = document.getElementById('dash-weight-chart');
+  if (!chart) return;
+  var weights = getClientWeightHistory(clientId).slice(-7);
+  if (!weights.length) return;
+  var mn = Math.min.apply(null, weights);
+  var mx = Math.max.apply(null, weights);
+  var range = mx - mn || 1;
+  chart.innerHTML = weights.map(function(v, i) {
+    var h = 30 + ((v - mn) / range) * 60;
+    var cls = i === weights.length - 1 ? 'mc-bar today' : (i >= weights.length - 3 ? 'mc-bar active' : 'mc-bar');
+    return '<div class="' + cls + '" style="height:' + Math.round(h) + '%"></div>';
+  }).join('');
+}
+
+function updateProgressTab(clientId) {
+  // Update the Progress tab weight display
+  var cw = getClientCurrentWeight(clientId);
+  var wLog = WEIGHT_LOG[clientId] || [];
+  var startWeight = wLog.length ? wLog[0].weight : cw;
+  var totalChange = Math.round((cw - startWeight) * 10) / 10;
+  var weeks = wLog.length > 1 ? Math.ceil((new Date(wLog[wLog.length-1].date) - new Date(wLog[0].date)) / 604800000) || 1 : 1;
+
+  // Update the progress weight header
+  var screen = document.getElementById('screen-r-progress');
+  if (!screen) return;
+  var header = screen.querySelector('div[style*="font-family:var(--fd);font-size:34px"]');
+  if (header) header.innerHTML = cw + ' <span style="font-size:18px;color:var(--t3)">kg</span>';
+  // Update the change text
+  var changeEl = screen.querySelector('.kd.up, .kd.dn, .kd.nt');
+  if (changeEl) {
+    var sign = totalChange <= 0 ? '↓' : '↑';
+    var cls = totalChange <= 0 ? 'kd up' : 'kd dn';
+    changeEl.className = cls;
+    changeEl.textContent = sign + ' ' + Math.abs(totalChange) + ' kg total · ' + weeks + ' weeks';
+  }
+
+  // Rebuild SVG chart with real data
+  var svgEl = screen.querySelector('svg.svg-chart');
+  if (svgEl && wLog.length >= 2) {
+    var mn = Math.min.apply(null, wLog.map(function(e){return e.weight}));
+    var mx = Math.max.apply(null, wLog.map(function(e){return e.weight}));
+    var rng = mx - mn || 1;
+    var points = wLog.map(function(e, i) {
+      var x = Math.round(i / (wLog.length - 1) * 500);
+      var y = Math.round(90 - ((e.weight - mn) / rng) * 70);
+      return x + ',' + y;
+    }).join(' ');
+    svgEl.innerHTML = '<defs><linearGradient id="rg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--green)" stop-opacity=".12"/><stop offset="100%" stop-color="var(--green)" stop-opacity="0"/></linearGradient></defs>' +
+      '<line x1="0" y1="33" x2="500" y2="33" stroke="var(--border)" stroke-width="1"/>' +
+      '<line x1="0" y1="66" x2="500" y2="66" stroke="var(--border)" stroke-width="1"/>' +
+      '<polygon points="' + points + ' 500,95 0,95" fill="url(#rg)"/>' +
+      '<polyline points="' + points + '" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '<circle cx="' + points.split(' ').pop().split(',')[0] + '" cy="' + points.split(' ').pop().split(',')[1] + '" r="5" fill="var(--green)" stroke="var(--black)" stroke-width="2"/>';
+    // Update week labels
+    var labelRow = svgEl.nextElementSibling;
+    if (labelRow) {
+      labelRow.innerHTML = wLog.map(function(e) {
+        var d = new Date(e.date);
+        return '<span>' + d.toLocaleDateString('en',{month:'short',day:'numeric'}) + '</span>';
+      }).join('');
+    }
+  }
+}
+
+/* ============================================================
    WATER TRACKER
 ============================================================ */
 let waterML = 500;
@@ -6275,25 +6690,143 @@ function saveSupps() {
   renderClientSupps();
 }
 
+// Track which supplements are taken today (by index in the stack)
+var suppsTakenToday = {};
+
+function getSuppsTaken(clientId) {
+  if (!suppsTakenToday[clientId]) suppsTakenToday[clientId] = {};
+  return suppsTakenToday[clientId];
+}
+
+function toggleSuppTaken(clientId, idx) {
+  var taken = getSuppsTaken(clientId);
+  taken[idx] = !taken[idx];
+  renderClientSupps();
+  updateSuppsChecklist(clientId);
+}
+
+function markAllSuppsTaken(clientId) {
+  var stack = ALL_CLIENT_SUPPLEMENTS[clientId] || [];
+  var taken = getSuppsTaken(clientId);
+  // Check if all are already taken
+  var allDone = stack.length > 0 && stack.every(function(_, i) { return taken[i]; });
+  // Toggle: if all done → uncheck all, else check all
+  stack.forEach(function(_, i) { taken[i] = !allDone; });
+  renderClientSupps();
+  updateSuppsChecklist(clientId);
+  if (!allDone) showToast('All supplements marked as taken ✓');
+}
+
+function updateSuppsChecklist(clientId) {
+  var stack = ALL_CLIENT_SUPPLEMENTS[clientId] || [];
+  var taken = getSuppsTaken(clientId);
+  var count = 0;
+  stack.forEach(function(_, i) { if (taken[i]) count++; });
+  var total = stack.length;
+  // Update checklist status text
+  var statusEl = document.getElementById('ci-supps-status');
+  if (statusEl) {
+    statusEl.textContent = count + ' / ' + total + ' taken';
+    statusEl.style.color = count === total ? 'var(--green)' : count > 0 ? 'var(--orange)' : '';
+  }
+  // Auto-check/uncheck the checklist item
+  if (count === total && total > 0) {
+    autoCheck('ci-supplements');
+  } else {
+    // Uncheck if not all taken
+    var ci = document.getElementById('ci-supplements');
+    if (ci && ci.classList.contains('done')) {
+      ci.classList.remove('done');
+      var cb = ci.querySelector('.cb');
+      if (cb) cb.innerHTML = '';
+      updateChecklistProgress();
+    }
+  }
+}
+
+function toggleSuppsFromChecklist(el) {
+  var clientId = activeCoachSuppClient || activeCoachClient || 'rick';
+  var stack = ALL_CLIENT_SUPPLEMENTS[clientId] || [];
+  var taken = getSuppsTaken(clientId);
+  var allDone = stack.length > 0 && stack.every(function(_, i) { return taken[i]; });
+
+  if (allDone) {
+    // Unchecking: clear all supps
+    stack.forEach(function(_, i) { taken[i] = false; });
+    el.classList.remove('done');
+    var cb = el.querySelector('.cb');
+    if (cb) cb.innerHTML = '';
+  } else {
+    // Checking: mark all supps as taken
+    stack.forEach(function(_, i) { taken[i] = true; });
+    el.classList.add('done');
+    var cb = el.querySelector('.cb');
+    if (cb) cb.innerHTML = CHECK_SVG;
+  }
+  updateSuppsChecklist(clientId);
+  renderClientSupps();
+  updateChecklistProgress();
+  saveActivityFromChecklist();
+}
+
 function renderClientSupps() {
   var body = document.getElementById('client-supps-body');
   if (!body) return;
-  var stack = ALL_CLIENT_SUPPLEMENTS[activeCoachSuppClient] || ALL_CLIENT_SUPPLEMENTS.rick || [];
+  var clientId = activeCoachSuppClient || activeCoachClient || 'rick';
+  var stack = ALL_CLIENT_SUPPLEMENTS[clientId] || ALL_CLIENT_SUPPLEMENTS.rick || [];
+  var taken = getSuppsTaken(clientId);
   var timings = ['morning','pre-workout','intra-workout','post-workout','evening'];
   var timingLabels = {morning:'MORNING STACK', 'pre-workout':'PRE-WORKOUT', 'intra-workout':'INTRA-WORKOUT', 'post-workout':'POST-WORKOUT', evening:'EVENING'};
   var timingSubtitles = {morning:'Take with breakfast', 'pre-workout':'30 min before training', 'intra-workout':'Sip during training', 'post-workout':'Within 30 min of training', evening:'Before bed'};
   var timingBg = {morning:'var(--gold-d)', 'pre-workout':'var(--green-d)', 'intra-workout':'var(--orange-d)', 'post-workout':'var(--blue-d)', evening:'var(--s3)'};
+
+  // Count totals for header
+  var totalCount = stack.length;
+  var takenCount = 0;
+  stack.forEach(function(_, i) { if (taken[i]) takenCount++; });
+  var pct = totalCount > 0 ? Math.round(takenCount / totalCount * 100) : 0;
+  var pctColor = pct === 100 ? 'var(--green)' : pct > 0 ? 'var(--orange)' : 'var(--t3)';
+
   var html = '';
+
+  // Progress header
+  html += '<div class="card-sm" style="margin-bottom:14px;display:flex;align-items:center;gap:12px">';
+  html += '<div style="flex:1">';
+  html += '<div style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Today\'s Progress</div>';
+  html += '<div style="display:flex;align-items:baseline;gap:6px"><span style="font-family:var(--fd);font-size:24px;color:' + pctColor + '">' + takenCount + '/' + totalCount + '</span><span style="font-size:11px;color:var(--t3)">supplements taken</span></div>';
+  html += '<div class="pbar" style="margin-top:6px"><div class="pfill" style="width:' + pct + '%;background:' + pctColor + '"></div></div>';
+  html += '</div>';
+  html += '<button class="btn ' + (pct === 100 ? 'btn-gr' : 'btn-g') + ' btn-sm" style="white-space:nowrap" onclick="markAllSuppsTaken(\'' + clientId + '\')">' + (pct === 100 ? 'All Done ✓' : 'Take All') + '</button>';
+  html += '</div>';
+
+  var globalIdx = 0;
   timings.forEach(function(t) {
-    var items = stack.filter(function(s) { return s.timing === t; });
+    var items = [];
+    stack.forEach(function(s, i) { if (s.timing === t) items.push({s:s, idx:i}); });
     if (items.length === 0) return;
-    html += '<div class="section-hd" style="font-size:16px;margin-top:' + (t === 'morning' ? '0' : '20px') + '">' + timingLabels[t] + ' <span class="mla" style="font-size:12px;color:var(--t3)">' + timingSubtitles[t] + '</span></div>';
-    items.forEach(function(s) {
-      var supp = SUPP_DB.find(function(d) { return d.id === s.suppId; });
+
+    // Check if all in this timing group are taken
+    var groupDone = items.every(function(item) { return taken[item.idx]; });
+
+    html += '<div class="section-hd" style="font-size:16px;margin-top:' + (t === 'morning' ? '0' : '20px') + '">' + timingLabels[t];
+    html += ' <span class="mla" style="font-size:12px;color:var(--t3)">' + timingSubtitles[t] + '</span>';
+    if (groupDone) html += ' <span style="font-size:11px;color:var(--green);margin-left:6px">✓</span>';
+    html += '</div>';
+
+    items.forEach(function(item) {
+      var supp = SUPP_DB.find(function(d) { return d.id === item.s.suppId; });
       if (!supp) return;
-      html += '<div class="supp-item">';
+      var isTaken = taken[item.idx];
+      var checkColor = isTaken ? 'var(--green)' : 'var(--t3)';
+      var checkBg = isTaken ? 'var(--green-d)' : 'transparent';
+      var opacity = isTaken ? 'opacity:.7' : '';
+      var CHECK_ICON = '<svg viewBox="0 0 10 10" fill="none" width="10" height="10"><polyline points="1.5,5 4,7.5 8.5,2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+      html += '<div class="supp-item" style="cursor:pointer;' + opacity + '" onclick="toggleSuppTaken(\'' + clientId + '\',' + item.idx + ')">';
+      html += '<div onclick="event.stopPropagation();toggleSuppTaken(\'' + clientId + '\',' + item.idx + ')" style="width:22px;height:22px;border-radius:6px;border:1.5px solid ' + checkColor + ';background:' + checkBg + ';display:flex;align-items:center;justify-content:center;cursor:pointer;color:' + checkColor + ';transition:all .15s;flex-shrink:0">' + (isTaken ? CHECK_ICON : '') + '</div>';
       html += '<div class="supp-icon" style="background:' + timingBg[t] + '">' + supp.emoji + '</div>';
-      html += '<div style="flex:1"><div class="supp-nm">' + supp.name + '</div><div class="supp-dose">' + s.dose + ' · ' + supp.note + '</div></div>';
+      html += '<div style="flex:1"><div class="supp-nm"' + (isTaken ? ' style="text-decoration:line-through;color:var(--t3)"' : '') + '>' + supp.name + '</div><div class="supp-dose">' + item.s.dose + ' · ' + supp.note + '</div></div>';
+      if (isTaken) html += '<span style="font-size:10px;color:var(--green);font-weight:500">TAKEN</span>';
       html += '</div>';
     });
   });
@@ -9315,7 +9848,7 @@ function handlePhotoUpload(input, photoType) {
   const reader = new FileReader();
   reader.onload = function(e) {
     const dataUrl = e.target.result;
-    const clientId = document.body.dataset.activeClient || 'niels';
+    var clientId = activeCoachClient || 'rick';
 
     // Store in data object
     if (!PROGRESS_PHOTOS[clientId]) {
@@ -9358,25 +9891,66 @@ function toggleMeasurementForm() {
 }
 
 function saveMeasurements() {
-  const weight = parseFloat(document.getElementById('meas-weight').value);
-  const waist = parseFloat(document.getElementById('meas-waist').value);
-  const chest = parseFloat(document.getElementById('meas-chest').value);
-  const arms = parseFloat(document.getElementById('meas-arms').value);
-  const thighs = parseFloat(document.getElementById('meas-thighs').value);
+  var weight = parseFloat(document.getElementById('meas-weight').value);
+  var waist = parseFloat(document.getElementById('meas-waist').value);
+  var chest = parseFloat(document.getElementById('meas-chest').value);
+  var arms = parseFloat(document.getElementById('meas-arms').value);
+  var thighs = parseFloat(document.getElementById('meas-thighs').value);
 
-  // Validate
   if (!weight || !waist || !chest || !arms || !thighs) {
     showToast('⚠ Please fill in all fields');
     return;
   }
 
-  const clientId = document.body.dataset.activeClient || 'niels';
+  // Use correct client ID
+  var clientId = activeCoachClient || 'rick';
+  var todayKey = new Date().toISOString().slice(0, 10);
 
-  // Store measurements
-  if (!CLIENT_MEASUREMENTS[clientId]) {
-    CLIENT_MEASUREMENTS[clientId] = {};
+  // Store latest measurements
+  CLIENT_MEASUREMENTS[clientId] = {weight:weight, waist:waist, chest:chest, arms:arms, thighs:thighs};
+
+  // Add to measurement history
+  if (!MEASUREMENT_HISTORY[clientId]) MEASUREMENT_HISTORY[clientId] = [];
+  var hist = MEASUREMENT_HISTORY[clientId];
+  // Check if there's already an entry this week — update it
+  var lastEntry = hist.length ? hist[hist.length - 1] : null;
+  var daysSinceLast = lastEntry ? Math.floor((new Date(todayKey) - new Date(lastEntry.date)) / 86400000) : 999;
+  if (daysSinceLast < 5 && lastEntry) {
+    // Update existing entry
+    lastEntry.weight = weight; lastEntry.waist = waist; lastEntry.chest = chest;
+    lastEntry.arms = arms; lastEntry.thighs = thighs; lastEntry.date = todayKey;
+  } else {
+    hist.push({date:todayKey, weight:weight, waist:waist, chest:chest, arms:arms, thighs:thighs});
   }
-  CLIENT_MEASUREMENTS[clientId] = {weight, waist, chest, arms, thighs};
+
+  // Also log weight to daily weight log
+  var wLog = WEIGHT_LOG[clientId] || [];
+  var todayW = wLog.find(function(e) { return e.date === todayKey; });
+  if (todayW) todayW.weight = weight;
+  else wLog.push({date:todayKey, weight:weight});
+  WEIGHT_LOG[clientId] = wLog;
+  CLIENT_WEIGHTS[clientId] = weight;
+  if (CLIENT_META[clientId]) CLIENT_META[clientId].weight = weight;
+
+  // Update measurement display with new values + diffs
+  var display = document.getElementById('meas-display');
+  if (display && hist.length >= 2) {
+    var prev = hist[hist.length - 2];
+    var curr = hist[hist.length - 1];
+    var fields = ['waist','chest','arms','thighs'];
+    var labels = ['Waist','Chest','Arms','Thighs'];
+    display.innerHTML = fields.map(function(f, i) {
+      var diff = Math.round((curr[f] - prev[f]) * 10) / 10;
+      var color = diff < 0 ? 'color:var(--green)' : diff > 0 ? 'color:var(--orange)' : 'color:var(--t3)';
+      var arrow = diff < 0 ? '↓ ' : diff > 0 ? '↑ +' : '→ ';
+      return '<div class="meas-item"><div class="meas-lbl">' + labels[i] + '</div><div><span class="meas-val">' + curr[f] + '</span><span class="meas-unit">cm</span></div><div class="meas-ch" style="' + color + '">' + arrow + Math.abs(diff) + ' cm</div></div>';
+    }).join('');
+  } else if (display) {
+    display.innerHTML = '<div class="meas-item"><div class="meas-lbl">Waist</div><div><span class="meas-val">' + waist + '</span><span class="meas-unit">cm</span></div><div class="meas-ch" style="color:var(--t3)">First entry</div></div>' +
+      '<div class="meas-item"><div class="meas-lbl">Chest</div><div><span class="meas-val">' + chest + '</span><span class="meas-unit">cm</span></div><div class="meas-ch" style="color:var(--t3)">First entry</div></div>' +
+      '<div class="meas-item"><div class="meas-lbl">Arms</div><div><span class="meas-val">' + arms + '</span><span class="meas-unit">cm</span></div><div class="meas-ch" style="color:var(--t3)">First entry</div></div>' +
+      '<div class="meas-item"><div class="meas-lbl">Thighs</div><div><span class="meas-val">' + thighs + '</span><span class="meas-unit">cm</span></div><div class="meas-ch" style="color:var(--t3)">First entry</div></div>';
+  }
 
   // Clear form
   document.getElementById('meas-weight').value = '';
@@ -9385,9 +9959,10 @@ function saveMeasurements() {
   document.getElementById('meas-arms').value = '';
   document.getElementById('meas-thighs').value = '';
 
-  // Toggle back to display
-  toggleMeasurementForm();
+  // Update progress tab
+  updateProgressTab(clientId);
 
+  toggleMeasurementForm();
   showToast('✓ Measurements saved');
 }
 </script>
