@@ -1594,8 +1594,20 @@ textarea.t-area:focus{border-color:var(--gold)}
             <button class="btn btn-gr" style="margin-left:auto;white-space:nowrap" id="start-workout-btn" onclick="startWorkout()">▶ Start</button>
           </div>
           <div id="workout-exercises"></div>
+          <div id="workout-note-area" style="display:none;margin-top:10px">
+            <div class="card-sm" style="background:var(--s2);border:1px solid var(--border)">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                <span style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:1px;font-weight:500">Workout Note</span>
+                <button onclick="toggleWorkoutNote()" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:14px;padding:2px" title="Close">✕</button>
+              </div>
+              <textarea id="workout-note-input" placeholder="How did the session feel? Any pain, fatigue, RPE notes..." style="width:100%;min-height:70px;background:var(--s3);border:1px solid var(--border);border-radius:8px;color:var(--t1);font-family:var(--ff);font-size:12px;padding:10px;resize:vertical;outline:none;box-sizing:border-box" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border)'"></textarea>
+              <div style="display:flex;justify-content:flex-end;margin-top:6px">
+                <button class="btn btn-p btn-sm" onclick="saveWorkoutNote()">Save Note</button>
+              </div>
+            </div>
+          </div>
           <div style="display:flex;gap:10px;margin-top:14px" id="workout-actions">
-            <button class="btn btn-g" style="flex:1">+ Add Note</button>
+            <button class="btn btn-g" style="flex:1" onclick="toggleWorkoutNote()">+ Add Note</button>
             <button class="btn btn-gr" style="flex:1" id="finish-workout-btn" onclick="finishWorkout()">Finish Workout ✓</button>
           </div>
         </div>
@@ -7805,20 +7817,20 @@ function renderClientMeals() {
       </div>`;
     });
 
+    // Inline food search for this meal (hidden by default)
+    html += `<div id="client-food-search-${mi}" class="client-food-search-inline" style="display:none;margin-top:6px;margin-bottom:4px">
+      <div style="background:var(--s2);border-radius:10px;padding:10px;border:1px solid var(--border)">
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px"><div class="search-bar" style="flex:1;margin-bottom:0"><svg viewBox="0 0 14 14" fill="none" width="14" height="14"><circle cx="6" cy="6" r="4" stroke="var(--t3)" stroke-width="1.4"/><path d="M10 10l3 3" stroke="var(--t3)" stroke-width="1.4" stroke-linecap="round"/></svg><input class="search-input cl-food-search-inp" data-meal="${mi}" placeholder="Search foods to add..." oninput="searchClientFoods(this.value, ${mi})"></div><button onclick="openBarcodeScanner('client')" title="Scan barcode" style="background:var(--s3);border:1px solid var(--border);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:16px;line-height:1">📷</button><button onclick="toggleClientFoodSearch(${mi})" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:14px;padding:4px" title="Close">✕</button></div>
+        <div class="food-search-panel" id="cl-food-search-panel-${mi}" style="display:none">
+          <div style="display:grid;grid-template-columns:1fr 50px 50px 50px 50px auto;padding:4px 12px;font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--t3)"><span>Food (per 100g)</span><span style="text-align:center">KCAL</span><span style="text-align:center;color:var(--green)">PRO</span><span style="text-align:center;color:var(--blue)">CARB</span><span style="text-align:center;color:var(--red)">FAT</span><span></span></div>
+          <div class="food-search-results" id="cl-food-search-results-${mi}"></div>
+        </div>
+      </div>
+    </div>`;
+
     html += `<div style="font-family:var(--fm);font-size:11px;color:var(--t2);margin-top:6px">~${Math.round(mealK)} kcal · P:${round1(mealP)}g C:${round1(mealC)}g F:${round1(mealF)}g</div>
     </div>`;
   });
-
-  // Client food search (hidden by default)
-  html += `<div id="client-food-search" style="display:none;margin-top:8px">
-    <div class="card-sm">
-      <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px"><div class="search-bar" style="flex:1;margin-bottom:0"><svg viewBox="0 0 14 14" fill="none" width="14" height="14"><circle cx="6" cy="6" r="4" stroke="var(--t3)" stroke-width="1.4"/><path d="M10 10l3 3" stroke="var(--t3)" stroke-width="1.4" stroke-linecap="round"/></svg><input class="search-input" id="cl-food-search-inp" placeholder="Search foods to add..." oninput="searchClientFoods(this.value)"></div><button onclick="openBarcodeScanner('client')" title="Scan barcode" style="background:var(--bg3);border:1px solid var(--bd);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:16px;line-height:1">📷</button></div>
-      <div class="food-search-panel" id="cl-food-search-panel" style="display:none">
-        <div style="display:grid;grid-template-columns:1fr 50px 50px 50px 50px auto;padding:4px 12px;font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--t3)"><span>Food (per 100g)</span><span style="text-align:center">KCAL</span><span style="text-align:center;color:var(--green)">PRO</span><span style="text-align:center;color:var(--blue)">CARB</span><span style="text-align:center;color:var(--red)">FAT</span><span></span></div>
-        <div class="food-search-results" id="cl-food-search-results"></div>
-      </div>
-    </div>
-  </div>`;
 
   body.innerHTML = html;
   updateClientNutritionTotals();
@@ -7856,12 +7868,17 @@ function toggleClientFoodCheck(mi, fi) {
 
 function toggleClientFoodSearch(mealIdx) {
   clientAddingToMeal = mealIdx;
-  var panel = document.getElementById('client-food-search');
+  // Close all other inline search panels first
+  document.querySelectorAll('.client-food-search-inline').forEach(function(el) {
+    var idx = parseInt(el.id.replace('client-food-search-', ''));
+    if (idx !== mealIdx) el.style.display = 'none';
+  });
+  var panel = document.getElementById('client-food-search-' + mealIdx);
   if (!panel) return;
   if (panel.style.display === 'none') {
     panel.style.display = 'block';
     setTimeout(function() {
-      var inp = document.getElementById('cl-food-search-inp');
+      var inp = panel.querySelector('.cl-food-search-inp');
       if (inp) { inp.value = ''; inp.focus(); }
     }, 50);
   } else {
@@ -7869,9 +7886,10 @@ function toggleClientFoodSearch(mealIdx) {
   }
 }
 
-function searchClientFoods(query) {
-  var panel = document.getElementById('cl-food-search-panel');
-  var results = document.getElementById('cl-food-search-results');
+function searchClientFoods(query, mealIdx) {
+  if (mealIdx === undefined) mealIdx = clientAddingToMeal;
+  var panel = document.getElementById('cl-food-search-panel-' + mealIdx);
+  var results = document.getElementById('cl-food-search-results-' + mealIdx);
   if (!panel || !results) return;
   var q = query.toLowerCase().trim();
   if (!q) { panel.style.display = 'none'; return; }
@@ -7897,7 +7915,7 @@ function searchClientFoods(query) {
   clearTimeout(offSearchTimeout);
   if (q.length >= 3) {
     offSearchTimeout = setTimeout(function() {
-      searchOpenFoodFacts(q, 'cl-food-search-results', 'client');
+      searchOpenFoodFacts(q, 'cl-food-search-results-' + mealIdx, 'client');
     }, 400);
   }
 }
@@ -7921,9 +7939,8 @@ function addClientFood(foodId) {
   });
   renderClientMeals();
   showToast('✓ ' + food.name + ' added to ' + clientMeals[mi].name);
-  // Hide search
-  var panel = document.getElementById('client-food-search');
-  if (panel) panel.style.display = 'none';
+  // Hide search — close all inline panels
+  document.querySelectorAll('.client-food-search-inline').forEach(function(el) { el.style.display = 'none'; });
 }
 
 function removeClientFood(mi, fi) {
@@ -9155,6 +9172,37 @@ function toggleSet(ei, si) {
     const allDone = clientExercises[ei].current.every(s => s.done);
     if (allDone) showToast('✓ ' + clientExercises[ei].name + ' complete!');
   }
+}
+
+var clientWorkoutNotes = {}; // { clientId: { dayIdx: 'note text' } }
+
+function toggleWorkoutNote() {
+  var area = document.getElementById('workout-note-area');
+  if (!area) return;
+  if (area.style.display === 'none') {
+    area.style.display = 'block';
+    var clientId = activeCoachClient || 'rick';
+    var inp = document.getElementById('workout-note-input');
+    if (inp) {
+      // Load existing note if any
+      var existing = (clientWorkoutNotes[clientId] && clientWorkoutNotes[clientId][clientWorkoutDay]) || '';
+      inp.value = existing;
+      setTimeout(function() { inp.focus(); }, 50);
+    }
+  } else {
+    area.style.display = 'none';
+  }
+}
+
+function saveWorkoutNote() {
+  var inp = document.getElementById('workout-note-input');
+  if (!inp) return;
+  var note = inp.value.trim();
+  var clientId = activeCoachClient || 'rick';
+  if (!clientWorkoutNotes[clientId]) clientWorkoutNotes[clientId] = {};
+  clientWorkoutNotes[clientId][clientWorkoutDay] = note;
+  document.getElementById('workout-note-area').style.display = 'none';
+  showToast(note ? 'Note saved ✓' : 'Note cleared');
 }
 
 function finishWorkout() {
