@@ -758,67 +758,54 @@ textarea.t-area:focus{border-color:var(--gold)}
 
     <!-- COMMAND CENTER -->
     <div class="screen active" id="screen-c-overview">
-      <!-- SECTION A: ALERTS -->
-      <div class="card" style="margin-bottom:20px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-          <div class="section-hd" style="font-size:16px;margin-bottom:0">🔴 WHO NEEDS ME TODAY <span id="smart-action-count" style="font-size:11px;color:var(--red);font-weight:400"></span></div>
-          <div style="display:flex;gap:6px">
-            <button class="chip" style="font-size:10px" onclick="filterSmartActions('all')">All</button>
-            <button class="chip" style="font-size:10px" onclick="filterSmartActions('urgent')">🔴 Urgent</button>
-            <button class="chip" style="font-size:10px" onclick="filterSmartActions('positive')">🟢 Positive</button>
-          </div>
-        </div>
-        <div id="smart-actions-feed" style="display:flex;flex-direction:column;gap:8px">
-          <!-- Dynamically populated by renderSmartActions() -->
-        </div>
+
+      <!-- SECTION 1: KPI ROW -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px">
+        <div class="card"><div class="kl">Check-ins Today</div><div class="kv" id="kpi-checkins-today">0<span class="ku" id="kpi-checkins-total">/ 4</span></div><div class="pbar" style="margin-top:8px"><div class="pfill" id="kpi-checkins-bar" style="width:0%"></div></div></div>
+        <div class="card"><div class="kl">Avg Weekly Score</div><div class="kv" id="kpi-avg-score">0<span class="ku">/ 100</span></div><div class="kd" id="kpi-avg-score-trend"></div><div class="pbar" style="margin-top:8px"><div class="pfill gr" id="kpi-avg-score-bar" style="width:0%"></div></div></div>
+        <div class="card" style="border-color:rgba(255,82,82,.25)"><div class="kl">⚠ At Risk</div><div class="kv" style="color:var(--red)" id="kpi-at-risk">0<span class="ku">clients</span></div><div class="kd dn" id="kpi-at-risk-desc">Needs attention</div><button class="btn btn-r btn-sm" style="margin-top:8px;width:100%" onclick="cGo('c-clients',document.getElementById('ni-c-clients'))">Review Now</button></div>
       </div>
 
-      <!-- SECTION B + C: CHECK-INS + KPIs in g7030 layout -->
-      <div class="g7030">
-        <div>
-          <!-- TODAY'S CHECK-INS SECTION -->
-          <div class="card" style="margin-bottom:16px">
-            <div class="section-hd" style="font-size:16px;margin-bottom:14px">📋 TODAY'S CHECK-INS <span class="mla" style="cursor:pointer;color:var(--gold)" onclick="cGo('c-checkins',document.getElementById('ni-c-checkins'))">View all →</span></div>
-            <div id="today-checkins-feed" style="display:flex;flex-direction:column;gap:8px">
-              <!-- Dynamically populated by renderTodayCheckins() -->
+      <!-- SECTION 2: ACTION REQUIRED + CLIENT SCOREBOARD -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+
+        <!-- LEFT: ACTION REQUIRED -->
+        <div class="card" style="max-height:420px;display:flex;flex-direction:column">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <div class="section-hd" style="font-size:15px;margin-bottom:0">Action Required <span id="smart-action-count" style="font-size:11px;color:var(--red);font-weight:400"></span></div>
+            <div style="display:flex;gap:4px">
+              <button class="chip active" style="font-size:9px;padding:3px 8px" onclick="filterSmartActions('all')">All</button>
+              <button class="chip" style="font-size:9px;padding:3px 8px" onclick="filterSmartActions('urgent')">Urgent</button>
             </div>
           </div>
-
-          <!-- KPI CARDS -->
-          <div class="g4">
-            <div class="card"><div class="kl">Active Clients</div><div class="kv">24<span class="ku">clients</span></div><div class="kd up">↑ +3 this month</div><div class="spark" style="margin-top:12px"><div class="spark-bar" style="height:50%;background:var(--green)"></div><div class="spark-bar" style="height:65%;background:var(--green)"></div><div class="spark-bar" style="height:60%;background:var(--green)"></div><div class="spark-bar" style="height:78%;background:var(--green)"></div><div class="spark-bar" style="height:85%;background:var(--gold)"></div><div class="spark-bar" style="height:100%;background:var(--gold-l)"></div></div></div>
-            <div class="card"><div class="kl">Avg Weekly Score</div><div class="kv" id="kpi-avg-score">0<span class="ku">/ 100</span></div><div class="kd" id="kpi-avg-score-trend"></div><div class="pbar" style="margin-top:12px"><div class="pfill gr" id="kpi-avg-score-bar" style="width:0%"></div></div></div>
-            <div class="card" style="border-color:rgba(255,82,82,.25)"><div class="kl">⚠ At Risk</div><div class="kv" style="color:var(--red)" id="kpi-at-risk">0<span class="ku">clients</span></div><div class="kd dn" id="kpi-at-risk-desc">Needs attention</div><button class="btn btn-r btn-sm" style="margin-top:12px;width:100%" onclick="cGo('c-clients',document.getElementById('ni-c-clients'))">Review Now</button></div>
-            <div class="card"><div class="kl">Avg Streak</div><div class="kv" id="kpi-avg-streak">0<span class="ku">days</span></div><div class="kd" id="kpi-streak-trend"></div><div style="display:flex;gap:3px;margin-top:12px" id="kpi-streak-bars"></div></div>
+          <div id="smart-actions-feed" style="display:flex;flex-direction:column;gap:6px;overflow-y:auto;flex:1">
+            <!-- Dynamically populated by renderSmartActions() -->
           </div>
         </div>
 
-        <!-- RIGHT SIDEBAR: AI INSIGHTS + ALERTS -->
-        <div>
-          <div class="ai-panel" style="margin-bottom:14px">
-            <div class="ai-hdr"><div class="ai-icon"><svg viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M7.5 1v2M7.5 12v2M1 7.5h2M12 7.5h2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div><div><div class="ai-title">AI INSIGHTS</div><div class="ai-sub">Updated just now</div></div></div>
-            <div class="ai-msg">⚠ <strong style="color:var(--red)">Rick Linden</strong> — 4 days no check-in. Week 3 = highest dropout week. Immediate outreach recommended.<br><br>📈 <strong style="color:var(--gold)">Niels van Berg</strong> — 6-day plateau detected. Apply +200kcal carbs to break through.<br><br>🏆 <strong style="color:var(--orange)">Stefan Wolff</strong> — Ready for strength block upgrade. Best performer this month.</div>
-            <div style="display:flex;gap:6px"><button class="btn btn-r btn-sm" onclick="openModal('rick')">Message Rick</button><button class="btn btn-p btn-sm" onclick="applyAI(+200)">+200 kcal</button><button class="btn btn-r btn-sm" onclick="applyAI(-200)">−200 kcal</button></div>
+        <!-- RIGHT: CLIENT SCOREBOARD -->
+        <div class="card" style="max-height:420px;display:flex;flex-direction:column">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <div class="section-hd" style="font-size:15px;margin-bottom:0">All Clients</div>
+            <span class="mla" style="cursor:pointer;color:var(--gold);font-size:11px" onclick="cGo('c-clients',document.getElementById('ni-c-clients'))">Manage →</span>
           </div>
-          <div class="card-sm" id="training-alerts-card">
-            <div class="kl" style="margin-bottom:10px">🏋️ Training Alerts</div>
-            <div id="training-alerts-body" style="display:flex;flex-direction:column;gap:6px">
-            </div>
-          </div>
-          <div class="card-sm" style="margin-bottom:14px">
-            <div class="kl" style="margin-bottom:10px">📅 Today's Schedule</div>
-            <div id="todays-schedule" style="display:flex;flex-direction:column;gap:6px">
-              <!-- Dynamically populated -->
-            </div>
-          </div>
-          <div class="card-sm">
-            <div class="kl" style="margin-bottom:10px">Live Activity</div>
-            <div id="live-activity-feed" style="display:flex;flex-direction:column;gap:6px">
-              <!-- Dynamically populated -->
-            </div>
+          <div id="client-scoreboard" style="display:flex;flex-direction:column;gap:4px;overflow-y:auto;flex:1">
+            <!-- Dynamically populated by renderClientScoreboard() -->
           </div>
         </div>
+
       </div>
+
+      <!-- SECTION 3: SCHEDULE STRIP -->
+      <div id="schedule-strip" style="display:flex;gap:10px;overflow-x:auto;padding:2px 0">
+        <!-- Dynamically populated by renderScheduleStrip() -->
+      </div>
+
+      <!-- Hidden containers for backwards compat -->
+      <div id="today-checkins-feed" style="display:none"></div>
+      <div id="training-alerts-body" style="display:none"></div>
+      <div id="todays-schedule" style="display:none"></div>
+      <div id="live-activity-feed" style="display:none"></div>
     </div>
 
     <!-- ALL CLIENTS -->
@@ -2532,7 +2519,321 @@ const FOOD_DB = [
   {id:197, name:'Sriracha', cat:'condiment', p:0.5, c:6, f:0.2, kcal:27},
   {id:198, name:'Olive Oil Spray', cat:'condiment', p:0, c:0, f:12, kcal:120},
   {id:199, name:'Fish Sauce', cat:'condiment', p:25, c:0, f:0.1, kcal:109},
-  {id:200, name:'Worcestershire Sauce', cat:'condiment', p:0.5, c:8, f:0, kcal:36}
+  {id:200, name:'Worcestershire Sauce', cat:'condiment', p:0.5, c:8, f:0, kcal:36},
+  // === PROTEIN SOURCES ===
+  {id:206, name:'Turkey Breast', cat:'protein', p:29, c:0, f:1, kcal:135},
+  {id:207, name:'Turkey Mince (lean)', cat:'protein', p:27, c:0, f:3, kcal:140},
+  {id:208, name:'Duck Breast', cat:'protein', p:19, c:0, f:6, kcal:135},
+  {id:209, name:'Lamb Leg (lean)', cat:'protein', p:26, c:0, f:8, kcal:180},
+  {id:210, name:'Lamb Mince', cat:'protein', p:24, c:0, f:12, kcal:210},
+  {id:211, name:'Pork Tenderloin', cat:'protein', p:26, c:0, f:3.5, kcal:143},
+  {id:212, name:'Pork Chop (lean)', cat:'protein', p:25, c:0, f:6, kcal:160},
+  {id:213, name:'Pork Belly', cat:'protein', p:14, c:0, f:37, kcal:393},
+  {id:214, name:'Bacon (back)', cat:'protein', p:25, c:0, f:12, kcal:215},
+  {id:215, name:'Bacon (streaky)', cat:'protein', p:20, c:0, f:30, kcal:355},
+  {id:216, name:'Veal Escalope', cat:'protein', p:28, c:0, f:3, kcal:144},
+  {id:217, name:'Venison Steak', cat:'protein', p:30, c:0, f:2, kcal:142},
+  {id:218, name:'Bison Steak', cat:'protein', p:28, c:0, f:2.5, kcal:143},
+  {id:219, name:'Chicken Thigh (skinless)', cat:'protein', p:24, c:0, f:4, kcal:140},
+  {id:220, name:'Chicken Thigh (with skin)', cat:'protein', p:22, c:0, f:10, kcal:185},
+  {id:221, name:'Chicken Drumstick', cat:'protein', p:20, c:0, f:8, kcal:155},
+  {id:222, name:'Chicken Wing', cat:'protein', p:18, c:0, f:12, kcal:185},
+  {id:223, name:'Chicken Liver', cat:'protein', p:17, c:1, f:5, kcal:119},
+  {id:224, name:'Beef Liver', cat:'protein', p:20, c:4, f:4, kcal:135},
+  {id:225, name:'Beef Ribs', cat:'protein', p:21, c:0, f:18, kcal:250},
+  {id:226, name:'Corned Beef', cat:'protein', p:25, c:0, f:12, kcal:215},
+  {id:227, name:'Beef Jerky', cat:'protein', p:33, c:11, f:3.5, kcal:220},
+  {id:228, name:'Seitan', cat:'protein', p:25, c:4, f:1.5, kcal:130},
+  {id:229, name:'Tempeh', cat:'protein', p:19, c:9, f:11, kcal:195},
+  {id:230, name:'Tofu (extra firm)', cat:'protein', p:15, c:2, f:9, kcal:150},
+  {id:231, name:'Tofu (silken)', cat:'protein', p:5, c:2, f:3, kcal:55},
+  {id:232, name:'Edamame (shelled)', cat:'protein', p:12, c:9, f:5, kcal:122},
+  {id:233, name:'Protein Powder (whey)', cat:'protein', p:80, c:6, f:3, kcal:390},
+  {id:234, name:'Protein Powder (casein)', cat:'protein', p:75, c:8, f:2, kcal:360},
+  {id:235, name:'Protein Powder (vegan)', cat:'protein', p:70, c:10, f:5, kcal:380},
+  {id:236, name:'Kipfilet (smoked)', cat:'protein', p:28, c:1, f:2, kcal:138},
+  // === FISH & SEAFOOD ===
+  {id:237, name:'Tuna Steak (fresh)', cat:'protein', p:30, c:0, f:1, kcal:132},
+  {id:238, name:'Tuna (canned in water)', cat:'protein', p:26, c:0, f:1, kcal:116},
+  {id:239, name:'Tuna (canned in oil)', cat:'protein', p:25, c:0, f:8, kcal:186},
+  {id:240, name:'Salmon (smoked)', cat:'protein', p:20, c:0, f:8, kcal:160},
+  {id:241, name:'Sea Bass', cat:'protein', p:21, c:0, f:2.5, kcal:110},
+  {id:242, name:'Mackerel (fresh)', cat:'protein', p:19, c:0, f:14, kcal:205},
+  {id:243, name:'Mackerel (canned)', cat:'protein', p:21, c:0, f:12, kcal:195},
+  {id:244, name:'Sardines (canned)', cat:'protein', p:21, c:0, f:11, kcal:190},
+  {id:245, name:'Haddock', cat:'protein', p:21, c:0, f:1, kcal:95},
+  {id:246, name:'Halibut', cat:'protein', p:21, c:0, f:2, kcal:105},
+  {id:247, name:'Pangasius', cat:'protein', p:15, c:0, f:3, kcal:90},
+  {id:248, name:'Swordfish', cat:'protein', p:20, c:0, f:5, kcal:130},
+  {id:249, name:'Calamari (squid)', cat:'protein', p:18, c:3, f:1.5, kcal:92},
+  {id:250, name:'Mussels', cat:'protein', p:12, c:4, f:2, kcal:86},
+  {id:251, name:'Crab Meat', cat:'protein', p:19, c:0, f:1, kcal:87},
+  {id:252, name:'Lobster', cat:'protein', p:20, c:0, f:1, kcal:90},
+  {id:253, name:'Anchovies', cat:'protein', p:20, c:0, f:5, kcal:131},
+  {id:254, name:'Kibbeling', cat:'protein', p:12, c:15, f:10, kcal:200},
+  {id:255, name:'Haring (raw herring)', cat:'protein', p:17, c:0, f:12, kcal:180},
+  // === DAIRY ===
+  {id:256, name:'Skyr (plain)', cat:'dairy', p:11, c:4, f:0.2, kcal:63},
+  {id:257, name:'Skyr (vanilla)', cat:'dairy', p:10, c:8, f:0.2, kcal:75},
+  {id:258, name:'Cottage Cheese (low fat)', cat:'dairy', p:12, c:3, f:2, kcal:80},
+  {id:259, name:'Cottage Cheese (full fat)', cat:'dairy', p:11, c:3, f:4.5, kcal:98},
+  {id:260, name:'Cream Cheese', cat:'dairy', p:6, c:3, f:34, kcal:342},
+  {id:261, name:'Cream Cheese (light)', cat:'dairy', p:8, c:4, f:16, kcal:195},
+  {id:262, name:'Gouda (jong)', cat:'dairy', p:25, c:0, f:27, kcal:349},
+  {id:263, name:'Gouda (belegen)', cat:'dairy', p:26, c:0, f:30, kcal:375},
+  {id:264, name:'Cheddar', cat:'dairy', p:25, c:1, f:33, kcal:403},
+  {id:265, name:'Mozzarella (fresh)', cat:'dairy', p:18, c:1, f:17, kcal:230},
+  {id:266, name:'Mozzarella (light)', cat:'dairy', p:20, c:2, f:10, kcal:180},
+  {id:267, name:'Parmesan', cat:'dairy', p:35, c:3, f:26, kcal:392},
+  {id:268, name:'Feta', cat:'dairy', p:14, c:1, f:21, kcal:250},
+  {id:269, name:'Ricotta', cat:'dairy', p:8, c:3, f:10, kcal:140},
+  {id:270, name:'Brie', cat:'dairy', p:21, c:0.5, f:28, kcal:334},
+  {id:271, name:'Edam', cat:'dairy', p:25, c:1, f:25, kcal:330},
+  {id:272, name:'Whipped Cream', cat:'dairy', p:2, c:3, f:30, kcal:292},
+  {id:273, name:'Sour Cream', cat:'dairy', p:2.5, c:3, f:20, kcal:198},
+  {id:274, name:'Buttermilk (Karnemelk)', cat:'dairy', p:3.5, c:4.5, f:0.5, kcal:36},
+  {id:275, name:'Vla (vanille)', cat:'dairy', p:3, c:14, f:2, kcal:86},
+  {id:276, name:'Yoghurt Drink', cat:'dairy', p:3, c:11, f:1, kcal:65},
+  {id:277, name:'Protein Yoghurt', cat:'dairy', p:15, c:6, f:0.3, kcal:88},
+  {id:278, name:'Hüttenkäse', cat:'dairy', p:13, c:2, f:4, kcal:95},
+  // === EGGS ===
+  {id:279, name:'Egg White (1 large)', cat:'protein', p:11, c:0.7, f:0.2, kcal:52},
+  {id:280, name:'Egg Yolk (1 large)', cat:'protein', p:16, c:1, f:27, kcal:317},
+  // === BREADS & BAKERY ===
+  {id:281, name:'Volkoren Brood (whole wheat)', cat:'carb', p:9, c:41, f:3, kcal:230},
+  {id:282, name:'Wit Brood (white bread)', cat:'carb', p:8, c:49, f:2.5, kcal:255},
+  {id:283, name:'Roggebrood (rye bread)', cat:'carb', p:6, c:42, f:1, kcal:205},
+  {id:284, name:'Tigerbread', cat:'carb', p:8, c:48, f:3, kcal:256},
+  {id:285, name:'Pumpernickel', cat:'carb', p:7, c:40, f:1, kcal:200},
+  {id:286, name:'Beschuit', cat:'carb', p:9, c:72, f:3, kcal:358},
+  {id:287, name:'Cracker (whole grain)', cat:'carb', p:10, c:60, f:12, kcal:395},
+  {id:288, name:'Rice Cake', cat:'carb', p:8, c:80, f:2, kcal:387},
+  {id:289, name:'Corn Tortilla Wrap', cat:'carb', p:6, c:46, f:3, kcal:237},
+  {id:290, name:'Whole Wheat Wrap', cat:'carb', p:9, c:45, f:5, kcal:265},
+  {id:291, name:'Croissant', cat:'carb', p:8, c:46, f:21, kcal:406},
+  {id:292, name:'Bagel', cat:'carb', p:10, c:51, f:2, kcal:270},
+  {id:293, name:'Ontbijtkoek', cat:'carb', p:3, c:70, f:2, kcal:315},
+  {id:294, name:'Stroopwafel', cat:'snack', p:3, c:60, f:17, kcal:410},
+  // === GRAINS & CARB SOURCES ===
+  {id:295, name:'Couscous (dry)', cat:'carb', p:13, c:72, f:1, kcal:356},
+  {id:296, name:'Couscous (cooked)', cat:'carb', p:4, c:23, f:0.3, kcal:112},
+  {id:297, name:'Bulgur (dry)', cat:'carb', p:12, c:63, f:1.5, kcal:342},
+  {id:298, name:'Bulgur (cooked)', cat:'carb', p:3, c:19, f:0.2, kcal:83},
+  {id:299, name:'Quinoa (dry)', cat:'carb', p:14, c:64, f:6, kcal:368},
+  {id:300, name:'Quinoa (cooked)', cat:'carb', p:4.4, c:21, f:1.9, kcal:120},
+  {id:301, name:'Pearl Barley (cooked)', cat:'carb', p:2.3, c:28, f:0.4, kcal:123},
+  {id:302, name:'Buckwheat (cooked)', cat:'carb', p:3.4, c:20, f:0.6, kcal:92},
+  {id:303, name:'Millet (cooked)', cat:'carb', p:3.5, c:23, f:1, kcal:119},
+  {id:304, name:'Polenta (cooked)', cat:'carb', p:2.5, c:13, f:0.5, kcal:70},
+  {id:305, name:'Corn (canned)', cat:'carb', p:2.5, c:15, f:1, kcal:80},
+  {id:306, name:'Corn on the Cob', cat:'carb', p:3.3, c:19, f:1.5, kcal:96},
+  {id:307, name:'Rice Noodles (cooked)', cat:'carb', p:1.6, c:24, f:0.2, kcal:109},
+  {id:308, name:'Glass Noodles (cooked)', cat:'carb', p:0, c:20, f:0, kcal:80},
+  {id:309, name:'Egg Noodles (cooked)', cat:'carb', p:5, c:25, f:2, kcal:138},
+  {id:310, name:'Whole Wheat Pasta (cooked)', cat:'carb', p:6, c:27, f:1, kcal:139},
+  {id:311, name:'Orzo (cooked)', cat:'carb', p:5, c:25, f:0.5, kcal:128},
+  {id:312, name:'Gnocchi', cat:'carb', p:4, c:33, f:1, kcal:160},
+  // === LEGUMES ===
+  {id:313, name:'Red Lentils (dry)', cat:'carb', p:25, c:56, f:1, kcal:340},
+  {id:314, name:'Red Lentils (cooked)', cat:'carb', p:9, c:20, f:0.4, kcal:116},
+  {id:315, name:'Green Lentils (cooked)', cat:'carb', p:9, c:17, f:0.4, kcal:105},
+  {id:316, name:'Chickpeas (canned)', cat:'carb', p:7, c:17, f:2.5, kcal:119},
+  {id:317, name:'Kidney Beans (canned)', cat:'carb', p:7, c:17, f:0.5, kcal:100},
+  {id:318, name:'Black Beans (canned)', cat:'carb', p:7, c:16, f:0.5, kcal:97},
+  {id:319, name:'White Beans (canned)', cat:'carb', p:7, c:17, f:0.5, kcal:100},
+  {id:320, name:'Baked Beans', cat:'carb', p:5, c:16, f:0.5, kcal:90},
+  {id:321, name:'Hummus', cat:'fat', p:8, c:14, f:10, kcal:177},
+  {id:322, name:'Split Peas (cooked)', cat:'carb', p:8, c:21, f:0.4, kcal:118},
+  // === VEGETABLES ===
+  {id:323, name:'Boerenkool (kale, raw)', cat:'vegetable', p:4.3, c:9, f:0.9, kcal:49},
+  {id:324, name:'Spinach (frozen)', cat:'vegetable', p:3, c:2, f:0.4, kcal:23},
+  {id:325, name:'Kale (cooked)', cat:'vegetable', p:3, c:4, f:0.5, kcal:28},
+  {id:326, name:'Brussels Sprouts', cat:'vegetable', p:3.4, c:9, f:0.3, kcal:43},
+  {id:327, name:'Cauliflower', cat:'vegetable', p:2, c:5, f:0.3, kcal:25},
+  {id:328, name:'Cauliflower Rice', cat:'vegetable', p:2, c:3, f:0.3, kcal:20},
+  {id:329, name:'Beetroot (cooked)', cat:'vegetable', p:1.7, c:10, f:0.2, kcal:44},
+  {id:330, name:'Butternut Squash', cat:'vegetable', p:1, c:12, f:0.1, kcal:45},
+  {id:331, name:'Pumpkin', cat:'vegetable', p:1, c:7, f:0.1, kcal:26},
+  {id:332, name:'Courgette (Zucchini)', cat:'vegetable', p:1.2, c:3, f:0.3, kcal:17},
+  {id:333, name:'Aubergine (Eggplant)', cat:'vegetable', p:1, c:6, f:0.2, kcal:25},
+  {id:334, name:'Leek', cat:'vegetable', p:1.5, c:14, f:0.3, kcal:61},
+  {id:335, name:'Celery', cat:'vegetable', p:0.7, c:3, f:0.2, kcal:14},
+  {id:336, name:'Fennel', cat:'vegetable', p:1.2, c:7, f:0.2, kcal:31},
+  {id:337, name:'Radish', cat:'vegetable', p:0.7, c:3.4, f:0.1, kcal:16},
+  {id:338, name:'Artichoke', cat:'vegetable', p:3.3, c:11, f:0.2, kcal:47},
+  {id:339, name:'Green Beans', cat:'vegetable', p:1.8, c:7, f:0.2, kcal:31},
+  {id:340, name:'Sugar Snap Peas', cat:'vegetable', p:3, c:8, f:0.2, kcal:42},
+  {id:341, name:'Asparagus', cat:'vegetable', p:2.2, c:4, f:0.1, kcal:20},
+  {id:342, name:'Red Cabbage', cat:'vegetable', p:1.4, c:7, f:0.2, kcal:31},
+  {id:343, name:'White Cabbage', cat:'vegetable', p:1.3, c:6, f:0.1, kcal:25},
+  {id:344, name:'Pak Choi (Bok Choy)', cat:'vegetable', p:1.5, c:2, f:0.2, kcal:13},
+  {id:345, name:'Spring Onion', cat:'vegetable', p:1.8, c:7, f:0.2, kcal:32},
+  {id:346, name:'Jalapeño', cat:'vegetable', p:0.9, c:6, f:0.4, kcal:29},
+  {id:347, name:'Sun-dried Tomatoes', cat:'vegetable', p:6, c:44, f:3, kcal:213},
+  {id:348, name:'Mushrooms (champignon)', cat:'vegetable', p:3, c:3, f:0.3, kcal:22},
+  {id:349, name:'Mushrooms (shiitake)', cat:'vegetable', p:2.2, c:7, f:0.5, kcal:34},
+  {id:350, name:'Mushrooms (portobello)', cat:'vegetable', p:2.5, c:4, f:0.4, kcal:26},
+  {id:351, name:'Witlof (chicory)', cat:'vegetable', p:0.9, c:4, f:0.1, kcal:17},
+  {id:352, name:'Andijvie (endive)', cat:'vegetable', p:1.3, c:3, f:0.2, kcal:17},
+  // === FRUITS ===
+  {id:353, name:'Blueberries', cat:'fruit', p:0.7, c:14, f:0.3, kcal:57},
+  {id:354, name:'Raspberries', cat:'fruit', p:1.2, c:12, f:0.7, kcal:52},
+  {id:355, name:'Blackberries', cat:'fruit', p:1.4, c:10, f:0.5, kcal:43},
+  {id:356, name:'Cherries', cat:'fruit', p:1, c:16, f:0.2, kcal:63},
+  {id:357, name:'Grapes (red)', cat:'fruit', p:0.7, c:18, f:0.2, kcal:69},
+  {id:358, name:'Grapes (white)', cat:'fruit', p:0.6, c:17, f:0.2, kcal:67},
+  {id:359, name:'Mango', cat:'fruit', p:0.8, c:15, f:0.4, kcal:60},
+  {id:360, name:'Pineapple', cat:'fruit', p:0.5, c:13, f:0.1, kcal:50},
+  {id:361, name:'Kiwi', cat:'fruit', p:1.1, c:15, f:0.5, kcal:61},
+  {id:362, name:'Watermelon', cat:'fruit', p:0.6, c:8, f:0.2, kcal:30},
+  {id:363, name:'Melon (cantaloupe)', cat:'fruit', p:0.8, c:8, f:0.2, kcal:34},
+  {id:364, name:'Pear', cat:'fruit', p:0.4, c:15, f:0.1, kcal:57},
+  {id:365, name:'Peach', cat:'fruit', p:0.9, c:10, f:0.3, kcal:39},
+  {id:366, name:'Nectarine', cat:'fruit', p:1.1, c:11, f:0.3, kcal:44},
+  {id:367, name:'Plum', cat:'fruit', p:0.7, c:11, f:0.3, kcal:46},
+  {id:368, name:'Pomegranate Seeds', cat:'fruit', p:1.7, c:19, f:1.2, kcal:83},
+  {id:369, name:'Passion Fruit', cat:'fruit', p:2.2, c:23, f:0.7, kcal:97},
+  {id:370, name:'Grapefruit', cat:'fruit', p:0.8, c:11, f:0.1, kcal:42},
+  {id:371, name:'Lemon', cat:'fruit', p:1.1, c:9, f:0.3, kcal:29},
+  {id:372, name:'Lime', cat:'fruit', p:0.7, c:11, f:0.2, kcal:30},
+  {id:373, name:'Coconut (fresh)', cat:'fruit', p:3.3, c:15, f:33, kcal:354},
+  {id:374, name:'Dried Dates', cat:'fruit', p:2.5, c:75, f:0.4, kcal:282},
+  {id:375, name:'Dried Apricots', cat:'fruit', p:3.4, c:63, f:0.5, kcal:241},
+  {id:376, name:'Raisins', cat:'fruit', p:3, c:79, f:0.5, kcal:299},
+  {id:377, name:'Cranberries (dried)', cat:'fruit', p:0.1, c:82, f:1.4, kcal:308},
+  // === NUTS & SEEDS ===
+  {id:378, name:'Almonds', cat:'fat', p:21, c:22, f:49, kcal:579},
+  {id:379, name:'Cashews', cat:'fat', p:18, c:30, f:44, kcal:553},
+  {id:380, name:'Walnuts', cat:'fat', p:15, c:14, f:65, kcal:654},
+  {id:381, name:'Pecans', cat:'fat', p:9, c:14, f:72, kcal:691},
+  {id:382, name:'Macadamia Nuts', cat:'fat', p:8, c:14, f:76, kcal:718},
+  {id:383, name:'Pistachios', cat:'fat', p:20, c:28, f:45, kcal:560},
+  {id:384, name:'Hazelnuts', cat:'fat', p:15, c:17, f:61, kcal:628},
+  {id:385, name:'Brazil Nuts', cat:'fat', p:14, c:12, f:66, kcal:659},
+  {id:386, name:'Pine Nuts', cat:'fat', p:14, c:13, f:68, kcal:673},
+  {id:387, name:'Sunflower Seeds', cat:'fat', p:21, c:20, f:51, kcal:584},
+  {id:388, name:'Pumpkin Seeds', cat:'fat', p:30, c:11, f:49, kcal:559},
+  {id:389, name:'Chia Seeds', cat:'fat', p:17, c:42, f:31, kcal:486},
+  {id:390, name:'Flaxseeds', cat:'fat', p:18, c:29, f:42, kcal:534},
+  {id:391, name:'Hemp Seeds', cat:'fat', p:31, c:8, f:49, kcal:553},
+  {id:392, name:'Sesame Seeds', cat:'fat', p:18, c:23, f:50, kcal:573},
+  {id:393, name:'Almond Butter', cat:'fat', p:21, c:19, f:56, kcal:614},
+  {id:394, name:'Cashew Butter', cat:'fat', p:18, c:27, f:46, kcal:574},
+  {id:395, name:'Tahini', cat:'fat', p:17, c:21, f:54, kcal:595},
+  {id:396, name:'Mixed Nuts (unsalted)', cat:'fat', p:18, c:18, f:52, kcal:594},
+  {id:397, name:'Trail Mix', cat:'snack', p:12, c:40, f:30, kcal:462},
+  // === FATS & OILS ===
+  {id:398, name:'Butter (salted)', cat:'fat', p:0.9, c:0.1, f:81, kcal:717},
+  {id:399, name:'Butter (unsalted)', cat:'fat', p:0.9, c:0.1, f:81, kcal:717},
+  {id:400, name:'Ghee', cat:'fat', p:0, c:0, f:99.5, kcal:900},
+  {id:401, name:'Coconut Oil', cat:'fat', p:0, c:0, f:99, kcal:892},
+  {id:402, name:'Avocado Oil', cat:'fat', p:0, c:0, f:100, kcal:884},
+  {id:403, name:'Sesame Oil', cat:'fat', p:0, c:0, f:100, kcal:884},
+  {id:404, name:'Flaxseed Oil', cat:'fat', p:0, c:0, f:100, kcal:884},
+  {id:405, name:'MCT Oil', cat:'fat', p:0, c:0, f:100, kcal:860},
+  // === SNACKS & CONVENIENCE ===
+  {id:406, name:'Protein Bar (average)', cat:'snack', p:20, c:30, f:8, kcal:270},
+  {id:407, name:'Protein Pudding', cat:'snack', p:15, c:12, f:2, kcal:126},
+  {id:408, name:'Dark Chocolate 85%', cat:'snack', p:13, c:22, f:46, kcal:550},
+  {id:409, name:'Dark Chocolate 70%', cat:'snack', p:8, c:33, f:42, kcal:530},
+  {id:410, name:'Milk Chocolate', cat:'snack', p:7, c:56, f:30, kcal:530},
+  {id:411, name:'Popcorn (air-popped)', cat:'snack', p:10, c:65, f:5, kcal:375},
+  {id:412, name:'Popcorn (microwave)', cat:'snack', p:8, c:53, f:18, kcal:420},
+  {id:413, name:'Chips (naturel)', cat:'snack', p:6, c:52, f:33, kcal:536},
+  {id:414, name:'Pretzels', cat:'snack', p:9, c:76, f:3, kcal:380},
+  {id:415, name:'Hagelslag (chocolate sprinkles)', cat:'snack', p:5, c:67, f:20, kcal:470},
+  {id:416, name:'Speculaas', cat:'snack', p:5, c:72, f:14, kcal:435},
+  {id:417, name:'Rookworst', cat:'protein', p:12, c:2, f:22, kcal:258},
+  {id:418, name:'Frikandel', cat:'snack', p:11, c:13, f:16, kcal:240},
+  {id:419, name:'Kroket', cat:'snack', p:7, c:18, f:14, kcal:225},
+  {id:420, name:'Bitterbal', cat:'snack', p:8, c:16, f:15, kcal:235},
+  {id:421, name:'Granola Bar', cat:'snack', p:5, c:60, f:15, kcal:400},
+  {id:422, name:'Energy Bar (oat)', cat:'snack', p:8, c:55, f:12, kcal:370},
+  {id:423, name:'Rice Pudding', cat:'snack', p:3, c:18, f:2.5, kcal:105},
+  {id:424, name:'Poffertjes', cat:'snack', p:5, c:42, f:5, kcal:230},
+  // === POTATOES ===
+  {id:425, name:'Potato (boiled)', cat:'carb', p:2, c:17, f:0.1, kcal:77},
+  {id:426, name:'Potato (baked)', cat:'carb', p:2.5, c:21, f:0.1, kcal:93},
+  {id:427, name:'Potato (mashed)', cat:'carb', p:2, c:15, f:4, kcal:100},
+  {id:428, name:'French Fries (oven)', cat:'carb', p:3, c:30, f:8, kcal:208},
+  {id:429, name:'French Fries (deep fried)', cat:'carb', p:3, c:30, f:15, kcal:274},
+  {id:430, name:'Hash Browns', cat:'carb', p:2, c:24, f:10, kcal:196},
+  {id:431, name:'Patat Oorlog', cat:'snack', p:4, c:28, f:18, kcal:290},
+  // === CONDIMENTS & SAUCES ===
+  {id:432, name:'Mayonnaise', cat:'condiment', p:1, c:1, f:75, kcal:680},
+  {id:433, name:'Mayonnaise (light)', cat:'condiment', p:1, c:6, f:25, kcal:260},
+  {id:434, name:'Ketchup', cat:'condiment', p:1, c:26, f:0.2, kcal:100},
+  {id:435, name:'BBQ Sauce', cat:'condiment', p:1, c:35, f:0.5, kcal:150},
+  {id:436, name:'Sweet Chili Sauce', cat:'condiment', p:0.5, c:45, f:0.3, kcal:185},
+  {id:437, name:'Sriracha', cat:'condiment', p:2, c:17, f:1, kcal:90},
+  {id:438, name:'Teriyaki Sauce', cat:'condiment', p:6, c:16, f:0, kcal:89},
+  {id:439, name:'Pesto (green)', cat:'condiment', p:5, c:4, f:45, kcal:440},
+  {id:440, name:'Pesto (red)', cat:'condiment', p:4, c:8, f:30, kcal:320},
+  {id:441, name:'Sambal Oelek', cat:'condiment', p:2, c:6, f:0.5, kcal:36},
+  {id:442, name:'Satay Sauce (Pindasaus)', cat:'condiment', p:10, c:12, f:22, kcal:282},
+  {id:443, name:'Curry Sauce', cat:'condiment', p:1, c:15, f:5, kcal:110},
+  {id:444, name:'Tzatziki', cat:'condiment', p:3, c:4, f:5, kcal:75},
+  {id:445, name:'Guacamole', cat:'fat', p:2, c:9, f:15, kcal:160},
+  {id:446, name:'Salsa', cat:'condiment', p:1, c:6, f:0.3, kcal:30},
+  {id:447, name:'Vinaigrette', cat:'condiment', p:0, c:3, f:30, kcal:290},
+  {id:448, name:'Caesar Dressing', cat:'condiment', p:2, c:3, f:50, kcal:470},
+  {id:449, name:'Ranch Dressing', cat:'condiment', p:1, c:6, f:45, kcal:430},
+  // === DRINKS & LIQUIDS ===
+  {id:450, name:'Orange Juice (fresh)', cat:'drink', p:0.7, c:10, f:0.2, kcal:45},
+  {id:451, name:'Apple Juice', cat:'drink', p:0.1, c:11, f:0.1, kcal:46},
+  {id:452, name:'Coconut Water', cat:'drink', p:0.7, c:4, f:0.2, kcal:19},
+  {id:453, name:'Coconut Milk (canned)', cat:'fat', p:2, c:3, f:21, kcal:197},
+  {id:454, name:'Oat Milk', cat:'drink', p:1, c:7, f:1.5, kcal:46},
+  {id:455, name:'Almond Milk (unsweetened)', cat:'drink', p:0.5, c:0.3, f:1, kcal:13},
+  {id:456, name:'Soy Milk (unsweetened)', cat:'drink', p:3.3, c:0.5, f:1.8, kcal:33},
+  {id:457, name:'Protein Shake (ready-to-drink)', cat:'drink', p:25, c:5, f:1.5, kcal:135},
+  {id:458, name:'Smoothie (green)', cat:'drink', p:2, c:12, f:0.5, kcal:55},
+  {id:459, name:'Sports Drink', cat:'drink', p:0, c:6, f:0, kcal:26},
+  {id:460, name:'Chocomel', cat:'drink', p:3, c:12, f:3, kcal:85},
+  // === BREAKFAST & CEREALS ===
+  {id:461, name:'Oats (instant)', cat:'carb', p:12, c:62, f:7, kcal:367},
+  {id:462, name:'Muesli (no sugar)', cat:'carb', p:10, c:60, f:8, kcal:355},
+  {id:463, name:'Muesli (crunchy)', cat:'carb', p:8, c:65, f:13, kcal:415},
+  {id:464, name:'Cornflakes', cat:'carb', p:7, c:84, f:1, kcal:378},
+  {id:465, name:'Bran Flakes', cat:'carb', p:10, c:67, f:2, kcal:330},
+  {id:466, name:'Overnight Oats (prepared)', cat:'carb', p:7, c:22, f:5, kcal:155},
+  {id:467, name:'Pancake (plain)', cat:'carb', p:7, c:33, f:5, kcal:205},
+  {id:468, name:'Pannenkoek (Dutch pancake)', cat:'carb', p:6, c:30, f:6, kcal:200},
+  {id:469, name:'Waffle', cat:'carb', p:6, c:37, f:11, kcal:275},
+  {id:470, name:'French Toast', cat:'carb', p:8, c:24, f:7, kcal:195},
+  // === SPREADS & TOPPINGS ===
+  {id:471, name:'Honey', cat:'condiment', p:0.3, c:82, f:0, kcal:304},
+  {id:472, name:'Maple Syrup', cat:'condiment', p:0, c:67, f:0, kcal:260},
+  {id:473, name:'Jam / Marmalade', cat:'condiment', p:0.5, c:60, f:0.1, kcal:240},
+  {id:474, name:'Nutella', cat:'snack', p:6, c:56, f:31, kcal:539},
+  {id:475, name:'Pindakaas (peanut butter, NL)', cat:'fat', p:25, c:10, f:50, kcal:588},
+  {id:476, name:'Apple Syrup (Appelstroop)', cat:'condiment', p:0.5, c:65, f:0, kcal:260},
+  {id:477, name:'Chocolate Spread (light)', cat:'snack', p:5, c:60, f:15, kcal:400},
+  // === PREPARED / CONVENIENCE MEALS ===
+  {id:478, name:'Nasi Goreng (prepared)', cat:'carb', p:7, c:25, f:5, kcal:170},
+  {id:479, name:'Bami Goreng (prepared)', cat:'carb', p:7, c:22, f:5, kcal:160},
+  {id:480, name:'Pizza Margherita', cat:'carb', p:11, c:28, f:10, kcal:250},
+  {id:481, name:'Pizza (meat lovers)', cat:'carb', p:13, c:25, f:14, kcal:280},
+  {id:482, name:'Sushi (salmon nigiri, 1pc)', cat:'carb', p:5, c:15, f:1, kcal:93},
+  {id:483, name:'Sushi (maki roll, per piece)', cat:'carb', p:2, c:10, f:0.5, kcal:50},
+  {id:484, name:'Wrap (chicken)', cat:'carb', p:10, c:20, f:8, kcal:190},
+  {id:485, name:'Broodje Gezond', cat:'carb', p:8, c:25, f:6, kcal:185},
+  {id:486, name:'Tosti (ham & cheese)', cat:'carb', p:12, c:28, f:12, kcal:270},
+  {id:487, name:'Uitsmijter', cat:'protein', p:15, c:20, f:14, kcal:265},
+  {id:488, name:'Erwtensoep (pea soup)', cat:'carb', p:6, c:10, f:3, kcal:90},
+  {id:489, name:'Stamppot (boerenkool)', cat:'carb', p:5, c:12, f:5, kcal:110},
+  {id:490, name:'Hachee (Dutch stew)', cat:'protein', p:10, c:5, f:6, kcal:115},
+  // === EXTRAS & BAKING ===
+  {id:491, name:'Coconut Flakes (dried)', cat:'fat', p:6, c:24, f:62, kcal:660},
+  {id:492, name:'Cacao Powder (unsweetened)', cat:'condiment', p:20, c:58, f:14, kcal:228},
+  {id:493, name:'Whey Protein Isolate', cat:'protein', p:90, c:2, f:1, kcal:370},
+  {id:494, name:'Collagen Peptides', cat:'protein', p:90, c:0, f:0, kcal:350},
+  {id:495, name:'Creatine Monohydrate', cat:'supplement', p:0, c:0, f:0, kcal:0},
+  {id:496, name:'Oat Flour', cat:'carb', p:13, c:66, f:7, kcal:385},
+  {id:497, name:'Almond Flour', cat:'fat', p:21, c:20, f:50, kcal:590},
+  {id:498, name:'Coconut Flour', cat:'carb', p:18, c:60, f:9, kcal:400},
+  {id:499, name:'Agave Syrup', cat:'condiment', p:0, c:76, f:0, kcal:310},
+  {id:500, name:'Protein Ice Cream', cat:'snack', p:12, c:22, f:3, kcal:160}
 ];
 
 /* ============================================================
@@ -4153,6 +4454,125 @@ function renderTodayCheckins() {
   container.innerHTML = html;
 }
 
+/* ============================================================
+   CLIENT SCOREBOARD — live overview of all clients
+============================================================ */
+function renderClientScoreboard() {
+  var container = document.getElementById('client-scoreboard');
+  if (!container) return;
+  var today = new Date();
+  var todayKey = today.toISOString().slice(0, 10);
+
+  // Build client list sorted: at-risk first, then by score desc
+  var clients = Object.keys(CLIENT_META).map(function(id) {
+    var meta = CLIENT_META[id];
+    var score = calcWeeklyScore(id);
+    var streak = calcStreak(id);
+    var activity = (CLIENT_ACTIVITY[id] || {})[todayKey] || {};
+    var hasCheckedIn = !!activity.checkin;
+    var data = getDailyCheckinData(id, todayKey);
+    return {id:id, meta:meta, score:score, streak:streak, checkedIn:hasCheckedIn, data:data};
+  }).sort(function(a,b) {
+    // At risk (score < 50) first, then sort by score
+    if (a.score < 50 && b.score >= 50) return -1;
+    if (b.score < 50 && a.score >= 50) return 1;
+    return b.score - a.score;
+  });
+
+  var html = '';
+  clients.forEach(function(c) {
+    var statusDot = c.checkedIn ? 'var(--green)' : c.score < 50 ? 'var(--red)' : 'var(--orange)';
+    var scoreColor = c.score >= 80 ? 'var(--green)' : c.score >= 50 ? 'var(--orange)' : 'var(--red)';
+    var rowBg = c.score < 50 ? 'rgba(255,82,82,.04)' : 'transparent';
+    var rowBorder = c.score < 50 ? '1px solid rgba(255,82,82,.15)' : '1px solid var(--border)';
+
+    html += '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:' + rowBg + ';border:' + rowBorder + ';border-radius:8px;cursor:pointer;transition:background .1s" onclick="openQuickPanel(\'' + c.id + '\')" onmouseover="this.style.background=\'var(--s2)\'" onmouseout="this.style.background=\'' + rowBg + '\'">';
+    // Status dot
+    html += '<div style="width:8px;height:8px;border-radius:50%;background:' + statusDot + ';flex-shrink:0"></div>';
+    // Avatar
+    html += '<div class="cl-av" style="width:26px;height:26px;font-size:9px;background:' + c.meta.bgColor + ';color:' + c.meta.color + '">' + c.meta.initials + '</div>';
+    // Name + goal
+    html += '<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:500;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + c.meta.name + '</div><div style="font-size:9px;color:var(--t3)">' + c.meta.goal + ' · W' + c.meta.week + '</div></div>';
+    // Score
+    html += '<div style="text-align:center;min-width:36px"><div style="font-family:var(--fm);font-size:14px;font-weight:600;color:' + scoreColor + '">' + c.score + '</div><div style="font-size:8px;color:var(--t3)">score</div></div>';
+    // Streak
+    html += '<div style="text-align:center;min-width:30px"><div style="font-size:12px">' + (c.streak.current > 0 ? '🔥' + c.streak.current : '—') + '</div></div>';
+    // Check-in status
+    html += '<div style="min-width:20px;text-align:center;font-size:13px">' + (c.checkedIn ? '✅' : '⬜') + '</div>';
+    html += '</div>';
+  });
+
+  container.innerHTML = html;
+
+  // Also update the KPI check-ins card
+  var checkedCount = clients.filter(function(c) { return c.checkedIn; }).length;
+  var totalCount = clients.length;
+  var kpiVal = document.getElementById('kpi-checkins-today');
+  var kpiTotal = document.getElementById('kpi-checkins-total');
+  var kpiBar = document.getElementById('kpi-checkins-bar');
+  if (kpiVal) kpiVal.innerHTML = checkedCount + '<span class="ku" id="kpi-checkins-total">/ ' + totalCount + '</span>';
+  if (kpiBar) kpiBar.style.width = (totalCount > 0 ? Math.round(checkedCount / totalCount * 100) : 0) + '%';
+}
+
+/* ============================================================
+   SCHEDULE STRIP — compact horizontal timeline
+============================================================ */
+function renderScheduleStrip() {
+  var container = document.getElementById('schedule-strip');
+  if (!container) return;
+  var today = new Date();
+  var todayKey = today.toISOString().slice(0, 10);
+  var dayOfWeek = today.getDay();
+  var items = [];
+
+  // Workout days
+  Object.keys(CLIENT_META).forEach(function(clientId) {
+    var meta = CLIENT_META[clientId];
+    if (meta.workoutDays && meta.workoutDays.indexOf(dayOfWeek) !== -1) {
+      var activity = (CLIENT_ACTIVITY[clientId] || {})[todayKey] || {};
+      items.push({
+        icon: '💪',
+        text: meta.name.split(' ')[0],
+        sub: activity.workout ? 'Done' : 'Workout day',
+        color: activity.workout ? 'var(--green)' : 'var(--t3)',
+        done: !!activity.workout
+      });
+    }
+  });
+
+  // Pending check-ins
+  var pendingCount = 0;
+  Object.keys(CLIENT_META).forEach(function(clientId) {
+    var activity = (CLIENT_ACTIVITY[clientId] || {})[todayKey] || {};
+    if (!activity.checkin) pendingCount++;
+  });
+  if (pendingCount > 0) {
+    items.push({icon:'📋', text: pendingCount + ' pending', sub: 'Check-ins', color: 'var(--orange)', done: false});
+  }
+
+  // Weekly reviews on Fri/Sun
+  if (dayOfWeek === 0 || dayOfWeek === 5) {
+    items.push({icon:'📝', text:'Weekly reviews', sub:'Due today', color:'var(--gold)', done: false});
+  }
+
+  if (items.length === 0) {
+    container.innerHTML = '<div class="card-sm" style="flex:1;text-align:center;font-size:12px;color:var(--t3);padding:12px">No scheduled items today</div>';
+    return;
+  }
+
+  var html = '';
+  items.forEach(function(item) {
+    var bg = item.done ? 'rgba(59,255,166,.05)' : 'var(--s1)';
+    var border = item.done ? '1px solid rgba(59,255,166,.2)' : '1px solid var(--border)';
+    html += '<div style="flex:0 0 auto;padding:10px 16px;background:' + bg + ';border:' + border + ';border-radius:10px;display:flex;align-items:center;gap:8px;min-width:120px">';
+    html += '<span style="font-size:16px">' + item.icon + '</span>';
+    html += '<div><div style="font-size:12px;font-weight:500;color:var(--t1)">' + item.text + '</div>';
+    html += '<div style="font-size:10px;color:' + item.color + '">' + item.sub + '</div></div>';
+    html += '</div>';
+  });
+  container.innerHTML = html;
+}
+
 // Daily check-ins state
 var dailyCheckinsFilter = 'all';
 var dailyEndDate = new Date(); // end date of the 7-day window (today)
@@ -5507,6 +5927,8 @@ function confirmOnboarding() {
   updateDashboardKPIs();
   renderTodaysSchedule();
   renderLiveActivity();
+  renderClientScoreboard();
+  renderScheduleStrip();
   updateCoachStreakScores();
 
   showToast('✓ ' + fname + ' ' + lname + ' added! Macros: ' + macros.kcal + ' kcal · ' + macros.protein + 'g protein. Invite link sent to ' + (email || 'email'));
@@ -9831,6 +10253,8 @@ document.addEventListener('DOMContentLoaded', () => {
   renderTodaysSchedule();
   renderLiveActivity();
   renderTodayCheckins();
+  renderClientScoreboard();
+  renderScheduleStrip();
   populateWeeklyClientDropdown();
   renderWeeklySummary('all');
   renderClientList();
