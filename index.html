@@ -9748,20 +9748,68 @@ function removeFoodFromMeal(mealIdx, foodIdx) {
   renderCoachMealPlan();
 }
 
-function updateFoodGrams(mealIdx, foodIdx, grams) {
-  const mealFood = coachMeals[mealIdx].foods[foodIdx];
-  if (!mealFood) return;
-  grams = Math.max(1, parseInt(grams) || 100);
-  mealFood.grams = grams;
-  // recalc from DB or use proportional
-  const dbFood = FOOD_DB.find(f => f.id === mealFood.id);
+// Live update coach food grams — updates data + displayed numbers without re-render
+function liveUpdateCoachGrams(mi, fi, val) {
+  var f = coachMeals[mi] && coachMeals[mi].foods[fi];
+  if (!f) return;
+  var grams = parseInt(val);
+  if (!grams || grams < 1) return;
+  f.grams = grams;
+  var dbFood = FOOD_DB.find(function(d) { return d.id === f.id; });
   if (dbFood) {
-    mealFood.p = round1(dbFood.p * grams / 100);
-    mealFood.c = round1(dbFood.c * grams / 100);
-    mealFood.f = round1(dbFood.f * grams / 100);
-    mealFood.kcal = Math.round(dbFood.kcal * grams / 100);
+    f.p = round1(dbFood.p * grams / 100);
+    f.c = round1(dbFood.c * grams / 100);
+    f.f = round1(dbFood.f * grams / 100);
+    f.kcal = Math.round(dbFood.kcal * grams / 100);
+  }
+  // Update this food's displayed macros
+  var kcalEl = document.getElementById('co-food-kcal-' + mi + '-' + fi);
+  var pEl = document.getElementById('co-food-p-' + mi + '-' + fi);
+  var cEl = document.getElementById('co-food-c-' + mi + '-' + fi);
+  var fEl = document.getElementById('co-food-f-' + mi + '-' + fi);
+  if (kcalEl) kcalEl.textContent = f.kcal;
+  if (pEl) pEl.textContent = f.p;
+  if (cEl) cEl.textContent = f.c;
+  if (fEl) fEl.textContent = f.f;
+  // Update meal subtotal
+  var meal = coachMeals[mi];
+  var mK = 0, mP = 0, mC = 0, mF = 0;
+  meal.foods.forEach(function(fd) { mK += fd.kcal; mP += fd.p; mC += fd.c; mF += fd.f; });
+  var subK = document.getElementById('co-sub-kcal-' + mi);
+  var subP = document.getElementById('co-sub-p-' + mi);
+  var subC = document.getElementById('co-sub-c-' + mi);
+  var subF = document.getElementById('co-sub-f-' + mi);
+  if (subK) subK.textContent = Math.round(mK);
+  if (subP) subP.textContent = round1(mP);
+  if (subC) subC.textContent = round1(mC);
+  if (subF) subF.textContent = round1(mF);
+  // Update daily total
+  var tK = 0, tP = 0, tC = 0, tF = 0;
+  coachMeals.forEach(function(m) { m.foods.forEach(function(fd) { tK += fd.kcal; tP += fd.p; tC += fd.c; tF += fd.f; }); });
+  var totals = document.getElementById('meal-plan-totals');
+  if (totals) {
+    totals.innerHTML = '<div style="display:grid;grid-template-columns:20px 1fr 42px 50px 50px 50px 50px 30px;align-items:center;font-weight:600"><span></span><span style="font-size:12px;color:var(--gold);letter-spacing:1px">DAILY TOTAL</span><span></span><span style="font-family:var(--fm);font-size:13px;color:var(--t1);text-align:center">' + Math.round(tK) + '</span><span style="font-family:var(--fm);font-size:13px;color:var(--green);text-align:center">' + round1(tP) + 'g</span><span style="font-family:var(--fm);font-size:13px;color:var(--blue);text-align:center">' + round1(tC) + 'g</span><span style="font-family:var(--fm);font-size:13px;color:var(--red);text-align:center">' + round1(tF) + 'g</span><span></span></div>';
+  }
+  updateActualBars();
+}
+
+function finalizeCoachGrams(mi, fi, val) {
+  var f = coachMeals[mi] && coachMeals[mi].foods[fi];
+  if (!f) return;
+  var grams = Math.max(1, parseInt(val) || f.grams);
+  f.grams = grams;
+  var dbFood = FOOD_DB.find(function(d) { return d.id === f.id; });
+  if (dbFood) {
+    f.p = round1(dbFood.p * grams / 100);
+    f.c = round1(dbFood.c * grams / 100);
+    f.f = round1(dbFood.f * grams / 100);
+    f.kcal = Math.round(dbFood.kcal * grams / 100);
   }
   renderCoachMealPlan();
+}
+
+function updateFoodGrams(mealIdx, foodIdx, grams) {
+  liveUpdateCoachGrams(mealIdx, foodIdx, grams);
 }
 
 function addMealSlot() {
@@ -9939,11 +9987,11 @@ function renderCoachMealPlan() {
       html += `<div class="coach-food-row" draggable="true" ondragstart="onCoachFoodDragStart(event,${mi},${fi})" ondragend="onCoachFoodDragEnd(event)" ondragover="onCoachFoodDragOver(event)" ondragleave="onCoachFoodDragLeave(event)" ondrop="onCoachFoodDrop(event,${mi},${fi})" style="display:grid;grid-template-columns:20px 1fr 42px 50px 50px 50px 50px 30px;align-items:center;padding:7px 10px;background:var(--s2);border-radius:7px;margin-bottom:3px;cursor:grab;transition:border-top .1s">
         <div style="color:var(--t3);font-size:10px;cursor:grab;user-select:none;text-align:center" title="Drag to reorder">⠿</div>
         <div style="font-size:13px;color:var(--t1)">${f.fname}</div>
-        <div style="text-align:center"><input class="gram-inp" value="${f.grams}" onchange="updateFoodGrams(${mi},${fi},this.value)"></div>
-        <div style="font-family:var(--fm);font-size:12px;color:var(--t2);text-align:center">${f.kcal}</div>
-        <div style="font-family:var(--fm);font-size:12px;color:var(--green);text-align:center">${f.p}</div>
-        <div style="font-family:var(--fm);font-size:12px;color:var(--blue);text-align:center">${f.c}</div>
-        <div style="font-family:var(--fm);font-size:12px;color:var(--red);text-align:center">${f.f}</div>
+        <div style="text-align:center"><input class="gram-inp" value="${f.grams}" oninput="liveUpdateCoachGrams(${mi},${fi},this.value)" onblur="finalizeCoachGrams(${mi},${fi},this.value)"></div>
+        <div id="co-food-kcal-${mi}-${fi}" style="font-family:var(--fm);font-size:12px;color:var(--t2);text-align:center">${f.kcal}</div>
+        <div id="co-food-p-${mi}-${fi}" style="font-family:var(--fm);font-size:12px;color:var(--green);text-align:center">${f.p}</div>
+        <div id="co-food-c-${mi}-${fi}" style="font-family:var(--fm);font-size:12px;color:var(--blue);text-align:center">${f.c}</div>
+        <div id="co-food-f-${mi}-${fi}" style="font-family:var(--fm);font-size:12px;color:var(--red);text-align:center">${f.f}</div>
         <button style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:12px" onclick="removeFoodFromMeal(${mi},${fi})">✕</button>
       </div>`;
     });
@@ -9960,7 +10008,7 @@ function renderCoachMealPlan() {
     </div>`;
 
     // meal subtotal
-    html += `<div style="display:grid;grid-template-columns:20px 1fr 42px 50px 50px 50px 50px 30px;padding:4px 10px 10px;font-size:10px;font-weight:500;color:var(--t3)"><span></span><span>Subtotal</span><span></span><span style="text-align:center">${Math.round(mealK)}</span><span style="text-align:center;color:var(--green)">${round1(mealP)}</span><span style="text-align:center;color:var(--blue)">${round1(mealC)}</span><span style="text-align:center;color:var(--red)">${round1(mealF)}</span><span></span></div>`;
+    html += `<div id="co-meal-subtotal-${mi}" style="display:grid;grid-template-columns:20px 1fr 42px 50px 50px 50px 50px 30px;padding:4px 10px 10px;font-size:10px;font-weight:500;color:var(--t3)"><span></span><span>Subtotal</span><span></span><span id="co-sub-kcal-${mi}" style="text-align:center">${Math.round(mealK)}</span><span id="co-sub-p-${mi}" style="text-align:center;color:var(--green)">${round1(mealP)}</span><span id="co-sub-c-${mi}" style="text-align:center;color:var(--blue)">${round1(mealC)}</span><span id="co-sub-f-${mi}" style="text-align:center;color:var(--red)">${round1(mealF)}</span><span></span></div>`;
 
     totalP += mealP; totalC += mealC; totalF += mealF; totalK += mealK;
   });
@@ -10159,9 +10207,9 @@ function renderClientMeals() {
         </div>
         <div style="display:flex;align-items:center;gap:6px">
           <div style="display:flex;align-items:center;gap:2px">
-            <input class="gram-inp" value="${f.grams}" onchange="updateClientFoodGrams(${mi},${fi},this.value)" style="width:38px;text-align:center;background:var(--s3);border:1px solid var(--border);border-radius:5px;color:var(--t1);font-family:var(--fm);font-size:11px;padding:2px 3px;outline:none" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border)'"><span style="font-size:10px;color:var(--t3)">g</span>
+            <input class="gram-inp" value="${f.grams}" oninput="liveUpdateClientGrams(${mi},${fi},this.value)" onblur="finalizeClientGrams(${mi},${fi},this.value)" style="width:38px;text-align:center;background:var(--s3);border:1px solid var(--border);border-radius:5px;color:var(--t1);font-family:var(--fm);font-size:11px;padding:2px 3px;outline:none" onfocus="this.style.borderColor='var(--gold)'"><span style="font-size:10px;color:var(--t3)">g</span>
           </div>
-          <span style="font-family:var(--fm);font-size:11px;color:var(--t3);min-width:48px;text-align:right">${f.kcal} kcal</span>
+          <span id="cl-food-kcal-${mi}-${fi}" style="font-family:var(--fm);font-size:11px;color:var(--t3);min-width:48px;text-align:right">${f.kcal} kcal</span>
           <button class="btn btn-g btn-sm" style="padding:2px 8px;font-size:10px" onclick="openSwap(${mi},${fi})">↔</button>
           <button style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:11px;padding:2px" onclick="removeClientFood(${mi},${fi})" title="Remove">✕</button>
         </div>
@@ -10179,7 +10227,7 @@ function renderClientMeals() {
       </div>
     </div>`;
 
-    html += `<div style="font-family:var(--fm);font-size:11px;color:var(--t2);margin-top:6px">~${Math.round(mealK)} kcal · P:${round1(mealP)}g C:${round1(mealC)}g F:${round1(mealF)}g</div>
+    html += `<div id="cl-meal-subtotal-${mi}" style="font-family:var(--fm);font-size:11px;color:var(--t2);margin-top:6px">~${Math.round(mealK)} kcal · P:${round1(mealP)}g C:${round1(mealC)}g F:${round1(mealF)}g</div>
     </div>`;
   });
 
@@ -10307,14 +10355,15 @@ function removeClientFood(mi, fi) {
   showToast(fname + ' removed');
 }
 
-function updateClientFoodGrams(mi, fi, val) {
+// Live update client food grams — updates data + displayed numbers without re-render
+function liveUpdateClientGrams(mi, fi, val) {
   var f = clientMeals[mi] && clientMeals[mi].foods[fi];
   if (!f) return;
-  var grams = Math.max(1, parseInt(val) || f.grams);
-  // Store original grams on first edit (coach-planned portion)
+  var grams = parseInt(val);
+  if (!grams || grams < 1) return; // don't update on empty/invalid input
+  // Update data model
   if (!f.originalGrams) f.originalGrams = f.grams;
   f.grams = grams;
-  // Recalculate macros from FOOD_DB
   var dbMatch = FOOD_DB.find(function(d) { return d.id === f.id; });
   if (dbMatch) {
     f.p = round1(dbMatch.p * grams / 100);
@@ -10322,9 +10371,38 @@ function updateClientFoodGrams(mi, fi, val) {
     f.f = round1(dbMatch.f * grams / 100);
     f.kcal = Math.round(dbMatch.kcal * grams / 100);
   }
-  // If they reset to original, remove the strikethrough
   if (f.originalGrams === f.grams) delete f.originalGrams;
+  // Update just the displayed kcal for this food
+  var kcalEl = document.getElementById('cl-food-kcal-' + mi + '-' + fi);
+  if (kcalEl) kcalEl.textContent = f.kcal + ' kcal';
+  // Update meal subtotal
+  var meal = clientMeals[mi];
+  var mK = 0, mP = 0, mC = 0, mF = 0;
+  meal.foods.forEach(function(fd) { mK += fd.kcal; mP += fd.p; mC += fd.c; mF += fd.f; });
+  var subEl = document.getElementById('cl-meal-subtotal-' + mi);
+  if (subEl) subEl.textContent = '~' + Math.round(mK) + ' kcal · P:' + round1(mP) + 'g C:' + round1(mC) + 'g F:' + round1(mF) + 'g';
+  // Update daily totals bar
+  updateClientNutritionTotals();
+}
+
+// Final cleanup on blur — full re-render to sync everything
+function finalizeClientGrams(mi, fi, val) {
+  var f = clientMeals[mi] && clientMeals[mi].foods[fi];
+  if (!f) return;
+  var grams = Math.max(1, parseInt(val) || f.grams);
+  f.grams = grams;
+  var dbMatch = FOOD_DB.find(function(d) { return d.id === f.id; });
+  if (dbMatch) {
+    f.p = round1(dbMatch.p * grams / 100);
+    f.c = round1(dbMatch.c * grams / 100);
+    f.f = round1(dbMatch.f * grams / 100);
+    f.kcal = Math.round(dbMatch.kcal * grams / 100);
+  }
   renderClientMeals();
+}
+
+function updateClientFoodGrams(mi, fi, val) {
+  liveUpdateClientGrams(mi, fi, val);
 }
 
 function addClientMealSlot() {
