@@ -630,10 +630,10 @@ textarea.t-area:focus{border-color:var(--gold)}
 
   /* Override inline grid for coach meal plan on mobile */
   #meal-plan-body [style*="grid-template-columns"]{
-    grid-template-columns:1fr 38px 42px 42px 42px 42px 24px!important;
+    grid-template-columns:16px 1fr 34px 38px 38px 38px 38px 22px!important;
     font-size:11px!important;
-    padding-left:6px!important;
-    padding-right:6px!important;
+    padding-left:4px!important;
+    padding-right:4px!important;
   }
   #meal-plan-body .gram-inp{width:34px;font-size:10px;padding:2px}
 
@@ -654,7 +654,7 @@ textarea.t-area:focus{border-color:var(--gold)}
 /* FOOD DB */
 .food-search-panel{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);max-height:300px;overflow-y:auto;margin-bottom:12px}
 .food-search-results{max-height:250px;overflow-y:auto}
-.food-result{display:grid;grid-template-columns:1fr 50px 50px 50px 50px auto;align-items:center;padding:8px 12px;border-bottom:1px solid var(--border);font-size:12px;cursor:pointer;transition:background .1s}
+.food-result{display:grid;grid-template-columns:1fr 40px 40px 40px 40px 44px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--border);font-size:12px;cursor:pointer;transition:background .1s}
 .food-result:hover{background:var(--s2)}
 .food-result .fn{color:var(--t1);font-weight:500}
 .food-result .fc{color:var(--t3);font-size:10px;text-transform:uppercase;letter-spacing:.5px}
@@ -1107,7 +1107,7 @@ textarea.t-area:focus{border-color:var(--gold)}
           <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px"><div class="search-bar" style="flex:1;margin-bottom:0"><svg viewBox="0 0 14 14" fill="none" width="14" height="14"><circle cx="6" cy="6" r="4" stroke="var(--t3)" stroke-width="1.4"/><path d="M10 10l3 3" stroke="var(--t3)" stroke-width="1.4" stroke-linecap="round"/></svg><input class="search-input" id="food-search-inp" placeholder="Search foods to add..." oninput="searchFoods(this.value)"></div><button onclick="openBarcodeScanner('coach')" title="Scan barcode" style="background:var(--bg3);border:1px solid var(--bd);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:16px;line-height:1">📷</button></div>
           <div id="food-cat-chips" style="display:flex;flex-wrap:wrap;margin-bottom:6px"></div>
           <div class="food-search-panel" id="food-search-panel" style="display:none">
-            <div style="display:grid;grid-template-columns:1fr 50px 50px 50px 50px auto;padding:4px 12px;font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--t3)"><span>Food (per 100g)</span><span style="text-align:center">KCAL</span><span style="text-align:center;color:var(--green)">PRO</span><span style="text-align:center;color:var(--blue)">CARB</span><span style="text-align:center;color:var(--red)">FAT</span><span></span></div>
+            <div style="display:grid;grid-template-columns:1fr 40px 40px 40px 40px 44px;padding:4px 12px;font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--t3)"><span>Food (per 100g)</span><span style="text-align:center">KCAL</span><span style="text-align:center;color:var(--green)">PRO</span><span style="text-align:center;color:var(--blue)">CARB</span><span style="text-align:center;color:var(--red)">FAT</span><span></span></div>
             <div class="food-search-results" id="food-search-results"></div>
           </div>
         </div>
@@ -9788,6 +9788,120 @@ function moveMeal(arr, mi, dir) {
 function moveCoachMeal(mi, dir) { if (moveMeal(coachMeals, mi, dir)) renderCoachMealPlan(); }
 function moveClientMeal(mi, dir) { if (moveMeal(clientMeals, mi, dir)) renderClientMeals(); }
 
+/* --- Drag & Drop state for coach meal foods --- */
+var dragCoachSrc = null; // {mi, fi}
+
+function onCoachFoodDragStart(e, mi, fi) {
+  dragCoachSrc = {mi:mi, fi:fi};
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', mi + ',' + fi);
+  e.target.style.opacity = '0.4';
+}
+function onCoachFoodDragEnd(e) {
+  e.target.style.opacity = '1';
+  dragCoachSrc = null;
+  // Remove all drop highlights
+  document.querySelectorAll('.coach-meal-drop-zone').forEach(function(el) { el.style.borderColor = 'var(--border)'; el.style.background = ''; });
+  document.querySelectorAll('.coach-food-row').forEach(function(el) { el.style.borderTop = ''; });
+}
+function onCoachMealDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  e.currentTarget.style.borderColor = 'var(--gold)';
+  e.currentTarget.style.background = 'rgba(200,169,110,.06)';
+}
+function onCoachMealDragLeave(e) {
+  e.currentTarget.style.borderColor = 'var(--border)';
+  e.currentTarget.style.background = '';
+}
+function onCoachMealDrop(e, targetMi) {
+  e.preventDefault();
+  e.currentTarget.style.borderColor = 'var(--border)';
+  e.currentTarget.style.background = '';
+  if (!dragCoachSrc) return;
+  var srcMi = dragCoachSrc.mi, srcFi = dragCoachSrc.fi;
+  if (srcMi === targetMi) return; // same meal, ignore drop on zone
+  var food = coachMeals[srcMi].foods.splice(srcFi, 1)[0];
+  if (!food) return;
+  coachMeals[targetMi].foods.push(food);
+  dragCoachSrc = null;
+  renderCoachMealPlan();
+  showToast('Moved ' + food.fname + ' → ' + coachMeals[targetMi].name);
+}
+function onCoachFoodDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  e.currentTarget.style.borderTop = '2px solid var(--gold)';
+}
+function onCoachFoodDragLeave(e) {
+  e.currentTarget.style.borderTop = '';
+}
+function onCoachFoodDrop(e, targetMi, targetFi) {
+  e.preventDefault();
+  e.currentTarget.style.borderTop = '';
+  if (!dragCoachSrc) return;
+  var srcMi = dragCoachSrc.mi, srcFi = dragCoachSrc.fi;
+  var food = coachMeals[srcMi].foods.splice(srcFi, 1)[0];
+  if (!food) return;
+  // Adjust target index if same meal and removing before target
+  if (srcMi === targetMi && srcFi < targetFi) targetFi--;
+  coachMeals[targetMi].foods.splice(targetFi, 0, food);
+  dragCoachSrc = null;
+  renderCoachMealPlan();
+}
+
+/* --- Coach inline food search per meal --- */
+function toggleCoachFoodSearch(mi) {
+  addingToMeal = mi;
+  document.querySelectorAll('.coach-food-search-inline').forEach(function(el) {
+    var idx = parseInt(el.id.replace('coach-food-search-', ''));
+    if (idx !== mi) el.style.display = 'none';
+  });
+  var panel = document.getElementById('coach-food-search-' + mi);
+  if (!panel) return;
+  if (panel.style.display === 'none') {
+    panel.style.display = 'block';
+    setTimeout(function() {
+      var inp = panel.querySelector('.coach-food-search-inp');
+      if (inp) { inp.value = ''; inp.focus(); }
+    }, 50);
+  } else {
+    panel.style.display = 'none';
+  }
+}
+function searchCoachFoods(query, mealIdx) {
+  addingToMeal = mealIdx;
+  var panel = document.getElementById('coach-food-search-panel-' + mealIdx);
+  var results = document.getElementById('coach-food-search-results-' + mealIdx);
+  if (!panel || !results) return;
+  var q = query.toLowerCase().trim();
+  if (!q) { panel.style.display = 'none'; return; }
+  panel.style.display = 'block';
+  var matches = FOOD_DB.filter(function(f) {
+    return f.name.toLowerCase().indexOf(q) !== -1;
+  }).slice(0, 20);
+  if (matches.length === 0) {
+    results.innerHTML = '<div style="padding:14px;text-align:center;font-size:12px;color:var(--t3)">No foods found</div>';
+  } else {
+    results.innerHTML = matches.map(function(f) {
+      return '<div class="food-result" onclick="addFoodToMeal(' + f.id + ')">' +
+        '<div><div class="fn">' + f.name + '</div><div class="fc">' + f.cat + '</div></div>' +
+        '<div class="fm" style="color:var(--t2)">' + f.kcal + '</div>' +
+        '<div class="fm" style="color:var(--green)">' + f.p + '</div>' +
+        '<div class="fm" style="color:var(--blue)">' + f.c + '</div>' +
+        '<div class="fm" style="color:var(--red)">' + f.f + '</div>' +
+        '<button class="btn btn-p btn-sm" style="padding:2px 6px;font-size:9px;white-space:nowrap" onclick="event.stopPropagation();addFoodToMeal(' + f.id + ')">+ Add</button>' +
+      '</div>';
+    }).join('');
+  }
+  clearTimeout(offSearchTimeout);
+  if (q.length >= 3) {
+    offSearchTimeout = setTimeout(function() {
+      searchOpenFoodFacts(q, 'coach-food-search-results-' + mealIdx, 'coach');
+    }, 400);
+  }
+}
+
 function renderCoachMealPlan() {
   const body = document.getElementById('meal-plan-body');
   const totals = document.getElementById('meal-plan-totals');
@@ -9796,12 +9910,13 @@ function renderCoachMealPlan() {
   let html = '';
 
   // column header
-  html += `<div style="display:grid;grid-template-columns:1fr 42px 50px 50px 50px 50px 30px;padding:0 10px 6px;font-size:9px;letter-spacing:1.2px;text-transform:uppercase;color:var(--t3)"><span>Food</span><span style="text-align:center">g</span><span style="text-align:center">KCAL</span><span style="text-align:center;color:var(--green)">PRO</span><span style="text-align:center;color:var(--blue)">CARB</span><span style="text-align:center;color:var(--red)">FAT</span><span></span></div>`;
+  html += `<div style="display:grid;grid-template-columns:20px 1fr 42px 50px 50px 50px 50px 30px;padding:0 10px 6px;font-size:9px;letter-spacing:1.2px;text-transform:uppercase;color:var(--t3)"><span></span><span>Food</span><span style="text-align:center">g</span><span style="text-align:center">KCAL</span><span style="text-align:center;color:var(--green)">PRO</span><span style="text-align:center;color:var(--blue)">CARB</span><span style="text-align:center;color:var(--red)">FAT</span><span></span></div>`;
 
   coachMeals.forEach((meal, mi) => {
     let mealP = 0, mealC = 0, mealF = 0, mealK = 0;
     const safeName = meal.name.replace(/"/g,'&quot;');
-    html += `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px 4px;margin-top:${mi>0?'6px':'0'}">
+    // Meal header — also a drop zone for moving foods between meals
+    html += `<div class="coach-meal-drop-zone" ondragover="onCoachMealDragOver(event)" ondragleave="onCoachMealDragLeave(event)" ondrop="onCoachMealDrop(event,${mi})" style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px 4px;margin-top:${mi>0?'6px':'0'};border:1px dashed transparent;border-radius:6px;transition:all .15s">
       <div style="display:flex;align-items:center;gap:8px">
         <div style="display:flex;flex-direction:column;gap:2px">
           <button class="btn btn-g btn-sm" style="padding:1px 5px;font-size:9px;line-height:1" onclick="moveCoachMeal(${mi},-1)" title="Move up"${mi===0?' disabled style="padding:1px 5px;font-size:9px;line-height:1;opacity:.3;pointer-events:none"':''}>↑</button>
@@ -9814,14 +9929,15 @@ function renderCoachMealPlan() {
         </div>
       </div>
       <div style="display:flex;gap:4px">
-        <button class="btn btn-g btn-sm" style="padding:2px 8px;font-size:10px" onclick="addingToMeal=${mi};document.getElementById('food-search-inp').focus();document.getElementById('food-search-inp').value='';searchFoods('');">+ Food</button>
+        <button class="btn btn-g btn-sm" style="padding:2px 8px;font-size:10px" onclick="toggleCoachFoodSearch(${mi})">+ Food</button>
         <button style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:11px" onclick="removeMealSlot(${mi})" title="Remove meal">✕</button>
       </div>
     </div>`;
 
     meal.foods.forEach((f, fi) => {
       mealP += f.p; mealC += f.c; mealF += f.f; mealK += f.kcal;
-      html += `<div style="display:grid;grid-template-columns:1fr 42px 50px 50px 50px 50px 30px;align-items:center;padding:7px 10px;background:var(--s2);border-radius:7px;margin-bottom:3px">
+      html += `<div class="coach-food-row" draggable="true" ondragstart="onCoachFoodDragStart(event,${mi},${fi})" ondragend="onCoachFoodDragEnd(event)" ondragover="onCoachFoodDragOver(event)" ondragleave="onCoachFoodDragLeave(event)" ondrop="onCoachFoodDrop(event,${mi},${fi})" style="display:grid;grid-template-columns:20px 1fr 42px 50px 50px 50px 50px 30px;align-items:center;padding:7px 10px;background:var(--s2);border-radius:7px;margin-bottom:3px;cursor:grab;transition:border-top .1s">
+        <div style="color:var(--t3);font-size:10px;cursor:grab;user-select:none;text-align:center" title="Drag to reorder">⠿</div>
         <div style="font-size:13px;color:var(--t1)">${f.fname}</div>
         <div style="text-align:center"><input class="gram-inp" value="${f.grams}" onchange="updateFoodGrams(${mi},${fi},this.value)"></div>
         <div style="font-family:var(--fm);font-size:12px;color:var(--t2);text-align:center">${f.kcal}</div>
@@ -9832,8 +9948,19 @@ function renderCoachMealPlan() {
       </div>`;
     });
 
+    // Inline food search for this meal (hidden by default)
+    html += `<div id="coach-food-search-${mi}" class="coach-food-search-inline" style="display:none;margin-top:6px;margin-bottom:4px">
+      <div style="background:var(--s2);border-radius:10px;padding:10px;border:1px solid var(--border)">
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px"><div class="search-bar" style="flex:1;margin-bottom:0"><svg viewBox="0 0 14 14" fill="none" width="14" height="14"><circle cx="6" cy="6" r="4" stroke="var(--t3)" stroke-width="1.4"/><path d="M10 10l3 3" stroke="var(--t3)" stroke-width="1.4" stroke-linecap="round"/></svg><input class="search-input coach-food-search-inp" data-meal="${mi}" placeholder="Search foods to add..." oninput="searchCoachFoods(this.value, ${mi})"></div><button onclick="toggleCoachFoodSearch(${mi})" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:14px;padding:4px" title="Close">✕</button></div>
+        <div class="food-search-panel" id="coach-food-search-panel-${mi}" style="display:none">
+          <div style="display:grid;grid-template-columns:1fr 40px 40px 40px 40px 44px;padding:4px 12px;font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--t3)"><span>Food (per 100g)</span><span style="text-align:center">KCAL</span><span style="text-align:center;color:var(--green)">PRO</span><span style="text-align:center;color:var(--blue)">CARB</span><span style="text-align:center;color:var(--red)">FAT</span><span></span></div>
+          <div class="food-search-results" id="coach-food-search-results-${mi}"></div>
+        </div>
+      </div>
+    </div>`;
+
     // meal subtotal
-    html += `<div style="display:grid;grid-template-columns:1fr 42px 50px 50px 50px 50px 30px;padding:4px 10px 10px;font-size:10px;font-weight:500;color:var(--t3)"><span>Subtotal</span><span></span><span style="text-align:center">${Math.round(mealK)}</span><span style="text-align:center;color:var(--green)">${round1(mealP)}</span><span style="text-align:center;color:var(--blue)">${round1(mealC)}</span><span style="text-align:center;color:var(--red)">${round1(mealF)}</span><span></span></div>`;
+    html += `<div style="display:grid;grid-template-columns:20px 1fr 42px 50px 50px 50px 50px 30px;padding:4px 10px 10px;font-size:10px;font-weight:500;color:var(--t3)"><span></span><span>Subtotal</span><span></span><span style="text-align:center">${Math.round(mealK)}</span><span style="text-align:center;color:var(--green)">${round1(mealP)}</span><span style="text-align:center;color:var(--blue)">${round1(mealC)}</span><span style="text-align:center;color:var(--red)">${round1(mealF)}</span><span></span></div>`;
 
     totalP += mealP; totalC += mealC; totalF += mealF; totalK += mealK;
   });
@@ -9841,8 +9968,8 @@ function renderCoachMealPlan() {
   body.innerHTML = html;
 
   if (totals) {
-    totals.innerHTML = `<div style="display:grid;grid-template-columns:1fr 42px 50px 50px 50px 50px 30px;align-items:center;font-weight:600">
-      <span style="font-size:12px;color:var(--gold);letter-spacing:1px">DAILY TOTAL</span><span></span>
+    totals.innerHTML = `<div style="display:grid;grid-template-columns:20px 1fr 42px 50px 50px 50px 50px 30px;align-items:center;font-weight:600">
+      <span></span><span style="font-size:12px;color:var(--gold);letter-spacing:1px">DAILY TOTAL</span><span></span>
       <span style="font-family:var(--fm);font-size:13px;color:var(--t1);text-align:center">${Math.round(totalK)}</span>
       <span style="font-family:var(--fm);font-size:13px;color:var(--green);text-align:center">${round1(totalP)}g</span>
       <span style="font-family:var(--fm);font-size:13px;color:var(--blue);text-align:center">${round1(totalC)}g</span>
@@ -9930,6 +10057,66 @@ let swapTarget = {mealIdx: 0, foodIdx: 0}; // which food is being swapped
 
 function updateClientMealName(mi, val) { clientMeals[mi].name = val; }
 
+/* --- Drag & Drop state for client meal foods --- */
+var dragClientSrc = null;
+
+function onClientFoodDragStart(e, mi, fi) {
+  dragClientSrc = {mi:mi, fi:fi};
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', mi + ',' + fi);
+  e.target.style.opacity = '0.4';
+}
+function onClientFoodDragEnd(e) {
+  e.target.style.opacity = '1';
+  dragClientSrc = null;
+  document.querySelectorAll('.client-meal-drop-zone').forEach(function(el) { el.style.borderColor = 'transparent'; el.style.background = ''; });
+  document.querySelectorAll('.client-food-row').forEach(function(el) { el.style.borderTop = ''; });
+}
+function onClientMealDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  e.currentTarget.style.borderColor = 'var(--gold)';
+  e.currentTarget.style.background = 'rgba(200,169,110,.06)';
+}
+function onClientMealDragLeave(e) {
+  e.currentTarget.style.borderColor = 'transparent';
+  e.currentTarget.style.background = '';
+}
+function onClientMealDrop(e, targetMi) {
+  e.preventDefault();
+  e.currentTarget.style.borderColor = 'transparent';
+  e.currentTarget.style.background = '';
+  if (!dragClientSrc) return;
+  var srcMi = dragClientSrc.mi, srcFi = dragClientSrc.fi;
+  if (srcMi === targetMi) return;
+  var food = clientMeals[srcMi].foods.splice(srcFi, 1)[0];
+  if (!food) return;
+  clientMeals[targetMi].foods.push(food);
+  dragClientSrc = null;
+  renderClientMeals();
+  showToast('Moved ' + food.fname + ' → ' + clientMeals[targetMi].name);
+}
+function onClientFoodDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  e.currentTarget.style.borderTop = '2px solid var(--gold)';
+}
+function onClientFoodDragLeave(e) {
+  e.currentTarget.style.borderTop = '';
+}
+function onClientFoodDrop(e, targetMi, targetFi) {
+  e.preventDefault();
+  e.currentTarget.style.borderTop = '';
+  if (!dragClientSrc) return;
+  var srcMi = dragClientSrc.mi, srcFi = dragClientSrc.fi;
+  var food = clientMeals[srcMi].foods.splice(srcFi, 1)[0];
+  if (!food) return;
+  if (srcMi === targetMi && srcFi < targetFi) targetFi--;
+  clientMeals[targetMi].foods.splice(targetFi, 0, food);
+  dragClientSrc = null;
+  renderClientMeals();
+}
+
 function renderClientMeals() {
   const body = document.getElementById('client-meals-body');
   if (!body) return;
@@ -9941,7 +10128,7 @@ function renderClientMeals() {
     const logClass = meal.logged ? 'btn btn-sm" style="background:var(--green-d);color:var(--green);border:1px solid rgba(80,200,120,.3);pointer-events:none' : 'btn btn-g btn-sm';
 
     html += `<div class="card-sm" style="margin-bottom:8px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div class="client-meal-drop-zone" ondragover="onClientMealDragOver(event)" ondragleave="onClientMealDragLeave(event)" ondrop="onClientMealDrop(event,${mi})" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;border:1px dashed transparent;border-radius:6px;padding:2px;transition:all .15s">
         <div>
           <div style="font-size:10px;color:${meal.logged ? 'var(--green)' : 'var(--t3)'};font-weight:500;letter-spacing:1px;text-transform:uppercase">Meal ${mi+1} · ${meal.time}</div>
           <div style="font-size:14px;font-weight:500;color:var(--t1);margin-top:2px">${safeName}</div>
@@ -9960,11 +10147,10 @@ function renderClientMeals() {
       const checkColor = checked ? 'var(--green)' : 'var(--t3)';
       const checkBg = checked ? 'var(--green-d)' : 'transparent';
       const CHECK_ICON = '<svg viewBox="0 0 10 10" fill="none" width="10" height="10"><polyline points="1.5,5 4,7.5 8.5,2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-      const hasOriginal = f.originalGrams && f.originalGrams !== f.grams;
-      const origTag = hasOriginal ? '<span style="font-size:10px;color:var(--t3);text-decoration:line-through;margin-left:3px">' + f.originalGrams + 'g</span>' : '';
 
-      html += `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">
-        <div style="display:flex;align-items:center;gap:8px">
+      html += `<div class="client-food-row" draggable="true" ondragstart="onClientFoodDragStart(event,${mi},${fi})" ondragend="onClientFoodDragEnd(event)" ondragover="onClientFoodDragOver(event)" ondragleave="onClientFoodDragLeave(event)" ondrop="onClientFoodDrop(event,${mi},${fi})" style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);cursor:grab;transition:border-top .1s">
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="color:var(--t3);font-size:10px;cursor:grab;user-select:none;flex-shrink:0" title="Drag to reorder">⠿</div>
           <div onclick="toggleClientFoodCheck(${mi},${fi})" style="width:20px;height:20px;border-radius:5px;border:1.5px solid ${checkColor};background:${checkBg};display:flex;align-items:center;justify-content:center;cursor:pointer;color:${checkColor};transition:all .15s;flex-shrink:0">${checked ? CHECK_ICON : ''}</div>
           <div>
             <span style="font-size:12.5px;color:var(--t2);opacity:${checked ? '.7' : '1'}">${f.fname}</span>
@@ -9973,7 +10159,7 @@ function renderClientMeals() {
         </div>
         <div style="display:flex;align-items:center;gap:6px">
           <div style="display:flex;align-items:center;gap:2px">
-            <input class="gram-inp" value="${f.grams}" onchange="updateClientFoodGrams(${mi},${fi},this.value)" style="width:38px;text-align:center;background:var(--s3);border:1px solid var(--border);border-radius:5px;color:var(--t1);font-family:var(--fm);font-size:11px;padding:2px 3px;outline:none" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border)'">${origTag}<span style="font-size:10px;color:var(--t3)">g</span>
+            <input class="gram-inp" value="${f.grams}" onchange="updateClientFoodGrams(${mi},${fi},this.value)" style="width:38px;text-align:center;background:var(--s3);border:1px solid var(--border);border-radius:5px;color:var(--t1);font-family:var(--fm);font-size:11px;padding:2px 3px;outline:none" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border)'"><span style="font-size:10px;color:var(--t3)">g</span>
           </div>
           <span style="font-family:var(--fm);font-size:11px;color:var(--t3);min-width:48px;text-align:right">${f.kcal} kcal</span>
           <button class="btn btn-g btn-sm" style="padding:2px 8px;font-size:10px" onclick="openSwap(${mi},${fi})">↔</button>
@@ -9987,7 +10173,7 @@ function renderClientMeals() {
       <div style="background:var(--s2);border-radius:10px;padding:10px;border:1px solid var(--border)">
         <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px"><div class="search-bar" style="flex:1;margin-bottom:0"><svg viewBox="0 0 14 14" fill="none" width="14" height="14"><circle cx="6" cy="6" r="4" stroke="var(--t3)" stroke-width="1.4"/><path d="M10 10l3 3" stroke="var(--t3)" stroke-width="1.4" stroke-linecap="round"/></svg><input class="search-input cl-food-search-inp" data-meal="${mi}" placeholder="Search foods to add..." oninput="searchClientFoods(this.value, ${mi})"></div><button onclick="openBarcodeScanner('client')" title="Scan barcode" style="background:var(--s3);border:1px solid var(--border);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:16px;line-height:1">📷</button><button onclick="toggleClientFoodSearch(${mi})" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:14px;padding:4px" title="Close">✕</button></div>
         <div class="food-search-panel" id="cl-food-search-panel-${mi}" style="display:none">
-          <div style="display:grid;grid-template-columns:1fr 50px 50px 50px 50px auto;padding:4px 12px;font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--t3)"><span>Food (per 100g)</span><span style="text-align:center">KCAL</span><span style="text-align:center;color:var(--green)">PRO</span><span style="text-align:center;color:var(--blue)">CARB</span><span style="text-align:center;color:var(--red)">FAT</span><span></span></div>
+          <div style="display:grid;grid-template-columns:1fr 40px 40px 40px 40px 44px;padding:4px 12px;font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--t3)"><span>Food (per 100g)</span><span style="text-align:center">KCAL</span><span style="text-align:center;color:var(--green)">PRO</span><span style="text-align:center;color:var(--blue)">CARB</span><span style="text-align:center;color:var(--red)">FAT</span><span></span></div>
           <div class="food-search-results" id="cl-food-search-results-${mi}"></div>
         </div>
       </div>
@@ -10072,7 +10258,7 @@ function searchClientFoods(query, mealIdx) {
         '<div class="fm" style="color:var(--green)">' + f.p + '</div>' +
         '<div class="fm" style="color:var(--blue)">' + f.c + '</div>' +
         '<div class="fm" style="color:var(--red)">' + f.f + '</div>' +
-        '<button class="btn btn-p btn-sm" style="padding:3px 8px;font-size:10px" onclick="event.stopPropagation();addClientFood(' + f.id + ')">+ Add</button>' +
+        '<button class="btn btn-p btn-sm" style="padding:2px 6px;font-size:9px;white-space:nowrap" onclick="event.stopPropagation();addClientFood(' + f.id + ')">+ Add</button>' +
       '</div>';
     }).join('');
   }
@@ -10268,7 +10454,10 @@ function renderSwapResults(alts) {
   // Sort each group by macro similarity (best swaps first)
   Object.keys(grouped).forEach(cat => {
     grouped[cat].sort((a,b) => a.diff - b.diff);
-    grouped[cat] = grouped[cat].slice(0, 10);
+    // Show ALL items for the source category (same type), limit others to 10
+    if (cat !== swapSourceCat) {
+      grouped[cat] = grouped[cat].slice(0, 10);
+    }
   });
 
   // Build category order: source category first, then the rest
