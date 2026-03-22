@@ -740,7 +740,7 @@ textarea.t-area:focus{border-color:var(--gold)}
   <button class="btab" onclick="cGo('c-clients',this);setActiveTab(this)"><svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="7" r="3" stroke="currentColor" stroke-width="1.3"/><path d="M4 17c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg><span>Clients</span></button>
   <button class="btab" onclick="cGo('c-nutrition',this);setActiveTab(this)"><svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.3"/><path d="M10 3v7l5 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg><span>Nutrition</span></button>
   <button class="btab" onclick="cGo('c-chat',this);setActiveTab(this)"><svg viewBox="0 0 20 20" fill="none"><path d="M4 4h12a1 1 0 011 1v8a1 1 0 01-1 1H8l-3 3v-3H4a1 1 0 01-1-1V5a1 1 0 011-1z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg><span>Chat</span></button>
-  <button class="btab" onclick="switchProfile('client')"><svg viewBox="0 0 20 20" fill="none"><path d="M8 2l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 6H4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M12 18l-4-4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 14h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span>Client</span></button>
+  <button class="btab" onclick="cGo('c-checkins',this);setActiveTab(this)"><svg viewBox="0 0 20 20" fill="none"><path d="M4 4h12a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1V5a1 1 0 011-1z" stroke="currentColor" stroke-width="1.3"/><path d="M7 9l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Check-ins</span></button>
 </div>
 
 <div class="main">
@@ -750,7 +750,31 @@ textarea.t-area:focus{border-color:var(--gold)}
     <span id="coach-active-client" style="display:inline-block;padding:4px 10px;background:var(--gold-d);border:1px solid rgba(200,169,110,.2);border-radius:20px;font-size:10px;font-weight:500;color:var(--gold);margin-left:auto">Editing: Niels van Berg</span>
     <div class="hdr-actions">
       <div style="display:flex;align-items:center;gap:5px;padding:4px 10px;background:var(--green-d);border:1px solid rgba(59,255,166,.2);border-radius:20px;font-size:10px;font-weight:500;color:var(--green)"><div class="rt-dot" style="width:5px;height:5px;animation-duration:1.5s"></div>LIVE SYNC</div>
-      <div class="ibtn"><svg viewBox="0 0 14 14" fill="none"><path d="M7 1.5A4.5 4.5 0 0111.5 6c0 2.2-.9 3.5-2.2 4.4v.6a.5.5 0 01-.5.5H5.2a.5.5 0 01-.5-.5v-.6C3.4 9.5 2.5 8.2 2.5 6A4.5 4.5 0 017 1.5z" stroke="currentColor" stroke-width="1.4"/><path d="M5.5 12.5h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg><div class="dot"></div></div>
+      <div style="position:relative" id="coach-profile-wrap">
+        <div class="u-av" onclick="toggleProfileMenu('coach',event)" style="width:32px;height:32px;background:linear-gradient(135deg,var(--gold),var(--gold-l));color:var(--black);font-family:var(--fd);font-size:13px;display:flex;align-items:center;justify-content:center;border-radius:50%;cursor:pointer;flex-shrink:0">N</div>
+        <div id="coach-profile-menu" style="display:none;position:absolute;top:40px;right:0;width:260px;background:var(--s1);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.5);z-index:999;overflow:hidden">
+          <div style="padding:14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
+            <div class="u-av" style="width:36px;height:36px;background:linear-gradient(135deg,var(--gold),var(--gold-l));color:var(--black);font-family:var(--fd);font-size:14px;display:flex;align-items:center;justify-content:center;border-radius:50%;flex-shrink:0">N</div>
+            <div><div style="font-size:13px;font-weight:600;color:var(--t1)">Niels — Head Coach</div><div style="font-size:10px;color:var(--t3)">Aesthetic Lifestyle</div></div>
+          </div>
+          <div id="pm-coach-stats" style="padding:8px 14px;border-bottom:1px solid var(--border);display:flex;gap:12px"></div>
+          <div style="padding:6px">
+            <div class="pm-row" onclick="closeProfileMenu();switchProfile('client')" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;transition:background .1s" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">
+              <div class="u-av" style="width:24px;height:24px;background:linear-gradient(135deg,var(--green),var(--blue));color:var(--black);font-size:9px;display:flex;align-items:center;justify-content:center;border-radius:50%;flex-shrink:0">R</div>
+              <span style="font-size:12px;color:var(--t1);flex:1">Switch to Client</span>
+              <svg viewBox="0 0 10 10" width="10" height="10" style="opacity:.3"><path d="M3 1l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+            </div>
+            <div class="pm-row" onclick="closeProfileMenu();showToast('Settings coming soon')" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;transition:background .1s" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">
+              <span style="font-size:15px;width:24px;text-align:center">&#9881;</span>
+              <span style="font-size:12px;color:var(--t1);flex:1">Settings</span>
+            </div>
+            <div class="pm-row" onclick="closeProfileMenu();showToast('Logged out (demo)')" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;transition:background .1s" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">
+              <span style="font-size:15px;width:24px;text-align:center;color:var(--red)">&#x2716;</span>
+              <span style="font-size:12px;color:var(--red);flex:1">Log Out</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -833,6 +857,41 @@ textarea.t-area:focus{border-color:var(--gold)}
       <div class="card" id="client-list-card">
         <div id="client-list-body">
           <!-- Dynamically rendered -->
+        </div>
+      </div>
+    </div>
+
+    <!-- FULL CLIENT PROFILE -->
+    <div class="screen" id="screen-c-client-profile">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+        <button class="btn btn-g btn-sm" onclick="cGo('c-clients',document.getElementById('ni-c-clients'))">← Back</button>
+        <div id="fp-header" style="flex:1"></div>
+      </div>
+      <div id="fp-body" style="display:flex;flex-direction:column;gap:20px">
+        <!-- Section 1: Progress & Body -->
+        <div class="card" id="fp-section-progress">
+          <div class="section-hd" style="font-size:14px;margin-bottom:14px">BODY & PROGRESS</div>
+          <div id="fp-progress-body"></div>
+        </div>
+        <!-- Section 2: Training -->
+        <div class="card" id="fp-section-training">
+          <div class="section-hd" style="font-size:14px;margin-bottom:14px">TRAINING (LAST 3 WEEKS)</div>
+          <div id="fp-training-body"></div>
+        </div>
+        <!-- Section 3: Nutrition -->
+        <div class="card" id="fp-section-nutrition">
+          <div class="section-hd" style="font-size:14px;margin-bottom:14px">NUTRITION (LAST 3 WEEKS)</div>
+          <div id="fp-nutrition-body"></div>
+        </div>
+        <!-- Section 4: Lifestyle & Adherence -->
+        <div class="card" id="fp-section-lifestyle">
+          <div class="section-hd" style="font-size:14px;margin-bottom:14px">LIFESTYLE & ADHERENCE</div>
+          <div id="fp-lifestyle-body"></div>
+        </div>
+        <!-- Section 5: Coach Notes -->
+        <div class="card" id="fp-section-notes">
+          <div class="section-hd" style="font-size:14px;margin-bottom:14px">COACH NOTES</div>
+          <div id="fp-notes-body"></div>
         </div>
       </div>
     </div>
@@ -1447,7 +1506,7 @@ textarea.t-area:focus{border-color:var(--gold)}
   <button class="btab" onclick="rGo('r-training',this);setActiveTab(this)"><svg viewBox="0 0 20 20" fill="none"><path d="M4 10h12M2 7h2v6H2zM16 7h2v6h-2zM6 8h2v4H6zM12 8h2v4h-2z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Training</span></button>
   <button class="btab" onclick="rGo('r-nutrition',this);setActiveTab(this)"><svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.3"/><path d="M10 3v7l5 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg><span>Nutrition</span></button>
   <button class="btab" onclick="rGo('r-journal',this);setActiveTab(this)"><svg viewBox="0 0 20 20" fill="none"><path d="M5 3h10a1 1 0 011 1v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4a1 1 0 011-1z" stroke="currentColor" stroke-width="1.3"/><path d="M7 7h6M7 10h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg><span>Journal</span></button>
-  <button class="btab" onclick="switchProfile('coach')"><svg viewBox="0 0 20 20" fill="none"><path d="M8 2l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 6H4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M12 18l-4-4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 14h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span>Coach</span></button>
+  <button class="btab" onclick="rGo('r-progress',this);setActiveTab(this)"><svg viewBox="0 0 20 20" fill="none"><polyline points="2,15 6,10 10,12 14,6 18,4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg><span>Progress</span></button>
 </div>
 
 <div class="main">
@@ -1455,8 +1514,39 @@ textarea.t-area:focus{border-color:var(--gold)}
     <button class="ibtn" id="client-menu-btn" onclick="toggleNav('client-nav')" style="display:none"><svg viewBox="0 0 14 14" fill="none"><path d="M1 3.5h12M1 7h12M1 10.5h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
     <div class="hdr-title" id="client-title">DASHBOARD</div>
     <div class="hdr-actions">
-      <div class="ibtn"><svg viewBox="0 0 14 14" fill="none"><path d="M7 1.5A4.5 4.5 0 0111.5 6c0 2.2-.9 3.5-2.2 4.4v.6a.5.5 0 01-.5.5H5.2a.5.5 0 01-.5-.5v-.6C3.4 9.5 2.5 8.2 2.5 6A4.5 4.5 0 017 1.5z" stroke="currentColor" stroke-width="1.4"/><path d="M5.5 12.5h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg><div class="dot" style="background:var(--red)"></div></div>
-      <div class="u-av" style="width:32px;height:32px;background:linear-gradient(135deg,var(--green),var(--blue));color:var(--black);font-family:var(--fd);font-size:13px;display:flex;align-items:center;justify-content:center;border-radius:50%;cursor:pointer;flex-shrink:0">R</div>
+      <div class="ibtn" id="reminder-bulb" onclick="toggleReminderPanel(event)" style="position:relative"><svg viewBox="0 0 14 14" fill="none"><path d="M7 1.5A4.5 4.5 0 0111.5 6c0 2.2-.9 3.5-2.2 4.4v.6a.5.5 0 01-.5.5H5.2a.5.5 0 01-.5-.5v-.6C3.4 9.5 2.5 8.2 2.5 6A4.5 4.5 0 017 1.5z" stroke="currentColor" stroke-width="1.4"/><path d="M5.5 12.5h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg><div class="dot" id="reminder-dot" style="background:var(--red)"></div></div>
+      <div id="reminder-panel" style="display:none;position:absolute;top:44px;right:40px;width:280px;background:var(--s1);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.5);z-index:999;overflow:hidden">
+        <div style="padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+          <div style="font-family:var(--fd);font-size:11px;letter-spacing:1.5px;color:var(--gold)">TODAY'S REMINDERS</div>
+          <div id="reminder-count" style="font-size:10px;color:var(--t3)"></div>
+        </div>
+        <div id="reminder-list" style="padding:8px;max-height:320px;overflow-y:auto"></div>
+      </div>
+      <div style="position:relative" id="client-profile-wrap">
+        <div class="u-av" onclick="toggleProfileMenu('client',event)" style="width:32px;height:32px;background:linear-gradient(135deg,var(--green),var(--blue));color:var(--black);font-family:var(--fd);font-size:13px;display:flex;align-items:center;justify-content:center;border-radius:50%;cursor:pointer;flex-shrink:0">R</div>
+        <div id="client-profile-menu" style="display:none;position:absolute;top:40px;right:0;width:260px;background:var(--s1);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.5);z-index:999;overflow:hidden">
+          <div style="padding:14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
+            <div class="u-av" style="width:36px;height:36px;background:linear-gradient(135deg,var(--green),var(--blue));color:var(--black);font-family:var(--fd);font-size:14px;display:flex;align-items:center;justify-content:center;border-radius:50%;flex-shrink:0">R</div>
+            <div><div style="font-size:13px;font-weight:600;color:var(--t1)" id="pm-client-name">Rick Linden</div><div style="font-size:10px;color:var(--t3)" id="pm-client-meta">Client · Week 3</div></div>
+          </div>
+          <div id="pm-client-stats" style="padding:8px 14px;border-bottom:1px solid var(--border);display:flex;gap:12px"></div>
+          <div style="padding:6px">
+            <div class="pm-row" onclick="closeProfileMenu();switchProfile('coach')" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;transition:background .1s" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">
+              <div class="u-av" style="width:24px;height:24px;background:linear-gradient(135deg,var(--gold),var(--gold-l));color:var(--black);font-size:9px;display:flex;align-items:center;justify-content:center;border-radius:50%;flex-shrink:0">N</div>
+              <span style="font-size:12px;color:var(--t1);flex:1">Switch to Coach</span>
+              <svg viewBox="0 0 10 10" width="10" height="10" style="opacity:.3"><path d="M3 1l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+            </div>
+            <div class="pm-row" onclick="closeProfileMenu();showToast('Settings coming soon')" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;transition:background .1s" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">
+              <span style="font-size:15px;width:24px;text-align:center">&#9881;</span>
+              <span style="font-size:12px;color:var(--t1);flex:1">Settings</span>
+            </div>
+            <div class="pm-row" onclick="closeProfileMenu();showToast('Logged out (demo)')" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;transition:background .1s" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">
+              <span style="font-size:15px;width:24px;text-align:center;color:var(--red)">&#x2716;</span>
+              <span style="font-size:12px;color:var(--red);flex:1">Log Out</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -1833,7 +1923,7 @@ textarea.t-area:focus{border-color:var(--gold)}
 
                 <div class="wcheckin-row" id="wc-pain-detail" style="display:none">
                   <label style="font-size:10px;font-weight:500;letter-spacing:1px;text-transform:uppercase;color:var(--t3);display:block;margin-bottom:5px">Describe the pain / injury</label>
-                  <textarea class="t-area" placeholder="Where does it hurt? How long has it been bothering you?"></textarea>
+                  <textarea class="t-area" id="wc-pain-text" placeholder="Where does it hurt? How long has it been bothering you?"></textarea>
                 </div>
               </div>
 
@@ -1879,7 +1969,7 @@ textarea.t-area:focus{border-color:var(--gold)}
 
                 <div class="wcheckin-row">
                   <label style="font-size:10px;font-weight:500;letter-spacing:1px;text-transform:uppercase;color:var(--t3);display:block;margin-bottom:5px">Biggest struggle this week</label>
-                  <textarea class="t-area" placeholder="What made it hardest to stick to the plan? Be honest — it helps your coach help you.">Meal prep on Wednesday fell apart because of a late meeting. Ended up ordering takeout twice.</textarea>
+                  <textarea class="t-area" id="wc-struggle" placeholder="What made it hardest to stick to the plan? Be honest — it helps your coach help you.">Meal prep on Wednesday fell apart because of a late meeting. Ended up ordering takeout twice.</textarea>
                 </div>
               </div>
 
@@ -1891,12 +1981,12 @@ textarea.t-area:focus{border-color:var(--gold)}
 
                 <div class="wcheckin-row">
                   <label style="font-size:10px;font-weight:500;letter-spacing:1px;text-transform:uppercase;color:var(--t3);display:block;margin-bottom:5px">What went well this week?</label>
-                  <textarea class="t-area" placeholder="Celebrate your wins, even the small ones!">Hit all my protein targets 5 out of 7 days. Also added 2.5kg to my goblet squat.</textarea>
+                  <textarea class="t-area" id="wc-went-well" placeholder="Celebrate your wins, even the small ones!">Hit all my protein targets 5 out of 7 days. Also added 2.5kg to my goblet squat.</textarea>
                 </div>
 
                 <div class="wcheckin-row">
                   <label style="font-size:10px;font-weight:500;letter-spacing:1px;text-transform:uppercase;color:var(--t3);display:block;margin-bottom:5px">What can you do better next week?</label>
-                  <textarea class="t-area" placeholder="Pick 1-2 things to focus on improving.">Prep meals on Sunday so I don't fall behind mid-week. Also need to drink more water before 12pm.</textarea>
+                  <textarea class="t-area" id="wc-do-better" placeholder="Pick 1-2 things to focus on improving.">Prep meals on Sunday so I don't fall behind mid-week. Also need to drink more water before 12pm.</textarea>
                 </div>
 
                 <div class="wcheckin-row">
@@ -1913,12 +2003,12 @@ textarea.t-area:focus{border-color:var(--gold)}
 
                 <div class="wcheckin-row">
                   <label style="font-size:10px;font-weight:500;letter-spacing:1px;text-transform:uppercase;color:var(--t3);display:block;margin-bottom:5px">Questions for your coach?</label>
-                  <textarea class="t-area" placeholder="Anything you want to ask or discuss?">Should I increase cardio or keep it the same? Also, is it okay to swap oats for rice cakes at breakfast?</textarea>
+                  <textarea class="t-area" id="wc-questions" placeholder="Anything you want to ask or discuss?">Should I increase cardio or keep it the same? Also, is it okay to swap oats for rice cakes at breakfast?</textarea>
                 </div>
 
                 <div class="wcheckin-row">
                   <label style="font-size:10px;font-weight:500;letter-spacing:1px;text-transform:uppercase;color:var(--t3);display:block;margin-bottom:5px">Any changes you want to the plan?</label>
-                  <textarea class="t-area" placeholder="Training tweaks, meal swaps, schedule changes..."></textarea>
+                  <textarea class="t-area" id="wc-plan-changes" placeholder="Training tweaks, meal swaps, schedule changes..."></textarea>
                 </div>
 
                 <div class="wcheckin-row">
@@ -3022,6 +3112,96 @@ function openChatFor(clientId) {
 /* ============================================================
    PROFILE SWITCHER
 ============================================================ */
+/* ============================================================
+   PROFILE MENU — dropdown from avatar icon
+============================================================ */
+function toggleProfileMenu(side, e) {
+  e.stopPropagation();
+  var menuId = side === 'coach' ? 'coach-profile-menu' : 'client-profile-menu';
+  var menu = document.getElementById(menuId);
+  if (!menu) return;
+  var isOpen = menu.style.display !== 'none';
+
+  // Close any open profile menu first
+  closeProfileMenu();
+
+  if (isOpen) return;
+
+  // Populate quick stats before showing
+  if (side === 'client') buildClientProfileStats();
+  else buildCoachProfileStats();
+
+  menu.style.display = 'block';
+  setTimeout(function() {
+    document.addEventListener('click', closeProfileMenu, {once: true});
+  }, 10);
+}
+
+function closeProfileMenu() {
+  var menus = ['client-profile-menu', 'coach-profile-menu'];
+  menus.forEach(function(id) {
+    var m = document.getElementById(id);
+    if (m) m.style.display = 'none';
+  });
+}
+
+function buildClientProfileStats() {
+  var el = document.getElementById('pm-client-stats');
+  if (!el) return;
+  var clientId = activeCoachClient || 'rick';
+  var score = calcWeeklyScore(clientId);
+  var streak = calcStreak(clientId);
+  var meta = CLIENT_META[clientId] || {};
+  var scoreColor = score >= 80 ? 'var(--green)' : score >= 50 ? 'var(--orange)' : 'var(--red)';
+
+  el.innerHTML = '' +
+    '<div style="flex:1;text-align:center;padding:4px 0">' +
+      '<div style="font-family:var(--fm);font-size:16px;font-weight:600;color:var(--t1)">W' + (meta.week || '3') + '</div>' +
+      '<div style="font-size:9px;color:var(--t3)">Week</div>' +
+    '</div>' +
+    '<div style="width:1px;background:var(--border)"></div>' +
+    '<div style="flex:1;text-align:center;padding:4px 0">' +
+      '<div style="font-family:var(--fm);font-size:16px;font-weight:600;color:' + scoreColor + '">' + score + '%</div>' +
+      '<div style="font-size:9px;color:var(--t3)">Adherence</div>' +
+    '</div>' +
+    '<div style="width:1px;background:var(--border)"></div>' +
+    '<div style="flex:1;text-align:center;padding:4px 0">' +
+      '<div style="font-family:var(--fm);font-size:16px;font-weight:600;color:var(--orange)">' + (streak.current > 0 ? streak.current + 'd' : '—') + '</div>' +
+      '<div style="font-size:9px;color:var(--t3)">Streak</div>' +
+    '</div>';
+}
+
+function buildCoachProfileStats() {
+  var el = document.getElementById('pm-coach-stats');
+  if (!el) return;
+  var clientIds = Object.keys(CLIENT_META);
+  var totalClients = clientIds.length;
+  var atRisk = 0;
+  var totalScore = 0;
+  clientIds.forEach(function(id) {
+    var s = calcWeeklyScore(id);
+    totalScore += s;
+    if (s < 50) atRisk++;
+  });
+  var avgScore = totalClients > 0 ? Math.round(totalScore / totalClients) : 0;
+
+  el.innerHTML = '' +
+    '<div style="flex:1;text-align:center;padding:4px 0">' +
+      '<div style="font-family:var(--fm);font-size:16px;font-weight:600;color:var(--t1)">' + totalClients + '</div>' +
+      '<div style="font-size:9px;color:var(--t3)">Clients</div>' +
+    '</div>' +
+    '<div style="width:1px;background:var(--border)"></div>' +
+    '<div style="flex:1;text-align:center;padding:4px 0">' +
+      '<div style="font-family:var(--fm);font-size:16px;font-weight:600;color:' + (avgScore >= 70 ? 'var(--green)' : 'var(--orange)') + '">' + avgScore + '</div>' +
+      '<div style="font-size:9px;color:var(--t3)">Avg Score</div>' +
+    '</div>' +
+    '<div style="width:1px;background:var(--border)"></div>' +
+    '<div style="flex:1;text-align:center;padding:4px 0">' +
+      '<div style="font-family:var(--fm);font-size:16px;font-weight:600;color:' + (atRisk > 0 ? 'var(--red)' : 'var(--green)') + '">' + atRisk + '</div>' +
+      '<div style="font-size:9px;color:var(--t3)">At Risk</div>' +
+    '</div>';
+}
+
 function switchProfile(mode) {
   document.getElementById('app-coach').classList.toggle('visible', mode === 'coach');
   document.getElementById('app-client').classList.toggle('visible', mode === 'client');
@@ -3053,7 +3233,7 @@ function switchProfile(mode) {
    COACH NAVIGATION
 ============================================================ */
 const COACH_TITLES = {
-  'c-overview':'COMMAND CENTER','c-clients':'CLIENT MANAGEMENT',
+  'c-overview':'COMMAND CENTER','c-clients':'CLIENT MANAGEMENT','c-client-profile':'CLIENT PROFILE',
   'c-checkins':'CHECK-INS','c-wbuilder':'WORKOUT BUILDER',
   'c-nutrition':'NUTRITION EDITOR','c-templates':'PLAN TEMPLATES',
   'c-automation':'AUTOMATION RULES','c-chat':'COACH CHAT',
@@ -3357,6 +3537,123 @@ function updateChecklistProgress() {
     counter.style.color = pct === 100 ? 'var(--green)' : 'var(--orange)';
   }
   if (pct === 100) showToast('All daily tasks complete! You crushed it today! 🔥');
+  updateReminderDot();
+}
+
+/* ============================================================
+   DAILY REMINDERS — Light bulb dropdown
+============================================================ */
+function toggleReminderPanel(e) {
+  e.stopPropagation();
+  var panel = document.getElementById('reminder-panel');
+  if (!panel) return;
+  var isOpen = panel.style.display !== 'none';
+  if (isOpen) {
+    panel.style.display = 'none';
+    return;
+  }
+  buildReminderList();
+  panel.style.display = 'block';
+  // Close on outside click
+  setTimeout(function() {
+    document.addEventListener('click', closeReminderPanel, {once: true});
+  }, 10);
+}
+
+function closeReminderPanel() {
+  var panel = document.getElementById('reminder-panel');
+  if (panel) panel.style.display = 'none';
+}
+
+function buildReminderList() {
+  var parent = document.getElementById('dash-checklist');
+  var listEl = document.getElementById('reminder-list');
+  var countEl = document.getElementById('reminder-count');
+  var dotEl = document.getElementById('reminder-dot');
+  if (!listEl) return;
+
+  // Gather checklist items and their status
+  var items = parent ? parent.querySelectorAll('.ci') : [];
+  var reminders = [];
+
+  // Map checklist IDs to reminder info
+  var reminderMap = {
+    'ci-weighin':     {icon: '⚖️',  label: 'Log your morning weight',    nav: null},
+    'ci-cardio':      {icon: '🚶',  label: 'Hit your step goal (10,000)', nav: null},
+    'ci-supplements': {icon: '💊',  label: 'Take all supplements',        nav: 'r-supplements'},
+    'ci-meals':       {icon: '🍽️',  label: 'Log all your meals',          nav: 'r-nutrition'},
+    'ci-protein':     {icon: '🍗',  label: 'Hit your protein target',     nav: 'r-nutrition'},
+    'ci-workout':     {icon: '💪',  label: 'Complete today\'s workout',   nav: 'r-training'},
+    'ci-water':       {icon: '💧',  label: 'Drink 3L of water',           nav: null},
+    'ci-checkin':     {icon: '📝',  label: 'Do your evening check-in',    nav: 'r-journal'}
+  };
+
+  items.forEach(function(item) {
+    var id = item.id;
+    var isDone = item.classList.contains('done');
+    var info = reminderMap[id];
+    if (!info) return;
+    // Get the status text from the checklist
+    var statusEl = item.querySelector('.cm2');
+    var status = statusEl ? statusEl.textContent : '';
+    reminders.push({id: id, done: isDone, icon: info.icon, label: info.label, status: status, nav: info.nav});
+  });
+
+  var pending = reminders.filter(function(r) { return !r.done; });
+  var completed = reminders.filter(function(r) { return r.done; });
+
+  // Update dot visibility
+  if (dotEl) dotEl.style.display = pending.length > 0 ? 'block' : 'none';
+
+  // Update count
+  if (countEl) countEl.textContent = completed.length + '/' + reminders.length + ' done';
+
+  var html = '';
+
+  if (pending.length === 0) {
+    html += '<div style="padding:20px;text-align:center">';
+    html += '<div style="font-size:28px;margin-bottom:8px">🎉</div>';
+    html += '<div style="font-size:13px;font-weight:500;color:var(--green);margin-bottom:4px">All done for today!</div>';
+    html += '<div style="font-size:11px;color:var(--t3)">You crushed it. Rest up and recover.</div>';
+    html += '</div>';
+  } else {
+    // Pending items
+    pending.forEach(function(r) {
+      var navAttr = r.nav ? ' onclick="closeReminderPanel();rGo(\'' + r.nav + '\',document.getElementById(\'ni-' + r.nav + '\'))" style="cursor:pointer"' : '';
+      html += '<div' + navAttr + ' style="display:flex;align-items:center;gap:10px;padding:8px 8px;border-radius:8px;margin-bottom:2px;transition:background .1s' + (r.nav ? ';cursor:pointer' : '') + '"' + (r.nav ? ' onmouseover="this.style.background=\'var(--s2)\'" onmouseout="this.style.background=\'transparent\'"' : '') + '>';
+      html += '<span style="font-size:16px;flex-shrink:0">' + r.icon + '</span>';
+      html += '<div style="flex:1;min-width:0"><div style="font-size:12px;color:var(--t1);font-weight:500">' + r.label + '</div>';
+      if (r.status) html += '<div style="font-size:10px;color:var(--orange);margin-top:1px">' + r.status + '</div>';
+      html += '</div>';
+      if (r.nav) html += '<svg viewBox="0 0 10 10" width="10" height="10" style="opacity:.3;flex-shrink:0"><path d="M3 1l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>';
+      html += '</div>';
+    });
+
+    // Divider + completed items (collapsed)
+    if (completed.length > 0) {
+      html += '<div style="font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--t3);padding:10px 8px 4px;border-top:1px solid var(--border);margin-top:4px">Completed</div>';
+      completed.forEach(function(r) {
+        html += '<div style="display:flex;align-items:center;gap:10px;padding:4px 8px;opacity:.5">';
+        html += '<span style="font-size:14px;flex-shrink:0">' + r.icon + '</span>';
+        html += '<div style="font-size:11px;color:var(--t3);text-decoration:line-through">' + r.label + '</div>';
+        html += '<span style="font-size:10px;color:var(--green);margin-left:auto">✓</span>';
+        html += '</div>';
+      });
+    }
+  }
+
+  listEl.innerHTML = html;
+}
+
+// Update reminder dot whenever checklist changes
+var _origUpdateChecklistProgress = typeof updateChecklistProgress === 'function' ? null : null;
+function updateReminderDot() {
+  var parent = document.getElementById('dash-checklist');
+  var dotEl = document.getElementById('reminder-dot');
+  if (!parent || !dotEl) return;
+  var items = parent.querySelectorAll('.ci');
+  var done = parent.querySelectorAll('.ci.done');
+  dotEl.style.display = done.length < items.length ? 'block' : 'none';
 }
 
 /* Auto-check helpers — called from other functions */
@@ -3451,6 +3748,73 @@ function selWeekMood(el) {
 }
 
 function submitWeeklyCheckin() {
+  var clientId = currentClientId || 'rick';
+  var meta = CLIENT_META[clientId];
+  var week = meta ? meta.week : '?';
+
+  // Read slider values
+  var sleepQ = parseInt(document.querySelector('[data-label="lbl-w-sleep"]').value) || 5;
+  var digQ = parseInt(document.querySelector('[data-label="lbl-w-digestion"]').value) || 5;
+  var enQ = parseInt(document.querySelector('[data-label="lbl-w-energy"]').value) || 5;
+  var motQ = parseInt(document.querySelector('[data-label="lbl-w-motivation"]').value) || 5;
+  var nutrQ = parseInt(document.querySelector('[data-label="lbl-w-nutrition"]').value) || 5;
+
+  // Read counters
+  var workoutsEl = document.getElementById('wc-workouts');
+  var waterEl = document.getElementById('wc-water');
+  var workouts = workoutsEl ? parseFloat(workoutsEl.textContent) : 3;
+  var water = waterEl ? parseFloat(waterEl.textContent) : 2.0;
+
+  // Read Y/N groups
+  var painGroup = document.getElementById('wc-pain-group');
+  var painVal = 'no';
+  if (painGroup) {
+    var selPain = painGroup.querySelector('.sel-yes');
+    if (selPain) painVal = selPain.textContent.indexOf('Minor') > -1 ? 'yes-minor' : 'yes-serious';
+  }
+  var painText = '';
+  var painTextEl = document.getElementById('wc-pain-text');
+  if (painTextEl) painText = painTextEl.value.trim();
+
+  var stepsGroup = document.getElementById('wc-steps-group');
+  var stepsVal = 'Some Days';
+  if (stepsGroup) {
+    var selSteps = stepsGroup.querySelector('.sel-yes');
+    if (selSteps) stepsVal = selSteps.textContent.trim();
+  }
+
+  // Read textareas
+  var struggle = (document.getElementById('wc-struggle') || {}).value || '';
+  var wentWell = (document.getElementById('wc-went-well') || {}).value || '';
+  var doBetter = (document.getElementById('wc-do-better') || {}).value || '';
+  var questions = (document.getElementById('wc-questions') || {}).value || '';
+  var planChanges = (document.getElementById('wc-plan-changes') || {}).value || '';
+
+  // Read mood
+  var moodGroup = document.getElementById('week-mood-group');
+  var mood = '😐 Average';
+  if (moodGroup) {
+    var selMood = moodGroup.querySelector('.sel');
+    if (selMood) mood = selMood.textContent.trim();
+  }
+
+  var today = new Date().toISOString().slice(0, 10);
+  var entry = {
+    week: week, date: today, mood: mood,
+    sleepQuality: sleepQ, digestion: digQ, energy: enQ, pain: painVal, painDetail: painText,
+    nutritionAdherence: nutrQ, workoutsCompleted: workouts, waterAvg: water, stepsGoal: stepsVal,
+    biggestStruggle: struggle.trim(),
+    whatWentWell: wentWell.trim(),
+    whatDoBetter: doBetter.trim(),
+    motivation: motQ,
+    questionsForCoach: questions.trim(),
+    planChanges: planChanges.trim(),
+    hasPhotos: false
+  };
+
+  if (!WEEKLY_CHECKIN_DATA[clientId]) WEEKLY_CHECKIN_DATA[clientId] = [];
+  WEEKLY_CHECKIN_DATA[clientId].push(entry);
+
   showToast('Weekly review submitted! Your coach will review and respond.');
   switchJournalTab('daily');
 }
@@ -3509,7 +3873,8 @@ const MEASUREMENT_HISTORY = {
   rick: [
     {date:'2026-03-01', weight:102.0, waist:103, chest:110, arms:35, thighs:62},
     {date:'2026-03-08', weight:100.5, waist:101, chest:110, arms:35.5, thighs:62},
-    {date:'2026-03-15', weight:98.4, waist:98, chest:110, arms:36, thighs:61.5}
+    {date:'2026-03-15', weight:98.4, waist:98, chest:110, arms:36, thighs:61.5},
+    {date:'2026-03-22', weight:97.8, waist:96.5, chest:109.5, arms:36, thighs:61}
   ],
   niels: [{date:'2026-03-15', weight:81.4, waist:82, chest:100, arms:37, thighs:58}],
   stefan: [{date:'2026-03-15', weight:78.6, waist:78, chest:96, arms:34, thighs:56}],
@@ -3519,11 +3884,27 @@ const MEASUREMENT_HISTORY = {
 // Daily weight log per client: array of {date, weight}
 const WEIGHT_LOG = {
   rick: [
+    {date:'2026-03-02', weight:102.3},
+    {date:'2026-03-03', weight:102.1},
+    {date:'2026-03-04', weight:101.8},
+    {date:'2026-03-05', weight:101.5},
+    {date:'2026-03-06', weight:101.2},
+    {date:'2026-03-07', weight:101.0},
+    {date:'2026-03-08', weight:100.8},
+    {date:'2026-03-09', weight:100.5},
+    {date:'2026-03-10', weight:100.3},
+    {date:'2026-03-11', weight:100.1},
+    {date:'2026-03-12', weight:99.8},
+    {date:'2026-03-13', weight:99.5},
+    {date:'2026-03-14', weight:99.3},
     {date:'2026-03-15', weight:99.1},
     {date:'2026-03-16', weight:98.8},
     {date:'2026-03-17', weight:98.6},
     {date:'2026-03-18', weight:98.5},
-    {date:'2026-03-19', weight:98.4}
+    {date:'2026-03-19', weight:98.4},
+    {date:'2026-03-20', weight:98.2},
+    {date:'2026-03-21', weight:98.0},
+    {date:'2026-03-22', weight:97.8}
   ],
   niels: [{date:'2026-03-19', weight:81.4}],
   stefan: [{date:'2026-03-19', weight:78.6}],
@@ -4342,11 +4723,87 @@ function renderSmartActions() {
 }
 
 /* ============================================================
+   WEEKLY CHECK-IN SUBMISSIONS — structured weekly form data
+============================================================ */
+var WEEKLY_CHECKIN_DATA = {
+  rick: [
+    {
+      week: 1, date: '2026-03-08', mood: '😊 Good Week',
+      // Body & Recovery
+      sleepQuality: 7, digestion: 7, energy: 7, pain: 'no', painDetail: '',
+      // Adherence & Honesty
+      nutritionAdherence: 7, workoutsCompleted: 4, waterAvg: 2.5, stepsGoal: 'Most Days',
+      biggestStruggle: 'Figuring out portion sizes — I kept under-eating protein on rest days because I didn\'t feel hungry enough to eat all 4 meals.',
+      // Mindset & Progress
+      whatWentWell: 'Tracked every single day for 7 days straight. Weight already dropped from 102.3 to 100.8. Feeling more in control of my eating habits.',
+      whatDoBetter: 'Prep my lunch the night before so I don\'t skip meals when work is busy. Also need to get to bed before 11pm.',
+      motivation: 7,
+      // Coach Communication
+      questionsForCoach: 'Is it normal to feel bloated the first week? Should I add more fiber or less? Also, can I swap the goblet squat for a leg press?',
+      planChanges: '',
+      // Photos
+      hasPhotos: false
+    },
+    {
+      week: 2, date: '2026-03-15', mood: '😐 Average',
+      sleepQuality: 6, digestion: 6, energy: 6, pain: 'yes-minor', painDetail: 'Slight lower back tightness after deadlifts on Wednesday. Goes away after warming up.',
+      nutritionAdherence: 6, workoutsCompleted: 4, waterAvg: 2.2, stepsGoal: 'Some Days',
+      biggestStruggle: 'Sunday was a disaster — went out Saturday night, hungover all day, didn\'t track anything. Also had a stressful day at work on Friday that led to stress eating.',
+      whatWentWell: 'Hit a PR on goblet squat (12kg x 11 reps). Protein was on point 5 out of 6 tracked days. Bounced back strong after the bad Sunday.',
+      whatDoBetter: 'Limit alcohol to 1-2 drinks max on weekends. Pre-cook Sunday meals on Saturday so I have food ready even on lazy days.',
+      motivation: 6,
+      questionsForCoach: 'Should I increase cardio or keep it the same? Also, is it okay to swap oats for rice cakes at breakfast?',
+      planChanges: 'Maybe move leg day to Thursday instead of Wednesday — my schedule changed at work.',
+      hasPhotos: false
+    },
+    {
+      week: 3, date: '2026-03-22', mood: '😐 Average',
+      sleepQuality: 5, digestion: 5, energy: 5, pain: 'no', painDetail: '',
+      nutritionAdherence: 4, workoutsCompleted: 2, waterAvg: 1.5, stepsGoal: 'Rarely',
+      biggestStruggle: 'Meal prep on Wednesday fell apart because of a late meeting. Ended up ordering takeout twice. Also completely fell off from Monday to Thursday — no tracking, no workouts, barely any steps.',
+      whatWentWell: 'Hit all my protein targets 5 out of 7 days. Also added 2.5kg to my goblet squat. Most importantly — I came BACK after 4 days off instead of quitting.',
+      whatDoBetter: 'Prep meals on Sunday so I don\'t fall behind mid-week. Also need to drink more water before 12pm. Set phone reminders for check-ins.',
+      motivation: 6,
+      questionsForCoach: 'Should I increase cardio or keep it the same? Also, is it okay to swap oats for rice cakes at breakfast? I feel like I need a simpler plan for busy weeks.',
+      planChanges: 'Training tweaks, meal swaps, schedule changes... maybe a \'minimal\' plan for weeks when life gets crazy?',
+      hasPhotos: false
+    }
+  ]
+};
+
+/* ============================================================
    TODAY'S CHECK-INS & DAILY CHECK-INS SYSTEM
 ============================================================ */
 
 // Store daily check-in data with deterministic sample generation
-var DAILY_CHECKIN_DATA = {};
+var DAILY_CHECKIN_DATA = {
+  rick: {
+    // Week 1 (Mar 2–8): Motivated start, learning the ropes
+    '2026-03-02': {weight:102.3, steps:8200, hydration:2.5, sleep:7.2, mood:'😊', kcal:2350, protein:155, carbs:240, fat:85, hunger:3, energy:4, stress:2, digestion:'good', note:'First real day tracking — felt good about it'},
+    '2026-03-03': {weight:102.1, steps:6500, hydration:2.0, sleep:6.8, mood:'😐', kcal:2180, protein:140, carbs:225, fat:80, hunger:3, energy:3, stress:3, digestion:'okay', note:'Missed afternoon snack, was busy at work'},
+    '2026-03-04': {weight:101.8, steps:10200, hydration:3.1, sleep:7.5, mood:'😊', kcal:2420, protein:175, carbs:250, fat:82, hunger:2, energy:4, stress:2, digestion:'good', note:'Great workout day, hit all meals'},
+    '2026-03-05': {weight:101.5, steps:7100, hydration:1.8, sleep:6.2, mood:'😐', kcal:1950, protein:120, carbs:210, fat:75, hunger:4, energy:2, stress:3, digestion:'okay', note:''},
+    '2026-03-06': {weight:101.2, steps:9500, hydration:3.0, sleep:7.0, mood:'😊', kcal:2280, protein:160, carbs:235, fat:78, hunger:3, energy:3, stress:2, digestion:'good', note:'Workout felt heavy but pushed through'},
+    '2026-03-07': {weight:101.0, steps:11000, hydration:3.2, sleep:7.8, mood:'😊', kcal:2400, protein:180, carbs:245, fat:80, hunger:2, energy:4, stress:1, digestion:'good', note:'Best day so far, energy was great'},
+    '2026-03-08': {weight:100.8, steps:8800, hydration:2.8, sleep:7.1, mood:'😊', kcal:2320, protein:170, carbs:230, fat:82, hunger:3, energy:4, stress:2, digestion:'good', note:''},
+    // Week 2 (Mar 9–15): Strong but inconsistent
+    '2026-03-09': {weight:100.5, steps:3200, hydration:1.2, sleep:5.5, mood:'😔', kcal:null, protein:null, carbs:null, fat:null, hunger:5, energy:1, stress:5, digestion:'bad', note:'Hangover, ate junk all day, didnt track'},
+    '2026-03-10': {weight:100.3, steps:10500, hydration:3.5, sleep:7.9, mood:'😤', kcal:2250, protein:178, carbs:220, fat:76, hunger:2, energy:5, stress:2, digestion:'good', note:'Back on track, felt motivated after bad day'},
+    '2026-03-11': {weight:100.1, steps:7800, hydration:2.6, sleep:6.9, mood:'😐', kcal:2100, protein:145, carbs:215, fat:78, hunger:3, energy:3, stress:3, digestion:'okay', note:''},
+    '2026-03-12': {weight:99.8, steps:9200, hydration:3.0, sleep:7.3, mood:'😊', kcal:2380, protein:182, carbs:240, fat:80, hunger:2, energy:4, stress:2, digestion:'good', note:'Protein target hit, feeling good'},
+    '2026-03-13': {weight:99.5, steps:11500, hydration:3.4, sleep:8.0, mood:'😤', kcal:2450, protein:185, carbs:255, fat:82, hunger:2, energy:5, stress:1, digestion:'good', note:'PR on goblet squat! 12kg x 11. Energy insane'},
+    '2026-03-14': {weight:99.3, steps:5400, hydration:1.5, sleep:5.8, mood:'😔', kcal:1850, protein:110, carbs:200, fat:72, hunger:4, energy:2, stress:4, digestion:'okay', note:'Bad day at work, stress eating in evening'},
+    '2026-03-15': {weight:99.1, steps:9800, hydration:3.2, sleep:7.4, mood:'😊', kcal:2350, protein:176, carbs:238, fat:79, hunger:3, energy:4, stress:2, digestion:'good', note:'Good end to the week, all meals logged'},
+    // Week 3 (Mar 16–22): Dropout → comeback
+    '2026-03-16': {weight:98.8, steps:2100, hydration:0.8, sleep:5.0, mood:'😔', kcal:null, protein:null, carbs:null, fat:null, hunger:null, energy:null, stress:null, digestion:null, note:''},
+    '2026-03-17': {weight:98.6, steps:3000, hydration:1.0, sleep:5.2, mood:'😔', kcal:null, protein:null, carbs:null, fat:null, hunger:null, energy:null, stress:null, digestion:null, note:''},
+    '2026-03-18': {weight:98.5, steps:1800, hydration:0.5, sleep:4.8, mood:'😔', kcal:null, protein:null, carbs:null, fat:null, hunger:null, energy:null, stress:null, digestion:null, note:''},
+    '2026-03-19': {weight:98.4, steps:2500, hydration:0.7, sleep:5.0, mood:'😔', kcal:null, protein:null, carbs:null, fat:null, hunger:null, energy:null, stress:null, digestion:null, note:''},
+    '2026-03-20': {weight:98.2, steps:8900, hydration:2.8, sleep:7.0, mood:'😊', kcal:2200, protein:158, carbs:228, fat:76, hunger:3, energy:3, stress:2, digestion:'good', note:'Coach called, back on track. Simplified plan helping'},
+    '2026-03-21': {weight:98.0, steps:10200, hydration:3.1, sleep:7.5, mood:'😊', kcal:2350, protein:172, carbs:242, fat:78, hunger:2, energy:4, stress:2, digestion:'good', note:'Feeling strong again, did full workout'},
+    '2026-03-22': {weight:97.8, steps:4500, hydration:1.5, sleep:6.0, mood:'😐', kcal:1900, protein:130, carbs:195, fat:72, hunger:3, energy:3, stress:3, digestion:'okay', note:'Rest day, ate less than usual'}
+  }
+};
 
 function getDailyCheckinData(clientId, dateKey) {
   if (!DAILY_CHECKIN_DATA[clientId]) DAILY_CHECKIN_DATA[clientId] = {};
@@ -5266,6 +5723,243 @@ function renderWeeklySummary(filter) {
       html += '</div>';
     }
 
+    // ── FULL CHECK-IN DATA SECTIONS ──────────────────────────
+    // Gather daily check-in data for last 7 days
+    var checkinData = DAILY_CHECKIN_DATA[clientId] || {};
+    var wkNutr = {kcal:0, protein:0, carbs:0, fat:0, tracked:0};
+    var wkLife = {steps:0, hydration:0, sleep:0, stepsDays:0, hydrDays:0, sleepDays:0};
+    var wkWell = {hunger:0, energy:0, stress:0, hungerDays:0, energyDays:0, stressDays:0, digArr:[]};
+    var wkNotes = [];
+    var wkDates = [];
+    var today2 = new Date();
+    for (var di = 0; di < 7; di++) {
+      var dd = new Date(today2); dd.setDate(dd.getDate() - di);
+      var dk = dd.toISOString().slice(0,10);
+      wkDates.push(dk);
+      var ci = checkinData[dk];
+      if (!ci) continue;
+      // Nutrition (only tracked days)
+      if (ci.kcal !== null && ci.kcal !== undefined) {
+        wkNutr.kcal += ci.kcal; wkNutr.protein += (ci.protein||0); wkNutr.carbs += (ci.carbs||0); wkNutr.fat += (ci.fat||0); wkNutr.tracked++;
+      }
+      // Lifestyle
+      if (ci.steps !== null && ci.steps !== undefined) { wkLife.steps += ci.steps; wkLife.stepsDays++; }
+      if (ci.hydration !== null && ci.hydration !== undefined) { wkLife.hydration += ci.hydration; wkLife.hydrDays++; }
+      if (ci.sleep !== null && ci.sleep !== undefined) { wkLife.sleep += ci.sleep; wkLife.sleepDays++; }
+      // Wellbeing
+      if (ci.hunger !== null && ci.hunger !== undefined) { wkWell.hunger += ci.hunger; wkWell.hungerDays++; }
+      if (ci.energy !== null && ci.energy !== undefined) { wkWell.energy += ci.energy; wkWell.energyDays++; }
+      if (ci.stress !== null && ci.stress !== undefined) { wkWell.stress += ci.stress; wkWell.stressDays++; }
+      if (ci.digestion) wkWell.digArr.push(ci.digestion);
+      // Notes
+      if (ci.note && ci.note.trim()) {
+        var dayLabel = dk.slice(5); // MM-DD
+        var moodStr = ci.mood || '';
+        wkNotes.push({day: dayLabel, mood: moodStr, text: ci.note.trim()});
+      }
+    }
+
+    // ── 1. NUTRITION AVERAGES ──
+    html += '<div style="border-top:1px solid var(--border);padding-top:12px;margin-top:2px;margin-bottom:14px">';
+    html += '<div style="font-size:11px;font-weight:600;color:var(--gold);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Nutrition Averages <span style="font-weight:400;color:var(--t3);text-transform:none;letter-spacing:0">(last 7 days)</span></div>';
+    if (wkNutr.tracked > 0) {
+      var avgKcal2 = Math.round(wkNutr.kcal / wkNutr.tracked);
+      var avgP2 = Math.round(wkNutr.protein / wkNutr.tracked);
+      var avgC2 = Math.round(wkNutr.carbs / wkNutr.tracked);
+      var avgF2 = Math.round(wkNutr.fat / wkNutr.tracked);
+      html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:6px">';
+      html += '<div style="text-align:center;padding:8px 4px;background:var(--s2);border-radius:6px"><div style="font-family:var(--fd);font-size:15px;color:var(--t1)">' + avgKcal2 + '</div><div style="font-size:8px;color:var(--t3)">AVG KCAL</div></div>';
+      html += '<div style="text-align:center;padding:8px 4px;background:var(--s2);border-radius:6px"><div style="font-family:var(--fd);font-size:15px;color:var(--green)">' + avgP2 + 'g</div><div style="font-size:8px;color:var(--t3)">PROTEIN</div></div>';
+      html += '<div style="text-align:center;padding:8px 4px;background:var(--s2);border-radius:6px"><div style="font-family:var(--fd);font-size:15px;color:var(--orange)">' + avgC2 + 'g</div><div style="font-size:8px;color:var(--t3)">CARBS</div></div>';
+      html += '<div style="text-align:center;padding:8px 4px;background:var(--s2);border-radius:6px"><div style="font-family:var(--fd);font-size:15px;color:var(--t2)">' + avgF2 + 'g</div><div style="font-size:8px;color:var(--t3)">FAT</div></div>';
+      html += '</div>';
+      html += '<div style="font-size:9px;color:var(--t3)">Based on ' + wkNutr.tracked + '/7 tracked days</div>';
+    } else {
+      html += '<div style="font-size:11px;color:var(--t3);padding:6px 0">No nutrition data tracked this week</div>';
+    }
+    html += '</div>';
+
+    // ── 2. LIFESTYLE & WELLBEING ──
+    html += '<div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:14px">';
+    html += '<div style="font-size:11px;font-weight:600;color:var(--gold);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Lifestyle & Wellbeing</div>';
+    // Daily habits row
+    html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px">';
+    var avgSteps2 = wkLife.stepsDays > 0 ? Math.round(wkLife.steps / wkLife.stepsDays) : 0;
+    var avgHydr2 = wkLife.hydrDays > 0 ? (wkLife.hydration / wkLife.hydrDays).toFixed(1) : '0';
+    var avgSleep2 = wkLife.sleepDays > 0 ? (wkLife.sleep / wkLife.sleepDays).toFixed(1) : '0';
+    var stepsColor = avgSteps2 >= 10000 ? 'var(--green)' : avgSteps2 >= 7000 ? 'var(--orange)' : 'var(--red)';
+    html += '<div style="text-align:center;padding:8px 4px;background:var(--s2);border-radius:6px"><div style="font-family:var(--fd);font-size:14px;color:' + stepsColor + '">' + (avgSteps2 >= 1000 ? (avgSteps2/1000).toFixed(1) + 'k' : avgSteps2) + '</div><div style="font-size:8px;color:var(--t3)">AVG STEPS</div></div>';
+    var hydrColor = parseFloat(avgHydr2) >= 2.5 ? 'var(--green)' : parseFloat(avgHydr2) >= 1.5 ? 'var(--orange)' : 'var(--red)';
+    html += '<div style="text-align:center;padding:8px 4px;background:var(--s2);border-radius:6px"><div style="font-family:var(--fd);font-size:14px;color:' + hydrColor + '">' + avgHydr2 + 'L</div><div style="font-size:8px;color:var(--t3)">AVG WATER</div></div>';
+    var sleepColor = parseFloat(avgSleep2) >= 7 ? 'var(--green)' : parseFloat(avgSleep2) >= 6 ? 'var(--orange)' : 'var(--red)';
+    html += '<div style="text-align:center;padding:8px 4px;background:var(--s2);border-radius:6px"><div style="font-family:var(--fd);font-size:14px;color:' + sleepColor + '">' + avgSleep2 + 'h</div><div style="font-size:8px;color:var(--t3)">AVG SLEEP</div></div>';
+    html += '</div>';
+    // Wellbeing bars
+    if (wkWell.hungerDays > 0 || wkWell.energyDays > 0 || wkWell.stressDays > 0) {
+      html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:6px">';
+      // Hunger (lower is better)
+      var avgHung = wkWell.hungerDays > 0 ? (wkWell.hunger / wkWell.hungerDays).toFixed(1) : '-';
+      var hungColor = avgHung !== '-' ? (parseFloat(avgHung) <= 2 ? 'var(--green)' : parseFloat(avgHung) <= 3.5 ? 'var(--orange)' : 'var(--red)') : 'var(--t3)';
+      html += '<div style="text-align:center;padding:8px 4px;background:var(--s2);border-radius:6px"><div style="font-family:var(--fd);font-size:14px;color:' + hungColor + '">' + avgHung + '/5</div><div style="font-size:8px;color:var(--t3)">HUNGER</div></div>';
+      // Energy (higher is better)
+      var avgEn = wkWell.energyDays > 0 ? (wkWell.energy / wkWell.energyDays).toFixed(1) : '-';
+      var enColor = avgEn !== '-' ? (parseFloat(avgEn) >= 4 ? 'var(--green)' : parseFloat(avgEn) >= 2.5 ? 'var(--orange)' : 'var(--red)') : 'var(--t3)';
+      html += '<div style="text-align:center;padding:8px 4px;background:var(--s2);border-radius:6px"><div style="font-family:var(--fd);font-size:14px;color:' + enColor + '">' + avgEn + '/5</div><div style="font-size:8px;color:var(--t3)">ENERGY</div></div>';
+      // Stress (lower is better)
+      var avgStr = wkWell.stressDays > 0 ? (wkWell.stress / wkWell.stressDays).toFixed(1) : '-';
+      var strColor = avgStr !== '-' ? (parseFloat(avgStr) <= 2 ? 'var(--green)' : parseFloat(avgStr) <= 3.5 ? 'var(--orange)' : 'var(--red)') : 'var(--t3)';
+      html += '<div style="text-align:center;padding:8px 4px;background:var(--s2);border-radius:6px"><div style="font-family:var(--fd);font-size:14px;color:' + strColor + '">' + avgStr + '/5</div><div style="font-size:8px;color:var(--t3)">STRESS</div></div>';
+      html += '</div>';
+      // Digestion majority
+      if (wkWell.digArr.length > 0) {
+        var digCount = {good:0, okay:0, bad:0};
+        wkWell.digArr.forEach(function(d) { if (digCount[d] !== undefined) digCount[d]++; });
+        var digResult = digCount.good >= digCount.okay && digCount.good >= digCount.bad ? 'good' : digCount.okay >= digCount.bad ? 'okay' : 'bad';
+        var digIcon = digResult === 'good' ? '🟢' : digResult === 'okay' ? '🟡' : '🔴';
+        html += '<div style="font-size:10px;color:var(--t2);margin-bottom:2px">' + digIcon + ' Digestion this week: <strong>' + digResult + '</strong> (' + wkWell.digArr.length + ' days reported)</div>';
+      }
+    }
+    html += '</div>';
+
+    // ── 3. MEASUREMENTS (if any this week) ──
+    var mHist2 = MEASUREMENT_HISTORY[clientId] || [];
+    var wkStart = wkDates[wkDates.length - 1]; // oldest
+    var wkEnd = wkDates[0]; // newest
+    var wkMeasurements = mHist2.filter(function(m) { return m.date >= wkStart && m.date <= wkEnd; });
+    if (wkMeasurements.length > 0) {
+      html += '<div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:14px">';
+      html += '<div style="font-size:11px;font-weight:600;color:var(--gold);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Measurements This Week</div>';
+      wkMeasurements.forEach(function(m) {
+        html += '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px">';
+        html += '<div style="text-align:center;padding:6px 4px;background:var(--s2);border-radius:6px"><div style="font-family:var(--fd);font-size:13px;color:var(--t1)">' + (m.weight || '-') + '</div><div style="font-size:8px;color:var(--t3)">WEIGHT</div></div>';
+        html += '<div style="text-align:center;padding:6px 4px;background:var(--s2);border-radius:6px"><div style="font-family:var(--fd);font-size:13px;color:var(--t1)">' + (m.waist || '-') + '</div><div style="font-size:8px;color:var(--t3)">WAIST</div></div>';
+        html += '<div style="text-align:center;padding:6px 4px;background:var(--s2);border-radius:6px"><div style="font-family:var(--fd);font-size:13px;color:var(--t1)">' + (m.chest || '-') + '</div><div style="font-size:8px;color:var(--t3)">CHEST</div></div>';
+        html += '<div style="text-align:center;padding:6px 4px;background:var(--s2);border-radius:6px"><div style="font-family:var(--fd);font-size:13px;color:var(--t1)">' + (m.arms || '-') + '</div><div style="font-size:8px;color:var(--t3)">ARMS</div></div>';
+        html += '<div style="text-align:center;padding:6px 4px;background:var(--s2);border-radius:6px"><div style="font-family:var(--fd);font-size:13px;color:var(--t1)">' + (m.thighs || '-') + '</div><div style="font-size:8px;color:var(--t3)">THIGHS</div></div>';
+        html += '</div>';
+        // Show diff vs previous measurement
+        var mIdx = mHist2.indexOf(m);
+        if (mIdx > 0) {
+          var prev = mHist2[mIdx - 1];
+          html += '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:2px">';
+          ['weight','waist','chest','arms','thighs'].forEach(function(key) {
+            var diff = (m[key] && prev[key]) ? (m[key] - prev[key]).toFixed(1) : null;
+            var diffStr = diff ? (diff > 0 ? '+' + diff : diff) : '';
+            var diffColor = diff ? (key === 'arms' || key === 'chest' ? (diff > 0 ? 'var(--green)' : diff < 0 ? 'var(--red)' : 'var(--t3)') : (diff < 0 ? 'var(--green)' : diff > 0 ? 'var(--red)' : 'var(--t3)')) : 'var(--t3)';
+            html += '<div style="text-align:center;font-size:9px;color:' + diffColor + '">' + diffStr + '</div>';
+          });
+          html += '</div>';
+        }
+        html += '<div style="font-size:9px;color:var(--t3);margin-top:4px">Measured on ' + m.date + '</div>';
+      });
+      html += '</div>';
+    }
+
+    // ── 4. PROGRESS PHOTOS (if any this week) ──
+    var photos2 = PROGRESS_PHOTOS[clientId] || {};
+    var hasPhotos = Object.keys(photos2).some(function(k) { return photos2[k] !== null && photos2[k] !== undefined; });
+    if (hasPhotos) {
+      html += '<div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:14px">';
+      html += '<div style="font-size:11px;font-weight:600;color:var(--gold);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Progress Photos</div>';
+      html += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
+      Object.keys(photos2).forEach(function(k) {
+        var p = photos2[k];
+        if (!p) return;
+        html += '<div style="flex:1;min-width:60px;max-width:100px;text-align:center">';
+        if (p.src) {
+          html += '<img src="' + p.src + '" style="width:100%;border-radius:6px;border:1px solid var(--border)" alt="' + k + '">';
+        } else {
+          html += '<div style="width:100%;aspect-ratio:3/4;background:var(--s2);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--t3)">📷</div>';
+        }
+        html += '<div style="font-size:8px;color:var(--t3);margin-top:2px;text-transform:uppercase">' + k + '</div></div>';
+      });
+      html += '</div></div>';
+    }
+
+    // ── 5. CLIENT NOTES (what they typed) ──
+    if (wkNotes.length > 0) {
+      html += '<div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:14px">';
+      html += '<div style="font-size:11px;font-weight:600;color:var(--gold);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Client Notes This Week</div>';
+      wkNotes.forEach(function(n) {
+        html += '<div style="padding:6px 10px;background:var(--s2);border-radius:6px;margin-bottom:4px;border-left:3px solid var(--gold)">';
+        html += '<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span style="font-size:9px;color:var(--t3);font-family:var(--fm)">' + n.day + '</span>';
+        if (n.mood) html += '<span style="font-size:11px">' + n.mood + '</span>';
+        html += '</div>';
+        html += '<div style="font-size:11.5px;color:var(--t2);line-height:1.4">' + n.text + '</div>';
+        html += '</div>';
+      });
+      html += '</div>';
+    }
+
+    // ── 6. WEEKLY CHECK-IN FORM RESPONSES ──
+    var wcData = WEEKLY_CHECKIN_DATA[clientId] || [];
+    // Find the most recent weekly check-in (latest by date)
+    var latestWC = null;
+    for (var wi = wcData.length - 1; wi >= 0; wi--) {
+      latestWC = wcData[wi];
+      break;
+    }
+    if (latestWC) {
+      html += '<div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:14px">';
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">';
+      html += '<div style="font-size:11px;font-weight:600;color:var(--gold);text-transform:uppercase;letter-spacing:.5px">Weekly Check-In Response</div>';
+      html += '<span style="font-size:10px;color:var(--t3)">' + latestWC.mood + ' · Week ' + latestWC.week + ' · ' + latestWC.date + '</span>';
+      html += '</div>';
+
+      // Self-assessment ratings row
+      html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px">';
+      var wcRatings = [
+        {label:'SLEEP', val:latestWC.sleepQuality, max:10},
+        {label:'ENERGY', val:latestWC.energy, max:10},
+        {label:'DIGESTION', val:latestWC.digestion, max:10},
+        {label:'MOTIVATION', val:latestWC.motivation, max:10}
+      ];
+      wcRatings.forEach(function(r) {
+        var rColor = r.val >= 7 ? 'var(--green)' : r.val >= 5 ? 'var(--orange)' : 'var(--red)';
+        html += '<div style="text-align:center;padding:6px 4px;background:var(--s2);border-radius:6px"><div style="font-family:var(--fd);font-size:14px;color:' + rColor + '">' + r.val + '/' + r.max + '</div><div style="font-size:8px;color:var(--t3)">' + r.label + '</div></div>';
+      });
+      html += '</div>';
+
+      // Adherence row
+      html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px">';
+      var naColor = latestWC.nutritionAdherence >= 7 ? 'var(--green)' : latestWC.nutritionAdherence >= 5 ? 'var(--orange)' : 'var(--red)';
+      html += '<div style="text-align:center;padding:6px 4px;background:var(--s2);border-radius:6px"><div style="font-family:var(--fd);font-size:14px;color:' + naColor + '">' + latestWC.nutritionAdherence + '/10</div><div style="font-size:8px;color:var(--t3)">NUTR. ADHERENCE</div></div>';
+      html += '<div style="text-align:center;padding:6px 4px;background:var(--s2);border-radius:6px"><div style="font-family:var(--fd);font-size:14px;color:var(--t1)">' + latestWC.workoutsCompleted + '</div><div style="font-size:8px;color:var(--t3)">WORKOUTS DONE</div></div>';
+      html += '<div style="text-align:center;padding:6px 4px;background:var(--s2);border-radius:6px"><div style="font-family:var(--fd);font-size:14px;color:var(--t1)">' + latestWC.waterAvg + 'L</div><div style="font-size:8px;color:var(--t3)">AVG WATER</div></div>';
+      html += '</div>';
+
+      // Steps & Pain
+      html += '<div style="display:flex;gap:8px;margin-bottom:10px;font-size:10px">';
+      html += '<span style="padding:3px 8px;background:var(--s2);border-radius:4px;color:var(--t2)">Steps: ' + latestWC.stepsGoal + '</span>';
+      if (latestWC.pain !== 'no') {
+        html += '<span style="padding:3px 8px;background:rgba(255,82,82,.08);border:1px solid rgba(255,82,82,.2);border-radius:4px;color:var(--red)">⚠️ ' + (latestWC.pain === 'yes-minor' ? 'Minor Pain' : 'Serious Pain') + '</span>';
+      } else {
+        html += '<span style="padding:3px 8px;background:rgba(59,255,166,.08);border-radius:4px;color:var(--green)">No Pain/Injuries</span>';
+      }
+      html += '</div>';
+      if (latestWC.pain !== 'no' && latestWC.painDetail) {
+        html += '<div style="padding:6px 10px;background:rgba(255,82,82,.05);border:1px solid rgba(255,82,82,.15);border-radius:6px;margin-bottom:10px;font-size:11px;color:var(--red)">🩹 ' + latestWC.painDetail + '</div>';
+      }
+
+      // Written responses — the key coaching data
+      var wcTexts = [
+        {label:'💪 What Went Well', text:latestWC.whatWentWell, color:'var(--green)'},
+        {label:'😤 Biggest Struggle', text:latestWC.biggestStruggle, color:'var(--red)'},
+        {label:'🎯 Plans to Improve', text:latestWC.whatDoBetter, color:'var(--orange)'},
+        {label:'❓ Questions for Coach', text:latestWC.questionsForCoach, color:'var(--gold)'},
+        {label:'🔄 Requested Plan Changes', text:latestWC.planChanges, color:'var(--t2)'}
+      ];
+      wcTexts.forEach(function(item) {
+        if (!item.text || !item.text.trim()) return;
+        html += '<div style="margin-bottom:8px">';
+        html += '<div style="font-size:9px;font-weight:600;color:' + item.color + ';text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">' + item.label + '</div>';
+        html += '<div style="padding:8px 10px;background:var(--s2);border-radius:6px;font-size:11.5px;color:var(--t2);line-height:1.5;border-left:3px solid ' + item.color + '">' + item.text + '</div>';
+        html += '</div>';
+      });
+
+      html += '</div>';
+    }
+
     // Coach Feedback section
     html += '<div style="border-top:1px solid var(--border);padding-top:14px">';
     html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">';
@@ -5645,7 +6339,8 @@ function renderClientList() {
     html += '<td><div class="adh-wrap"><div class="adh-bar"><div class="adh-fill" style="width:' + adhPct + '%;background:' + adhColor + '"></div></div><span style="font-size:11px;color:' + adhColor + ';font-family:var(--fm)">' + adhPct + '%</span></div></td>';
     html += '<td><span style="font-size:11px;color:' + lastColor + '">' + c.lastCheckin + '</span></td>';
     html += '<td onclick="event.stopPropagation()"><div style="display:flex;gap:4px">';
-    html += '<button class="btn btn-g btn-sm" onclick="openQuickPanel(\'' + c.id + '\')">View</button>';
+    html += '<button class="btn btn-p btn-sm" onclick="openFullProfile(\'' + c.id + '\')">Full Profile</button>';
+    html += '<button class="btn btn-g btn-sm" onclick="openQuickPanel(\'' + c.id + '\')">Quick</button>';
     html += '<button class="btn btn-g btn-sm" onclick="openChatFor(\'' + c.id + '\')">Chat</button>';
     html += '</div></td>';
     html += '</tr>';
@@ -5658,6 +6353,498 @@ function renderClientList() {
   }
 
   container.innerHTML = html;
+}
+
+/* ============================================================
+   FULL CLIENT PROFILE — deep dive view for coach calls
+============================================================ */
+var fullProfileNotes = {
+  rick: [
+    {date: 'Mar 22, 2026, 10:15 AM', text: 'Rick came back after 4 days off (Mar 16-19). Says work stress caused dropout. Agreed to simplify plan: reduce to 2 meals tracked + 1 free meal. Focus on protein only for now. He responded well to encouragement — keep tone light.'},
+    {date: 'Mar 15, 2026, 02:30 PM', text: 'Great week 2 finish. Weight down to 99.1, all 3 workouts completed. Progressive overload happening on all compounds. Goblet squat +2kg, Row +2kg. Protein adherence still inconsistent (4/7 days). Suggested adding a shake post-workout.'},
+    {date: 'Mar 08, 2026, 11:00 AM', text: 'Week 1 check-in call. Rick is motivated but overwhelmed by tracking everything. Simplified his check-in to just: weight + photo + 1 sentence on how he feels. Started at 102kg, already down to 100.8. Warned him week 3 is the hardest — set a reminder to reach out proactively.'}
+  ]
+};
+
+function openFullProfile(clientId) {
+  cGo('c-client-profile');
+  var meta = CLIENT_META[clientId];
+  if (!meta) return;
+
+  var score = calcWeeklyScore(clientId);
+  var streak = calcStreak(clientId);
+  var currentWeight = getClientCurrentWeight(clientId);
+  var scoreColor = score >= 80 ? 'var(--green)' : score >= 50 ? 'var(--orange)' : 'var(--red)';
+
+  // Header
+  var hdr = document.getElementById('fp-header');
+  hdr.innerHTML = '<div style="display:flex;align-items:center;gap:14px;flex:1">' +
+    '<div class="cl-av" style="width:44px;height:44px;font-size:16px;background:' + meta.bgColor + ';color:' + meta.color + '">' + meta.initials + '</div>' +
+    '<div style="flex:1"><div style="font-family:var(--fd);font-size:20px;letter-spacing:1px;color:var(--t1)">' + meta.name + '</div>' +
+    '<div style="font-size:12px;color:var(--t3)">' + meta.goal + ' · Week ' + meta.week + ' / ' + meta.totalWeeks + ' · ' + currentWeight + ' kg</div></div>' +
+    '<div style="display:flex;gap:16px;align-items:center">' +
+    '<div style="text-align:center"><div style="font-family:var(--fm);font-size:22px;font-weight:600;color:' + scoreColor + '">' + score + '</div><div style="font-size:9px;color:var(--t3)">Score</div></div>' +
+    '<div style="text-align:center"><div style="font-family:var(--fm);font-size:22px;font-weight:600;color:var(--orange)">' + (streak.current > 0 ? streak.current : '0') + '</div><div style="font-size:9px;color:var(--t3)">Streak</div></div>' +
+    '<button class="btn btn-g btn-sm" onclick="openQuickPanel(\'' + clientId + '\')">Quick Panel</button>' +
+    '<button class="btn btn-g btn-sm" onclick="openChatFor(\'' + clientId + '\')">Chat</button>' +
+    '</div></div>';
+
+  // === SECTION 1: Body & Progress ===
+  buildFPProgress(clientId);
+
+  // === SECTION 2: Training ===
+  buildFPTraining(clientId);
+
+  // === SECTION 3: Nutrition ===
+  buildFPNutrition(clientId);
+
+  // === SECTION 4: Lifestyle ===
+  buildFPLifestyle(clientId);
+
+  // === SECTION 5: Coach Notes ===
+  buildFPNotes(clientId);
+}
+
+function buildFPProgress(clientId) {
+  var el = document.getElementById('fp-progress-body');
+  if (!el) return;
+  var html = '';
+
+  // Weight chart
+  var weightLog = WEIGHT_LOG[clientId] || [];
+  var mHist = MEASUREMENT_HISTORY[clientId] || [];
+  var photos = PROGRESS_PHOTOS[clientId] || {};
+  var meta = CLIENT_META[clientId] || {};
+
+  // Start weight → Current weight → Change
+  var startW = meta.startWeight || (weightLog.length > 0 ? weightLog[0].weight : meta.weight);
+  var currentW = getClientCurrentWeight(clientId);
+  var change = round1(currentW - startW);
+  var changeColor = change < 0 ? 'var(--green)' : change > 0 ? 'var(--red)' : 'var(--t3)';
+
+  html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">';
+  html += '<div style="text-align:center;padding:10px;background:var(--s2);border-radius:8px"><div style="font-size:10px;color:var(--t3);margin-bottom:4px">Start Weight</div><div style="font-family:var(--fm);font-size:18px;color:var(--t1)">' + startW + ' <span style="font-size:11px;color:var(--t3)">kg</span></div></div>';
+  html += '<div style="text-align:center;padding:10px;background:var(--s2);border-radius:8px"><div style="font-size:10px;color:var(--t3);margin-bottom:4px">Current Weight</div><div style="font-family:var(--fm);font-size:18px;color:var(--t1)">' + currentW + ' <span style="font-size:11px;color:var(--t3)">kg</span></div></div>';
+  html += '<div style="text-align:center;padding:10px;background:var(--s2);border-radius:8px"><div style="font-size:10px;color:var(--t3);margin-bottom:4px">Total Change</div><div style="font-family:var(--fm);font-size:18px;color:' + changeColor + '">' + (change > 0 ? '+' : '') + change + ' <span style="font-size:11px">kg</span></div></div>';
+  html += '</div>';
+
+  // Weight chart (last 3 weeks of daily weights)
+  if (weightLog.length > 0) {
+    var last21 = weightLog.slice(-21);
+    var minW = Math.min.apply(null, last21.map(function(e) { return e.weight; })) - 0.5;
+    var maxW = Math.max.apply(null, last21.map(function(e) { return e.weight; })) + 0.5;
+    var range = maxW - minW || 1;
+
+    html += '<div style="margin-bottom:16px"><div style="font-size:10px;color:var(--t3);margin-bottom:6px;letter-spacing:1px">DAILY WEIGHT (LAST 3 WEEKS)</div>';
+    html += '<div style="display:flex;align-items:flex-end;gap:2px;height:80px">';
+    last21.forEach(function(entry) {
+      var pct = Math.max(5, ((entry.weight - minW) / range) * 100);
+      var d = new Date(entry.date);
+      var dayLabel = d.toLocaleDateString('en', {month:'short', day:'numeric'});
+      html += '<div title="' + dayLabel + ': ' + entry.weight + 'kg" style="flex:1;height:' + pct + '%;background:var(--green);border-radius:3px 3px 0 0;min-width:4px;opacity:.7;transition:opacity .15s" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.7"></div>';
+    });
+    html += '</div>';
+    html += '<div style="display:flex;justify-content:space-between;font-size:9px;color:var(--t3);margin-top:4px"><span>' + last21[0].date.slice(5) + '</span><span>' + last21[last21.length - 1].date.slice(5) + '</span></div>';
+    html += '</div>';
+  }
+
+  // Measurements table
+  if (mHist.length > 0) {
+    var recent = mHist.slice(-3);
+    html += '<div style="font-size:10px;color:var(--t3);margin-bottom:6px;letter-spacing:1px">MEASUREMENTS</div>';
+    html += '<table class="tbl" style="font-size:11px"><thead><tr><th>Date</th><th>Weight</th><th>Waist</th><th>Chest</th><th>Arms</th><th>Thighs</th></tr></thead><tbody>';
+    recent.forEach(function(m, i) {
+      var prev = i > 0 ? recent[i - 1] : null;
+      html += '<tr>';
+      html += '<td>' + m.date + '</td>';
+      ['weight', 'waist', 'chest', 'arms', 'thighs'].forEach(function(key) {
+        var val = m[key];
+        var diff = prev ? round1(val - prev[key]) : 0;
+        var diffStr = diff !== 0 ? ' <span style="font-size:9px;color:' + (diff < 0 ? 'var(--green)' : 'var(--red)') + '">(' + (diff > 0 ? '+' : '') + diff + ')</span>' : '';
+        html += '<td>' + val + diffStr + '</td>';
+      });
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+  }
+
+  // Progress photos (only show if at least one has actual data)
+  var photoKeys = Object.keys(photos).filter(function(k) { return photos[k] !== null && photos[k] !== undefined; });
+  if (photoKeys.length > 0) {
+    html += '<div style="font-size:10px;color:var(--t3);margin:14px 0 6px;letter-spacing:1px">PROGRESS PHOTOS</div>';
+    html += '<div style="display:flex;gap:10px;flex-wrap:wrap">';
+    photoKeys.forEach(function(key) {
+      var p = photos[key] || {};
+      html += '<div style="text-align:center"><div style="width:80px;height:100px;background:var(--s3);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:24px;border:1px solid var(--border)">' + (key === 'front' ? '🧍' : key === 'side' ? '🧍‍♂️' : '🔄') + '</div>';
+      html += '<div style="font-size:9px;color:var(--t3);margin-top:4px">' + key.charAt(0).toUpperCase() + key.slice(1) + '</div>';
+      html += '<div style="font-size:8px;color:var(--t3)">' + (p.date || '') + '</div></div>';
+    });
+    html += '</div>';
+  }
+
+  el.innerHTML = html || '<div style="color:var(--t3);font-size:12px">No progress data available</div>';
+}
+
+function buildFPTraining(clientId) {
+  var el = document.getElementById('fp-training-body');
+  if (!el) return;
+  var html = '';
+
+  var history = WORKOUT_HISTORY[clientId];
+  var exData = ALL_CLIENT_EXERCISES[clientId];
+
+  if (!history || !exData) {
+    el.innerHTML = '<div style="color:var(--t3);font-size:12px">No training data available</div>';
+    return;
+  }
+
+  // Show each workout day's history (last 2-3 sessions each)
+  var dayNames = exData.days ? exData.days.map(function(d) { return d.name || 'Workout'; }) : [];
+
+  Object.keys(history).forEach(function(dayIdx) {
+    var sessions = history[dayIdx] || [];
+    var recent = sessions.slice(-3);
+    if (recent.length === 0) return;
+
+    var dayName = dayNames[dayIdx] || ('Day ' + (parseInt(dayIdx) + 1));
+    html += '<div style="margin-bottom:16px">';
+    html += '<div style="font-size:11px;font-weight:600;color:var(--gold);margin-bottom:8px;letter-spacing:1px">' + dayName.toUpperCase() + '</div>';
+
+    recent.forEach(function(session) {
+      html += '<div style="background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:6px">';
+      html += '<div style="font-size:10px;color:var(--t3);margin-bottom:6px">' + session.date + '</div>';
+      html += '<table style="width:100%;font-size:11px;border-collapse:collapse">';
+      html += '<tr style="color:var(--t3);font-size:9px;text-transform:uppercase;letter-spacing:1px"><td style="padding:2px 0">Exercise</td><td>Sets</td><td>Volume</td><td>Trend</td></tr>';
+
+      session.exercises.forEach(function(ex, ei) {
+        var setsStr = ex.sets.map(function(s) { return s.kg + 'kg × ' + s.reps; }).join(', ');
+        // Check if volume increased vs previous session
+        var prevSession = sessions.length > 1 ? sessions[sessions.indexOf(session) - 1] : null;
+        var trend = '';
+        if (prevSession && prevSession.exercises[ei]) {
+          var prevVol = prevSession.exercises[ei].volume || 0;
+          var curVol = ex.volume || 0;
+          if (curVol > prevVol) trend = '<span style="color:var(--green)">↑ PR</span>';
+          else if (curVol === prevVol) trend = '<span style="color:var(--t3)">→</span>';
+          else trend = '<span style="color:var(--red)">↓</span>';
+        }
+        html += '<tr style="border-top:1px solid var(--border)">';
+        html += '<td style="padding:4px 0;color:var(--t1);font-weight:500">' + ex.name + '</td>';
+        html += '<td style="padding:4px 0;color:var(--t2);font-size:10px">' + setsStr + '</td>';
+        html += '<td style="padding:4px 0;font-family:var(--fm);color:var(--t2)">' + (ex.volume || 0) + '</td>';
+        html += '<td style="padding:4px 0;font-size:10px">' + trend + '</td>';
+        html += '</tr>';
+      });
+
+      html += '</table></div>';
+    });
+    html += '</div>';
+  });
+
+  el.innerHTML = html || '<div style="color:var(--t3);font-size:12px">No training history</div>';
+}
+
+function buildFPNutrition(clientId) {
+  var el = document.getElementById('fp-nutrition-body');
+  if (!el) return;
+  var html = '';
+
+  var meals = ALL_CLIENT_MEALS[clientId];
+  var meta = CLIENT_META[clientId] || {};
+  var activity = CLIENT_ACTIVITY[clientId] || {};
+
+  // Current meal plan overview
+  if (meals && meals.length > 0) {
+    var totalKcal = 0, totalP = 0, totalC = 0, totalF = 0;
+    meals.forEach(function(meal) {
+      meal.foods.forEach(function(f) {
+        totalKcal += f.kcal || 0;
+        totalP += f.p || 0;
+        totalC += f.c || 0;
+        totalF += f.f || 0;
+      });
+    });
+
+    html += '<div style="font-size:10px;color:var(--t3);margin-bottom:6px;letter-spacing:1px">CURRENT PLAN (DAILY TARGETS)</div>';
+    html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px">';
+    html += '<div style="text-align:center;padding:8px;background:var(--s2);border-radius:8px"><div style="font-family:var(--fm);font-size:16px;color:var(--t1)">' + Math.round(totalKcal) + '</div><div style="font-size:9px;color:var(--t3)">kcal</div></div>';
+    html += '<div style="text-align:center;padding:8px;background:var(--s2);border-radius:8px"><div style="font-family:var(--fm);font-size:16px;color:var(--green)">' + Math.round(totalP) + 'g</div><div style="font-size:9px;color:var(--t3)">Protein</div></div>';
+    html += '<div style="text-align:center;padding:8px;background:var(--s2);border-radius:8px"><div style="font-family:var(--fm);font-size:16px;color:var(--blue)">' + Math.round(totalC) + 'g</div><div style="font-size:9px;color:var(--t3)">Carbs</div></div>';
+    html += '<div style="text-align:center;padding:8px;background:var(--s2);border-radius:8px"><div style="font-family:var(--fm);font-size:16px;color:var(--red)">' + Math.round(totalF) + 'g</div><div style="font-size:9px;color:var(--t3)">Fat</div></div>';
+    html += '</div>';
+
+    // Meal breakdown
+    html += '<div style="font-size:10px;color:var(--t3);margin-bottom:6px;letter-spacing:1px">MEAL BREAKDOWN</div>';
+    meals.forEach(function(meal) {
+      var mKcal = 0, mP = 0, mC = 0, mF = 0;
+      meal.foods.forEach(function(f) { mKcal += f.kcal || 0; mP += f.p || 0; mC += f.c || 0; mF += f.f || 0; });
+      html += '<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border)">';
+      html += '<div style="flex:1;font-size:12px;font-weight:500;color:var(--t1)">' + meal.name + '</div>';
+      html += '<div style="font-size:11px;color:var(--t2)">' + Math.round(mKcal) + ' kcal</div>';
+      html += '<div style="font-size:10px;color:var(--green)">P:' + Math.round(mP) + '</div>';
+      html += '<div style="font-size:10px;color:var(--blue)">C:' + Math.round(mC) + '</div>';
+      html += '<div style="font-size:10px;color:var(--red)">F:' + Math.round(mF) + '</div>';
+      html += '</div>';
+    });
+  }
+
+  // Weekly averages consumed + adherence from check-in data
+  html += '<div style="font-size:10px;color:var(--t3);margin:16px 0 6px;letter-spacing:1px">WEEKLY AVERAGES CONSUMED (LAST 3 WEEKS)</div>';
+  var today = new Date();
+  var checkinData = DAILY_CHECKIN_DATA[clientId] || {};
+
+  // Get target from meal plan
+  var targetKcal = 0, targetP = 0, targetC = 0, targetF = 0;
+  if (meals && meals.length > 0) {
+    meals.forEach(function(meal) { meal.foods.forEach(function(f) { targetKcal += f.kcal || 0; targetP += f.p || 0; targetC += f.c || 0; targetF += f.f || 0; }); });
+  }
+
+  html += '<table class="tbl" style="font-size:11px;margin-bottom:4px"><thead><tr>';
+  html += '<th>Week</th><th>Tracked</th><th>Avg Kcal</th><th>Avg Protein</th><th>Avg Carbs</th><th>Avg Fat</th><th>Adherence</th>';
+  html += '</tr></thead><tbody>';
+
+  for (var w = 2; w >= 0; w--) {
+    var weekStart = new Date(today);
+    weekStart.setDate(today.getDate() - today.getDay() - (w * 7) + 1);
+    var sumKcal = 0, sumP = 0, sumC = 0, sumF = 0, trackedDays = 0, totalDays = 0, hitDays = 0;
+    for (var d = 0; d < 7; d++) {
+      var date = new Date(weekStart);
+      date.setDate(weekStart.getDate() + d);
+      var dk = date.toISOString().slice(0, 10);
+      if (new Date(dk) > today) break;
+      totalDays++;
+      var dayData = checkinData[dk] || getDailyCheckinData(clientId, dk);
+      var dayAct = (activity[dk] || {});
+      if (dayAct.mealsLogged || dayAct.proteinHit) hitDays++;
+      // Only count days where kcal was actually tracked (not null)
+      if (dayData.kcal !== null && dayData.kcal !== undefined) {
+        sumKcal += dayData.kcal;
+        sumP += (dayData.protein || 0);
+        sumC += (dayData.carbs || 0);
+        sumF += (dayData.fat || 0);
+        trackedDays++;
+      }
+    }
+    var avgKcal = trackedDays > 0 ? Math.round(sumKcal / trackedDays) : 0;
+    var avgP = trackedDays > 0 ? Math.round(sumP / trackedDays) : 0;
+    var avgC = trackedDays > 0 ? Math.round(sumC / trackedDays) : 0;
+    var avgF = trackedDays > 0 ? Math.round(sumF / trackedDays) : 0;
+    var adhPct = totalDays > 0 ? Math.round(hitDays / totalDays * 100) : 0;
+    var label = weekStart.toLocaleDateString('en', {month:'short', day:'numeric'});
+
+    // Color code calories vs target
+    var kcalDiff = targetKcal > 0 ? avgKcal - Math.round(targetKcal) : 0;
+    var kcalColor = trackedDays === 0 ? 'var(--t3)' : (Math.abs(kcalDiff) < 150 ? 'var(--green)' : Math.abs(kcalDiff) < 300 ? 'var(--orange)' : 'var(--red)');
+    var pColor = trackedDays === 0 ? 'var(--t3)' : (targetP > 0 && avgP >= Math.round(targetP) * 0.9 ? 'var(--green)' : 'var(--orange)');
+    var adhColor = adhPct >= 80 ? 'var(--green)' : adhPct >= 50 ? 'var(--orange)' : 'var(--red)';
+
+    html += '<tr>';
+    html += '<td style="font-weight:500">' + label + '</td>';
+    html += '<td>' + trackedDays + '/' + totalDays + ' days</td>';
+    if (trackedDays === 0) {
+      html += '<td colspan="4" style="color:var(--t3);font-style:italic">Not tracked</td>';
+    } else {
+      html += '<td style="font-family:var(--fm);font-weight:600;color:' + kcalColor + '">' + avgKcal + ' <span style="font-size:9px;font-weight:400;color:var(--t3)">/ ' + Math.round(targetKcal) + '</span></td>';
+      html += '<td style="font-family:var(--fm);color:' + pColor + '">' + avgP + 'g</td>';
+      html += '<td style="font-family:var(--fm);color:var(--blue)">' + avgC + 'g</td>';
+      html += '<td style="font-family:var(--fm);color:var(--t2)">' + avgF + 'g</td>';
+    }
+    html += '<td><div style="display:flex;align-items:center;gap:4px"><div style="flex:1;height:6px;background:var(--s3);border-radius:3px;overflow:hidden;min-width:40px"><div style="width:' + adhPct + '%;height:100%;background:' + adhColor + ';border-radius:3px"></div></div><span style="font-family:var(--fm);font-size:10px;color:' + adhColor + '">' + adhPct + '%</span></div></td>';
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+  if (targetKcal > 0) {
+    html += '<div style="font-size:9px;color:var(--t3);margin-top:4px">Target: ' + Math.round(targetKcal) + ' kcal · ' + Math.round(targetP) + 'g P · ' + Math.round(targetC) + 'g C · ' + Math.round(targetF) + 'g F — averages based on tracked days only</div>';
+  }
+
+  el.innerHTML = html || '<div style="color:var(--t3);font-size:12px">No nutrition data available</div>';
+}
+
+function buildFPLifestyle(clientId) {
+  var el = document.getElementById('fp-lifestyle-body');
+  if (!el) return;
+  var html = '';
+
+  var activity = CLIENT_ACTIVITY[clientId] || {};
+  var supps = ALL_CLIENT_SUPPLEMENTS[clientId] || [];
+  var checkinData = DAILY_CHECKIN_DATA[clientId] || {};
+  var today = new Date();
+
+  // Gather last 3 weeks of daily data
+  var weeklyData = [];
+  for (var w = 2; w >= 0; w--) {
+    var weekStart = new Date(today);
+    weekStart.setDate(today.getDate() - today.getDay() - (w * 7) + 1);
+    var totalSteps = 0, totalWater = 0, totalSleep = 0, dayCount = 0, checkinCount = 0, workoutCount = 0;
+    var totalHunger = 0, totalEnergy = 0, totalStress = 0, lifestyleTracked = 0;
+    var digestionCounts = {good:0, okay:0, bad:0};
+    var clientNotes = [];
+    for (var d = 0; d < 7; d++) {
+      var date = new Date(weekStart);
+      date.setDate(weekStart.getDate() + d);
+      var dk = date.toISOString().slice(0, 10);
+      if (new Date(dk) > today) break;
+      dayCount++;
+      var data = checkinData[dk] || getDailyCheckinData(clientId, dk);
+      totalSteps += data.steps || 0;
+      totalWater += parseFloat(data.hydration) || 0;
+      totalSleep += parseFloat(data.sleep) || 0;
+      var dayAct = activity[dk] || {};
+      if (dayAct.checkin) checkinCount++;
+      if (dayAct.workout) workoutCount++;
+      // Lifestyle metrics (only count tracked days)
+      if (data.hunger !== null && data.hunger !== undefined) {
+        totalHunger += data.hunger;
+        totalEnergy += (data.energy || 0);
+        totalStress += (data.stress || 0);
+        lifestyleTracked++;
+        if (data.digestion) digestionCounts[data.digestion] = (digestionCounts[data.digestion] || 0) + 1;
+      }
+      if (data.note && data.note.length > 0) {
+        var dayLabel = date.toLocaleDateString('en', {weekday:'short', month:'short', day:'numeric'});
+        clientNotes.push({day: dayLabel, text: data.note, mood: data.mood || ''});
+      }
+    }
+    weeklyData.push({
+      label: 'Week of ' + weekStart.toLocaleDateString('en', {month:'short', day:'numeric'}),
+      avgSteps: dayCount > 0 ? Math.round(totalSteps / dayCount) : 0,
+      avgWater: dayCount > 0 ? round1(totalWater / dayCount) : 0,
+      avgSleep: dayCount > 0 ? round1(totalSleep / dayCount) : 0,
+      checkins: checkinCount + '/' + dayCount,
+      workouts: workoutCount,
+      days: dayCount,
+      avgHunger: lifestyleTracked > 0 ? round1(totalHunger / lifestyleTracked) : null,
+      avgEnergy: lifestyleTracked > 0 ? round1(totalEnergy / lifestyleTracked) : null,
+      avgStress: lifestyleTracked > 0 ? round1(totalStress / lifestyleTracked) : null,
+      digestion: digestionCounts,
+      lifestyleTracked: lifestyleTracked,
+      notes: clientNotes
+    });
+  }
+
+  // Activity table
+  html += '<div style="font-size:10px;color:var(--t3);margin-bottom:6px;letter-spacing:1px">DAILY HABITS (LAST 3 WEEKS)</div>';
+  html += '<table class="tbl" style="font-size:11px"><thead><tr>';
+  html += '<th>Week</th><th>Avg Steps</th><th>Avg Water</th><th>Avg Sleep</th><th>Check-ins</th><th>Workouts</th>';
+  html += '</tr></thead><tbody>';
+  weeklyData.forEach(function(wd) {
+    var stepColor = wd.avgSteps >= 10000 ? 'var(--green)' : wd.avgSteps >= 7000 ? 'var(--orange)' : 'var(--red)';
+    var waterColor = wd.avgWater >= 3 ? 'var(--green)' : wd.avgWater >= 2 ? 'var(--orange)' : 'var(--red)';
+    var sleepColor = wd.avgSleep >= 7 ? 'var(--green)' : wd.avgSleep >= 6 ? 'var(--orange)' : 'var(--red)';
+    html += '<tr>';
+    html += '<td style="font-weight:500">' + wd.label + '</td>';
+    html += '<td style="color:' + stepColor + ';font-family:var(--fm)">' + wd.avgSteps.toLocaleString() + '</td>';
+    html += '<td style="color:' + waterColor + ';font-family:var(--fm)">' + wd.avgWater + 'L</td>';
+    html += '<td style="color:' + sleepColor + ';font-family:var(--fm)">' + wd.avgSleep + 'h</td>';
+    html += '<td>' + wd.checkins + '</td>';
+    html += '<td style="font-family:var(--fm)">' + wd.workouts + '</td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+
+  // Hunger / Energy / Stress / Digestion table
+  html += '<div style="font-size:10px;color:var(--t3);margin:16px 0 6px;letter-spacing:1px">WELLBEING (LAST 3 WEEKS)</div>';
+  html += '<table class="tbl" style="font-size:11px"><thead><tr>';
+  html += '<th>Week</th><th>Hunger</th><th>Energy</th><th>Stress</th><th>Digestion</th><th>Tracked</th>';
+  html += '</tr></thead><tbody>';
+
+  function levelBar(val, max, invertColor) {
+    if (val === null) return '<span style="color:var(--t3)">—</span>';
+    var pct = Math.round((val / max) * 100);
+    var color;
+    if (invertColor) {
+      color = val <= 2 ? 'var(--green)' : val <= 3 ? 'var(--orange)' : 'var(--red)';
+    } else {
+      color = val >= 4 ? 'var(--green)' : val >= 3 ? 'var(--orange)' : 'var(--red)';
+    }
+    return '<div style="display:flex;align-items:center;gap:4px"><div style="width:40px;height:5px;background:var(--s3);border-radius:3px;overflow:hidden"><div style="width:' + pct + '%;height:100%;background:' + color + ';border-radius:3px"></div></div><span style="font-family:var(--fm);color:' + color + '">' + val + '</span></div>';
+  }
+
+  weeklyData.forEach(function(wd) {
+    var digLabel = '—';
+    if (wd.lifestyleTracked > 0) {
+      var best = 'good';
+      if (wd.digestion.bad > wd.digestion.good && wd.digestion.bad > wd.digestion.okay) best = 'bad';
+      else if (wd.digestion.okay > wd.digestion.good) best = 'okay';
+      var dColor = best === 'good' ? 'var(--green)' : best === 'okay' ? 'var(--orange)' : 'var(--red)';
+      digLabel = '<span style="color:' + dColor + ';font-weight:500">' + best.charAt(0).toUpperCase() + best.slice(1) + '</span>';
+    }
+    html += '<tr>';
+    html += '<td style="font-weight:500">' + wd.label + '</td>';
+    html += '<td>' + levelBar(wd.avgHunger, 5, true) + '</td>';
+    html += '<td>' + levelBar(wd.avgEnergy, 5, false) + '</td>';
+    html += '<td>' + levelBar(wd.avgStress, 5, true) + '</td>';
+    html += '<td>' + digLabel + '</td>';
+    html += '<td style="font-size:10px;color:var(--t3)">' + wd.lifestyleTracked + '/' + wd.days + '</td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  html += '<div style="font-size:9px;color:var(--t3);margin-top:2px">Hunger/Stress: lower is better (1-5) · Energy: higher is better (1-5)</div>';
+
+  // Client notes from check-ins
+  var allNotes = [];
+  weeklyData.forEach(function(wd) { allNotes = allNotes.concat(wd.notes); });
+  if (allNotes.length > 0) {
+    html += '<div style="font-size:10px;color:var(--t3);margin:16px 0 6px;letter-spacing:1px">CLIENT NOTES FROM CHECK-INS</div>';
+    allNotes.forEach(function(n) {
+      html += '<div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);font-size:11px">';
+      html += '<div style="min-width:80px;color:var(--t3);font-size:10px">' + n.mood + ' ' + n.day + '</div>';
+      html += '<div style="color:var(--t2);flex:1">' + n.text + '</div>';
+      html += '</div>';
+    });
+  }
+
+  // Supplement adherence
+  if (supps.length > 0) {
+    html += '<div style="font-size:10px;color:var(--t3);margin:14px 0 6px;letter-spacing:1px">SUPPLEMENT PLAN (' + supps.length + ' items)</div>';
+    html += '<div style="display:flex;flex-wrap:wrap;gap:6px">';
+    supps.forEach(function(s) {
+      html += '<div style="padding:4px 10px;background:var(--s2);border:1px solid var(--border);border-radius:6px;font-size:11px;color:var(--t2)">' + s.name + ' <span style="color:var(--t3);font-size:9px">' + s.dose + ' · ' + s.timing + '</span></div>';
+    });
+    html += '</div>';
+  }
+
+  el.innerHTML = html || '<div style="color:var(--t3);font-size:12px">No lifestyle data available</div>';
+}
+
+function buildFPNotes(clientId) {
+  var el = document.getElementById('fp-notes-body');
+  if (!el) return;
+  var notes = fullProfileNotes[clientId] || [];
+  var html = '';
+
+  // Previous notes
+  if (notes.length > 0) {
+    html += '<div style="font-size:10px;color:var(--t3);margin-bottom:8px;letter-spacing:1px">PREVIOUS NOTES</div>';
+    notes.forEach(function(note, i) {
+      html += '<div style="padding:8px 10px;background:var(--s2);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;font-size:12px;color:var(--t2);position:relative">';
+      html += '<div style="font-size:9px;color:var(--t3);margin-bottom:4px">' + note.date + '</div>';
+      html += note.text;
+      html += '</div>';
+    });
+  } else {
+    html += '<div style="font-size:12px;color:var(--t3);margin-bottom:12px">No coach notes yet for this client.</div>';
+  }
+
+  // Add note form
+  html += '<div style="margin-top:10px">';
+  html += '<textarea id="fp-note-input" placeholder="Add a note for this client (e.g. call summary, observations, plan adjustments)..." style="width:100%;min-height:80px;background:var(--s3);border:1px solid var(--border);border-radius:8px;color:var(--t1);font-family:var(--f1);font-size:12px;padding:10px;outline:none;resize:vertical;box-sizing:border-box" onfocus="this.style.borderColor=\'var(--gold)\'" onblur="this.style.borderColor=\'var(--border)\'"></textarea>';
+  html += '<button class="btn btn-p btn-sm" style="margin-top:6px" onclick="saveFPNote(\'' + clientId + '\')">Save Note</button>';
+  html += '</div>';
+
+  el.innerHTML = html;
+}
+
+function saveFPNote(clientId) {
+  var input = document.getElementById('fp-note-input');
+  if (!input || !input.value.trim()) return;
+  if (!fullProfileNotes[clientId]) fullProfileNotes[clientId] = [];
+  fullProfileNotes[clientId].unshift({
+    date: new Date().toLocaleDateString('en', {month:'short', day:'numeric', year:'numeric', hour:'2-digit', minute:'2-digit'}),
+    text: input.value.trim()
+  });
+  buildFPNotes(clientId);
+  showToast('Note saved');
 }
 
 function openOnboarding() {
@@ -9031,6 +10218,8 @@ const CAT_COLORS = {protein:'var(--green)',carb:'var(--blue)',dairy:'var(--gold)
 
 let swapAllAlts = []; // full unfiltered list for search
 
+var swapSourceCat = ''; // category of the food being swapped
+
 function openSwap(mealIdx, foodIdx) {
   swapTarget = {mealIdx, foodIdx};
   const food = clientMeals[mealIdx].foods[foodIdx];
@@ -9041,6 +10230,7 @@ function openSwap(mealIdx, foodIdx) {
 
   // Find the DB entry for the current food
   const dbMatch = food.id ? FOOD_DB.find(f => f.id === food.id) : null;
+  swapSourceCat = dbMatch ? dbMatch.cat : '';
 
   // Build alternatives from ALL categories, calculating grams to match original kcal
   swapAllAlts = FOOD_DB
@@ -9075,18 +10265,33 @@ function renderSwapResults(alts) {
     grouped[f.cat].push(f);
   });
 
-  // Sort each group by similarity, limit per group
+  // Sort each group by macro similarity (best swaps first)
   Object.keys(grouped).forEach(cat => {
     grouped[cat].sort((a,b) => a.diff - b.diff);
     grouped[cat] = grouped[cat].slice(0, 10);
   });
 
-  let html = '';
+  // Build category order: source category first, then the rest
+  const orderedCats = [];
+  if (swapSourceCat && grouped[swapSourceCat]) {
+    orderedCats.push(swapSourceCat);
+  }
   CAT_ORDER.forEach(cat => {
+    if (cat !== swapSourceCat) orderedCats.push(cat);
+  });
+
+  let html = '';
+  orderedCats.forEach((cat, ci) => {
     const items = grouped[cat];
     if (!items || items.length === 0) return;
     const color = CAT_COLORS[cat] || 'var(--t3)';
-    html += `<div style="font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:${color};padding:12px 0 6px;border-bottom:1px solid var(--border);margin-bottom:6px">${CAT_LABELS[cat] || cat}</div>`;
+    const isSource = cat === swapSourceCat;
+    // Source category gets a special "Best Swaps" header
+    if (isSource) {
+      html += `<div style="font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);padding:8px 0 6px;border-bottom:1px solid var(--gold);margin-bottom:6px">⭐ BEST SWAPS — ${(CAT_LABELS[cat] || cat).toUpperCase()}</div>`;
+    } else {
+      html += `<div style="font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:${color};padding:12px 0 6px;border-bottom:1px solid var(--border);margin-bottom:6px">${CAT_LABELS[cat] || cat}</div>`;
+    }
     items.forEach(f => {
       html += `<div class="swap-item" onclick="doSwap(${f.id},${f.calcGrams})">
         <div><div class="si-name">${f.name}</div><div class="si-cat" style="color:var(--gold);font-weight:500">${f.calcGrams}g for ~${f.calcKcal} kcal</div></div>
@@ -9142,6 +10347,11 @@ function closeSwap() {
 // Structure: { clientId: { 'YYYY-MM-DD': { checkin, workout, meals, protein, water, supplements, score } } }
 const CLIENT_ACTIVITY = {
   rick: {
+    '2026-03-01': { checkin:true, workout:false, meals:2, protein:false, water:true, supplements:true, score:55 },
+    '2026-03-02': { checkin:true, workout:true, meals:3, protein:true, water:true, supplements:true, score:92 },
+    '2026-03-03': { checkin:true, workout:false, meals:3, protein:true, water:false, supplements:true, score:70 },
+    '2026-03-04': { checkin:true, workout:true, meals:3, protein:true, water:true, supplements:true, score:95 },
+    '2026-03-05': { checkin:true, workout:false, meals:2, protein:false, water:true, supplements:false, score:48 },
     '2026-03-06': { checkin:true, workout:true, meals:2, protein:false, water:true, supplements:true, score:62 },
     '2026-03-07': { checkin:true, workout:false, meals:3, protein:true, water:true, supplements:true, score:75 },
     '2026-03-08': { checkin:true, workout:true, meals:3, protein:true, water:false, supplements:true, score:82 },
@@ -9155,7 +10365,10 @@ const CLIENT_ACTIVITY = {
     '2026-03-16': { checkin:false, workout:false, meals:0, protein:false, water:false, supplements:false, score:0 },
     '2026-03-17': { checkin:false, workout:false, meals:1, protein:false, water:false, supplements:false, score:8 },
     '2026-03-18': { checkin:false, workout:false, meals:0, protein:false, water:false, supplements:false, score:0 },
-    '2026-03-19': { checkin:false, workout:false, meals:1, protein:false, water:false, supplements:false, score:8 }
+    '2026-03-19': { checkin:false, workout:false, meals:1, protein:false, water:false, supplements:false, score:8 },
+    '2026-03-20': { checkin:true, workout:true, meals:2, protein:false, water:true, supplements:true, score:65 },
+    '2026-03-21': { checkin:true, workout:false, meals:3, protein:true, water:true, supplements:true, score:78 },
+    '2026-03-22': { checkin:false, workout:false, meals:1, protein:false, water:false, supplements:false, score:10 }
   },
   niels: {
     '2026-03-06': { checkin:true, workout:true, meals:3, protein:true, water:true, supplements:true, score:100 },
@@ -9547,6 +10760,12 @@ const WORKOUT_HISTORY = {
         { name:'Dumbbell Row', sets:[{kg:16,reps:12},{kg:16,reps:11},{kg:16,reps:10}], volume:528 },
         { name:'Push-ups (or Bench Press)', sets:[{kg:40,reps:8},{kg:40,reps:7},{kg:35,reps:10}], volume:950 },
         { name:'Plank Hold', sets:[{kg:0,reps:30},{kg:0,reps:35},{kg:0,reps:30}], volume:0 }
+      ]},
+      { date: '2026-03-20', exercises: [
+        { name:'Goblet Squat', sets:[{kg:14,reps:12},{kg:14,reps:11},{kg:14,reps:10}], volume:462 },
+        { name:'Dumbbell Row', sets:[{kg:18,reps:12},{kg:18,reps:11},{kg:18,reps:10}], volume:594 },
+        { name:'Push-ups (or Bench Press)', sets:[{kg:42,reps:9},{kg:42,reps:8},{kg:40,reps:9}], volume:1074 },
+        { name:'Plank Hold', sets:[{kg:0,reps:35},{kg:0,reps:40},{kg:0,reps:35}], volume:0 }
       ]}
     ],
     1: [ // Wed — Full Body B
@@ -9561,6 +10780,12 @@ const WORKOUT_HISTORY = {
         { name:'Incline Dumbbell Press', sets:[{kg:14,reps:11},{kg:14,reps:10},{kg:14,reps:9}], volume:420 },
         { name:'Lat Pulldown', sets:[{kg:35,reps:12},{kg:35,reps:11},{kg:35,reps:10}], volume:1155 },
         { name:'Leg Press', sets:[{kg:60,reps:15},{kg:60,reps:14},{kg:60,reps:12}], volume:2460 }
+      ]},
+      { date: '2026-03-22', exercises: [
+        { name:'Romanian Deadlift', sets:[{kg:32,reps:12},{kg:32,reps:11},{kg:32,reps:10}], volume:1056 },
+        { name:'Incline Dumbbell Press', sets:[{kg:16,reps:11},{kg:16,reps:10},{kg:16,reps:9}], volume:480 },
+        { name:'Lat Pulldown', sets:[{kg:37,reps:13},{kg:37,reps:12},{kg:37,reps:11}], volume:1332 },
+        { name:'Leg Press', sets:[{kg:65,reps:15},{kg:65,reps:14},{kg:65,reps:13}], volume:2730 }
       ]}
     ],
     2: [ // Fri — Full Body C
