@@ -1120,6 +1120,91 @@
             }
           }
 
+          // === ADD COACH AS THEIR OWN CLIENT (coach+athlete dual role) ===
+          var coachId = currentUser.id;
+          var coachFullName = (currentUser.user_metadata && currentUser.user_metadata.full_name) || 'Coach';
+          var coachNameParts = coachFullName.split(' ');
+          var coachInitials = (coachNameParts[0][0] + (coachNameParts[1] ? coachNameParts[1][0] : '')).toUpperCase();
+
+          if (!CLIENT_META[coachId]) {
+            CLIENT_META[coachId] = {
+              name: coachFullName,
+              av: coachInitials,
+              initials: coachInitials,
+              color: 'var(--gold)',
+              bg: 'var(--gold-d)',
+              bgColor: 'var(--gold-d)',
+              goal: 'Fat loss',
+              week: 1,
+              totalWeeks: 12,
+              weight: 0,
+              mood: '\uD83D\uDE0A',
+              workoutDays: [1,3,5],
+              stepTarget: 10000,
+              cardioSessions: 0,
+              email: currentUser.email,
+              supabaseId: coachId,
+              isSelf: true
+            };
+            CLIENT_WEIGHTS[coachId] = 0;
+          }
+
+          // Load the coach's own plans from Supabase (as athlete)
+          try {
+            var selfTraining = await fetchTrainingPlan(coachId);
+            if (selfTraining && selfTraining.days && selfTraining.days.length > 0) {
+              ALL_CLIENT_EXERCISES[coachId] = selfTraining;
+              var selfBuilderDays = selfTraining.days.map(function(day) {
+                return day.exercises.map(function(ex) {
+                  return { name: ex.name, muscle: '', sets: ex.sets || 3, reps: ex.targetReps || '10-12' };
+                });
+              });
+              while (selfBuilderDays.length < 7) selfBuilderDays.push([]);
+              ALL_DAY_DATA[coachId] = selfBuilderDays;
+              console.log('\u2713 Coach self-training plan loaded');
+            } else if (!ALL_CLIENT_EXERCISES[coachId]) {
+              ALL_CLIENT_EXERCISES[coachId] = { days: [
+                { name:'Mon \u2014 Full Body A', exercises:[] },
+                { name:'Wed \u2014 Full Body B', exercises:[] },
+                { name:'Fri \u2014 Full Body C', exercises:[] }
+              ]};
+              ALL_DAY_DATA[coachId] = [[],[],[],[],[],[],[]];
+            }
+
+            var selfMeals = await fetchFullMealPlan(coachId);
+            if (selfMeals && selfMeals.length > 0) {
+              ALL_CLIENT_MEALS[coachId] = selfMeals;
+              console.log('\u2713 Coach self-meal plan loaded');
+            } else if (!ALL_CLIENT_MEALS[coachId]) {
+              ALL_CLIENT_MEALS[coachId] = [];
+            }
+
+            if (!ALL_CLIENT_SUPPLEMENTS[coachId]) {
+              ALL_CLIENT_SUPPLEMENTS[coachId] = [];
+            }
+
+            // Load coach's own weight
+            var { data: selfWt } = await sb.from('weight_log').select('weight').eq('client_id', coachId).order('date', { ascending: false }).limit(1);
+            if (selfWt && selfWt.length > 0) {
+              CLIENT_META[coachId].weight = selfWt[0].weight;
+              CLIENT_WEIGHTS[coachId] = selfWt[0].weight;
+            }
+
+            // Load coach's workout history
+            var selfHistData = await fetchWorkoutHistory(coachId);
+            if (selfHistData && Object.keys(selfHistData).length > 0) {
+              WORKOUT_HISTORY[coachId] = selfHistData;
+              _populatePreviousFromHistory(coachId);
+            }
+
+            console.log('\u2713 Coach self-client data initialized (dual role ready)');
+          } catch(selfErr) {
+            console.log('Coach self-data load warning:', selfErr.message);
+          }
+
+          // Set activeViewClient to coach's own ID for client view
+          activeViewClient = coachId;
+
           // Build CLIENT_ACTIVITY from real data for all clients
           buildAllClientActivity();
 
@@ -1681,9 +1766,12 @@ textarea.t-area:focus{border-color:var(--gold)}
 .lib-muscle{font-size:10px;color:var(--t3)}
 .wk-canvas{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:14px}
 .day-tabs{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px}
-.day-tab{padding:5px 11px;border-radius:6px;font-size:11.5px;font-weight:500;cursor:pointer;background:var(--s2);border:1px solid var(--border);color:var(--t3);transition:all .13s}
+.day-tab{padding:5px 11px;border-radius:6px;font-size:11.5px;font-weight:500;cursor:grab;background:var(--s2);border:1px solid var(--border);color:var(--t3);transition:all .13s;user-select:none}
 .day-tab:hover{color:var(--t1)}
 .day-tab.active{background:var(--gold-d);border-color:rgba(200,169,110,.25);color:var(--gold)}
+.day-tab.dragging{opacity:.4;border-color:var(--gold);box-shadow:0 0 8px rgba(200,169,110,.3)}
+.day-tab.drag-over-left{border-left:2px solid var(--gold);padding-left:9px}
+.day-tab.drag-over-right{border-right:2px solid var(--gold);padding-right:9px}
 .day-tab-x{margin-left:5px;font-size:13px;opacity:.3;cursor:pointer;line-height:1;vertical-align:middle}
 .day-tab-x:hover{opacity:1;color:var(--red)}
 .day-tab.rest{color:var(--blue)}
@@ -2042,11 +2130,7 @@ textarea.t-area:focus{border-color:var(--gold)}
       </button>
     </form>
 
-    <div class="auth-divider">or</div>
-    <button class="auth-demo-btn" onclick="enterDemoMode()">
-      Continue in Demo Mode (no account needed)
-    </button>
-    <div class="auth-footer">Your data is stored securely on Supabase (EU)</div>
+    <div class="auth-footer" style="margin-top:16px">Your data is stored securely on Supabase (EU)</div>
   </div>
 </div>
 
@@ -2321,7 +2405,7 @@ textarea.t-area:focus{border-color:var(--gold)}
         <div><div style="font-family:var(--fd);font-size:22px;letter-spacing:1.5px">WORKOUT BUILDER</div><div style="font-size:12px;color:var(--t3);margin-top:2px">Drag exercises from library · Edit sets, reps, weight inline</div></div>
         <div style="display:flex;gap:8px;align-items:center">
           <button class="btn btn-g btn-sm" onclick="showLoadTemplateModal('training')" title="Load from template">📋 Load Template</button>
-          <select class="form-inp" style="width:160px" id="wb-client-select" onchange="switchWorkoutClient(this.value)"><option value="niels">Niels van Berg</option><option value="rick">Rick Linden</option><option value="stefan">Stefan Wolff</option><option value="mike">Mike Hartman</option></select>
+          <select class="form-inp" style="width:160px" id="wb-client-select" onchange="switchWorkoutClient(this.value)"><option value="niels">Niels van Berg</option><option value="rick">Rick Linden</option><option value="stefan">Stefan Wolff</option><option value="mike">Mike Hartman</option><option value="nielsreijnen">Niels Reijnen</option></select>
           <div id="wb-save-wrap">
             <button class="btn btn-p btn-sm" onclick="toggleSaveMenu('wb')" style="padding:6px 14px">Save ▾</button>
           </div>
@@ -2445,7 +2529,7 @@ textarea.t-area:focus{border-color:var(--gold)}
     <div class="screen" id="screen-c-nutrition">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px"><div><div style="font-family:var(--fd);font-size:22px;letter-spacing:1.5px">NUTRITION EDITOR</div><div style="font-size:12px;color:var(--t3);margin-top:2px">Adjust macros · Edit meals · Set auto-adjust rules</div></div><div style="display:flex;gap:8px;align-items:center">
           <button class="btn btn-g btn-sm" onclick="showLoadTemplateModal('nutrition')" title="Load from template">📋 Load Template</button>
-          <select class="form-inp" style="width:160px" id="nut-client-select" onchange="switchNutritionClient(this.value)"><option value="niels">Niels van Berg</option><option value="rick">Rick Linden</option><option value="stefan">Stefan Wolff</option><option value="mike">Mike Hartman</option></select>
+          <select class="form-inp" style="width:160px" id="nut-client-select" onchange="switchNutritionClient(this.value)"><option value="niels">Niels van Berg</option><option value="rick">Rick Linden</option><option value="stefan">Stefan Wolff</option><option value="mike">Mike Hartman</option><option value="nielsreijnen">Niels Reijnen</option></select>
           <div id="nut-save-wrap">
             <button class="btn btn-p btn-sm" onclick="toggleSaveMenu('nut')" style="padding:6px 14px">Save ▾</button>
           </div>
@@ -2496,7 +2580,7 @@ textarea.t-area:focus{border-color:var(--gold)}
             <div class="section-hd" style="font-size:15px;margin-bottom:2px">SUPPLEMENT STACK</div>
             <div style="font-size:11px;color:var(--t3)">Assign supplements per client · Set timing & dosage</div>
           </div>
-          <select class="form-inp" style="width:150px" id="supp-client-select" onchange="switchSuppClient(this.value)"><option value="niels">Niels van Berg</option><option value="rick">Rick Linden</option><option value="stefan">Stefan Wolff</option><option value="mike">Mike Hartman</option></select>
+          <select class="form-inp" style="width:150px" id="supp-client-select" onchange="switchSuppClient(this.value)"><option value="niels">Niels van Berg</option><option value="rick">Rick Linden</option><option value="stefan">Stefan Wolff</option><option value="mike">Mike Hartman</option><option value="nielsreijnen">Niels Reijnen</option></select>
         </div>
         <div style="margin-bottom:12px">
           <div class="search-bar" style="margin-bottom:6px"><svg viewBox="0 0 14 14" fill="none" width="14" height="14"><circle cx="6" cy="6" r="4" stroke="var(--t3)" stroke-width="1.4"/><path d="M10 10l3 3" stroke="var(--t3)" stroke-width="1.4" stroke-linecap="round"/></svg><input class="search-input" id="supp-search-inp" placeholder="Search supplements to add..." oninput="searchSupps(this.value)"></div>
@@ -2531,6 +2615,7 @@ textarea.t-area:focus{border-color:var(--gold)}
         <div class="tmpl-card starred" data-tmpl-id="ppl_hypertrophy"><div style="display:flex;justify-content:space-between;margin-bottom:6px"><div class="tmpl-nm">PPL Hypertrophy v3</div><span style="color:var(--gold)">⭐</span></div><div class="tmpl-meta">Push/Pull/Legs · 6×/wk · 12 weeks</div><div style="display:flex;gap:5px;margin-bottom:10px"><span class="tag t-gold">Training</span><span class="tag t-bl">Hypertrophy</span></div><div style="display:flex;gap:6px"><button class="btn btn-p btn-sm" onclick="assignTemplate(this)">Assign</button><button class="btn btn-g btn-sm" onclick="editTemplateInBuilder(this)">Edit</button><button class="btn btn-g btn-sm" onclick="dupeTemplate(this)">Dupe</button></div><div style="font-size:10px;color:var(--t3);margin-top:8px">Used with 8 clients</div></div>
         <div class="tmpl-card starred" data-tmpl-id="fat_loss_2400"><div style="display:flex;justify-content:space-between;margin-bottom:6px"><div class="tmpl-nm">Fat Loss 2400 kcal</div><span style="color:var(--gold)">⭐</span></div><div class="tmpl-meta">P:195 C:260 F:70 · 4 meals</div><div style="display:flex;gap:5px;margin-bottom:10px"><span class="tag t-gr">Nutrition</span><span class="tag t-rd">Fat Loss</span></div><div style="display:flex;gap:6px"><button class="btn btn-p btn-sm" onclick="assignTemplate(this)">Assign</button><button class="btn btn-g btn-sm" onclick="editTemplateInBuilder(this)">Edit</button><button class="btn btn-g btn-sm" onclick="dupeTemplate(this)">Dupe</button></div><div style="font-size:10px;color:var(--t3);margin-top:8px">Most popular · 12 clients</div></div>
         <div class="tmpl-card" data-tmpl-id="beginner_foundation"><div style="display:flex;justify-content:space-between;margin-bottom:6px"><div class="tmpl-nm">Beginner Foundation</div><span style="color:var(--t3)">☆</span></div><div class="tmpl-meta">Full Body · 3×/wk · 8 weeks</div><div style="display:flex;gap:5px;margin-bottom:10px"><span class="tag t-gold">Training</span><span class="tag t-gy">Beginner</span></div><div style="display:flex;gap:6px"><button class="btn btn-p btn-sm" onclick="assignTemplate(this)">Assign</button><button class="btn btn-g btn-sm" onclick="editTemplateInBuilder(this)">Edit</button><button class="btn btn-g btn-sm" onclick="dupeTemplate(this)">Dupe</button></div><div style="font-size:10px;color:var(--t3);margin-top:8px">Used with 4 clients</div></div>
+        <div class="tmpl-card starred" data-tmpl-id="pplul"><div style="display:flex;justify-content:space-between;margin-bottom:6px"><div class="tmpl-nm">PPLUL (Push/Pull/Legs/Upper/Lower)</div><span style="color:var(--gold)">⭐</span></div><div class="tmpl-meta">5×/wk · 12 weeks</div><div style="display:flex;gap:5px;margin-bottom:10px"><span class="tag t-gold">Training</span><span class="tag t-bl">Hypertrophy</span></div><div style="display:flex;gap:6px"><button class="btn btn-p btn-sm" onclick="assignTemplate(this)">Assign</button><button class="btn btn-g btn-sm" onclick="editTemplateInBuilder(this)">Edit</button><button class="btn btn-g btn-sm" onclick="dupeTemplate(this)">Dupe</button></div><div style="font-size:10px;color:var(--t3);margin-top:8px">5-day split · Push/Pull/Legs + Upper/Lower</div></div>
         <div class="tmpl-card" data-tmpl-id="lean_bulk_3200"><div style="display:flex;justify-content:space-between;margin-bottom:6px"><div class="tmpl-nm">Lean Bulk 3200 kcal</div><span style="color:var(--t3)">☆</span></div><div class="tmpl-meta">P:200 C:380 F:90 · 5 meals</div><div style="display:flex;gap:5px;margin-bottom:10px"><span class="tag t-gr">Nutrition</span><span class="tag t-bl">Muscle Gain</span></div><div style="display:flex;gap:6px"><button class="btn btn-p btn-sm" onclick="assignTemplate(this)">Assign</button><button class="btn btn-g btn-sm" onclick="editTemplateInBuilder(this)">Edit</button><button class="btn btn-g btn-sm" onclick="dupeTemplate(this)">Dupe</button></div><div style="font-size:10px;color:var(--t3);margin-top:8px">Used with 6 clients</div></div>
         <div class="tmpl-card" style="border-style:dashed;cursor:pointer;display:flex;align-items:center;justify-content:center;min-height:160px;flex-direction:column;gap:8px" onclick="toggleNewTemplate();window.scrollTo({top:document.getElementById('new-template-panel').offsetTop-80,behavior:'smooth'})"><div style="font-size:28px;color:var(--t3)">+</div><div style="font-size:13px;color:var(--t3)">Create template</div></div>
       </div>
@@ -4587,11 +4672,13 @@ function buildCoachProfileStats() {
 
 // Update the "Switch to Client View" button in coach sidebar + profile menu with active client info
 function updateSwitchClientButton() {
-  var meta = CLIENT_META[activeCoachClient];
-  if (!meta) return;
+  // When logged in, the "View as Client" button always shows the coach's own name (dual role)
+  var selfId = (currentUser && currentUser.id) ? currentUser.id : null;
+  var meta = selfId ? CLIENT_META[selfId] : CLIENT_META[activeCoachClient];
+  if (!meta) meta = CLIENT_META[activeCoachClient] || {};
   var initials = meta.av || meta.initials || '?';
   var gradient = 'linear-gradient(135deg,' + (meta.color || 'var(--gold)') + ',' + (meta.bg || 'var(--gold-d)') + ')';
-  var label = 'View as ' + (meta.name || 'Client');
+  var label = 'My Athlete View';
 
   // Sidebar button
   var avEl = document.getElementById('switch-client-av');
@@ -4614,8 +4701,11 @@ async function switchProfile(mode) {
   document.getElementById('client-nav').classList.remove('open');
 
   if (mode === 'client') {
-    // Determine which client to show — use nielsreijnen for demo/client view
-    var clientId = (currentUserRole === 'client' && currentUser) ? currentUser.id : 'nielsreijnen';
+    // Determine which client to show:
+    // - If logged in as client: use their real Supabase ID
+    // - If logged in as coach: use coach's own ID (dual coach+athlete role)
+    // - Not logged in (demo mode): use 'nielsreijnen' demo client
+    var clientId = currentUser ? currentUser.id : 'nielsreijnen';
     var meta = CLIENT_META[clientId] || {};
     var clientName = meta.name || 'Client';
     var clientInitials = meta.av || meta.initials || 'C';
@@ -4687,27 +4777,35 @@ async function switchProfile(mode) {
       dashWeight.innerHTML = '—<span class="ku">kg</span>';
     }
 
-    // Re-render client views — picks up any coach edits
-    clientMeals = ALL_CLIENT_MEALS[clientId] || ALL_CLIENT_MEALS[activeCoachClient] || ALL_CLIENT_MEALS.rick;
+    // Set the active client for client-side views
+    activeViewClient = clientId;
+
+    // Point all data references to this client so views render correctly
+    clientMeals = ALL_CLIENT_MEALS[clientId] || [];
     var exData = ALL_CLIENT_EXERCISES[clientId] || ALL_CLIENT_EXERCISES[activeCoachClient];
     if (exData && exData.days) {
       clientExercises = exData.days[clientWorkoutDay || 0].exercises;
     }
+    // Render client-side views using activeViewClient (set above)
     renderClientMeals();
     updateClientNutritionTotals();
     renderWorkout();
     renderClientSupps();
+    rebuildClientWorkoutDayTabs(clientId);
 
     showToast('Switched to Client view — ' + clientName);
   } else {
     // Switching back to coach view
     var coachName = (currentUser && currentUser.user_metadata && currentUser.user_metadata.full_name) ? currentUser.user_metadata.full_name : 'Coach';
 
-    // Refresh coach views with latest data
+    // Restore coach client state and refresh views
+    coachMeals = ALL_CLIENT_MEALS[activeCoachClient] || [];
     try {
+      if (typeof renderCoachMealPlan === 'function') renderCoachMealPlan();
       if (typeof renderClientList === 'function') renderClientList();
       if (typeof renderSmartActions === 'function') renderSmartActions();
       if (typeof updateDashboardKPIs === 'function') updateDashboardKPIs();
+      if (typeof updateCoachClientIndicator === 'function') updateCoachClientIndicator();
     } catch(e) { console.log('Coach refresh:', e); }
 
     showToast('Switched to Coach view — ' + coachName);
@@ -5143,7 +5241,7 @@ function updateReminderDot() {
 
 /* Auto-check helpers — called from other functions */
 function checkMealsStatus() {
-  const meals = ALL_CLIENT_MEALS[activeCoachClient] || ALL_CLIENT_MEALS.rick;
+  const meals = ALL_CLIENT_MEALS[activeViewClient] || ALL_CLIENT_MEALS[activeCoachClient] || ALL_CLIENT_MEALS.rick;
   const logged = meals.filter(m => m.logged).length;
   const total = meals.length;
   const ms = document.getElementById('ci-meals-status');
@@ -5155,7 +5253,7 @@ function checkMealsStatus() {
 }
 
 function checkProteinStatus() {
-  const meals = ALL_CLIENT_MEALS[activeCoachClient] || ALL_CLIENT_MEALS.rick;
+  const meals = ALL_CLIENT_MEALS[activeViewClient] || ALL_CLIENT_MEALS[activeCoachClient] || ALL_CLIENT_MEALS.rick;
   let totalP = 0;
   meals.forEach(function(m) {
     if (m.logged) m.foods.forEach(function(f) { totalP += (f.p || 0); });
@@ -5233,7 +5331,7 @@ function selWeekMood(el) {
 }
 
 function submitWeeklyCheckin() {
-  var clientId = currentClientId || 'rick';
+  var clientId = activeViewClient || activeCoachClient || 'rick';
   var meta = CLIENT_META[clientId];
   var week = meta ? meta.week : '?';
 
@@ -5302,7 +5400,7 @@ function submitWeeklyCheckin() {
 
   // Persist to Supabase if live
   if (IS_LIVE && currentUser) {
-    var checkinClientId = (currentUserRole === 'client') ? currentUser.id : clientId;
+    var checkinClientId = clientId;
     saveWeeklyCheckin(checkinClientId, {
       week_number: week,
       date: today,
@@ -5854,6 +5952,9 @@ const ALL_DAY_DATA = {
     [{name:'T-Bar Row',muscle:'Back',sets:4,reps:'8-10'},{name:'Seated Cable Row',muscle:'Back',sets:3,reps:'10-12'},{name:'Hammer Curl',muscle:'Arms',sets:3,reps:'10-12'}],
     [{name:'Hack Squat',muscle:'Legs',sets:4,reps:'10-12'},{name:'Leg Extension',muscle:'Legs',sets:3,reps:'12-15'},{name:'Lying Leg Curl',muscle:'Legs',sets:3,reps:'12-15'}],
     [],[],[],[]
+  ],
+  nielsreijnen: [
+    [],[],[],[],[],[],[]
   ]
 };
 let DAY_DATA = ALL_DAY_DATA.niels;
@@ -5907,7 +6008,7 @@ function renderDayTabs() {
   DAY_NAMES.forEach(function(name, i) {
     var isActive = i === activeDay ? ' active' : '';
     var isRest = name.toLowerCase() === 'rest' ? ' rest' : '';
-    html += '<div class="day-tab' + isActive + isRest + '" onclick="cSwitchDay(this,' + i + ')" ondblclick="renameDayTab(' + i + ',this)">'
+    html += '<div class="day-tab' + isActive + isRest + '" draggable="true" data-day-idx="' + i + '" onclick="cSwitchDay(this,' + i + ')" ondblclick="renameDayTab(' + i + ',this)">'
       + '<span>' + name + '</span>';
     if (DAY_NAMES.length > 1) {
       html += '<span class="day-tab-x" onclick="event.stopPropagation();removeDay(' + i + ')" title="Delete day">&times;</span>';
@@ -5916,6 +6017,94 @@ function renderDayTabs() {
   });
   html += '<button class="btn btn-g btn-sm" style="margin-left:4px;white-space:nowrap" onclick="addNewDay()">+ Day</button>';
   container.innerHTML = html;
+  initDayTabDragDrop(container);
+}
+
+/* Drag-and-drop reordering for day tabs */
+var _dragDayIdx = null;
+
+function initDayTabDragDrop(container) {
+  var tabs = container.querySelectorAll('.day-tab[draggable]');
+  tabs.forEach(function(tab) {
+    tab.addEventListener('dragstart', function(e) {
+      _dragDayIdx = parseInt(tab.getAttribute('data-day-idx'));
+      tab.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', _dragDayIdx);
+    });
+
+    tab.addEventListener('dragend', function() {
+      tab.classList.remove('dragging');
+      _dragDayIdx = null;
+      // Clean up all indicators
+      container.querySelectorAll('.day-tab').forEach(function(t) {
+        t.classList.remove('drag-over-left', 'drag-over-right');
+      });
+    });
+
+    tab.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      var targetIdx = parseInt(tab.getAttribute('data-day-idx'));
+      if (_dragDayIdx === null || targetIdx === _dragDayIdx) return;
+      // Show drop indicator based on mouse position
+      var rect = tab.getBoundingClientRect();
+      var midX = rect.left + rect.width / 2;
+      container.querySelectorAll('.day-tab').forEach(function(t) {
+        t.classList.remove('drag-over-left', 'drag-over-right');
+      });
+      if (e.clientX < midX) {
+        tab.classList.add('drag-over-left');
+      } else {
+        tab.classList.add('drag-over-right');
+      }
+    });
+
+    tab.addEventListener('dragleave', function() {
+      tab.classList.remove('drag-over-left', 'drag-over-right');
+    });
+
+    tab.addEventListener('drop', function(e) {
+      e.preventDefault();
+      var fromIdx = _dragDayIdx;
+      var toIdx = parseInt(tab.getAttribute('data-day-idx'));
+      if (fromIdx === null || fromIdx === toIdx) return;
+
+      // Determine insert position based on mouse position
+      var rect = tab.getBoundingClientRect();
+      var midX = rect.left + rect.width / 2;
+      var insertBefore = e.clientX < midX;
+
+      // Save current work
+      saveCurrentDay();
+
+      // Remove the day from its old position
+      var moveName = DAY_NAMES.splice(fromIdx, 1)[0];
+      var moveData = DAY_DATA.splice(fromIdx, 1)[0];
+
+      // Adjust toIdx after removal
+      var newIdx = toIdx;
+      if (fromIdx < toIdx) newIdx--;
+      if (!insertBefore) newIdx++;
+
+      // Insert at new position
+      DAY_NAMES.splice(newIdx, 0, moveName);
+      DAY_DATA.splice(newIdx, 0, moveData);
+
+      // Update activeDay to follow the moved tab if needed
+      if (activeDay === fromIdx) {
+        activeDay = newIdx;
+      } else if (fromIdx < activeDay && newIdx >= activeDay) {
+        activeDay--;
+      } else if (fromIdx > activeDay && newIdx <= activeDay) {
+        activeDay++;
+      }
+
+      renderDayTabs();
+      renderDay(activeDay);
+      showToast('Moved "' + moveName + '"');
+    });
+  });
 }
 
 function renameDayTab(idx, tabEl) {
@@ -9614,7 +9803,7 @@ function _persistCurrentSteps() {
   if (_stepsSaveTimer) clearTimeout(_stepsSaveTimer);
   _stepsSaveTimer = setTimeout(function() {
     if (IS_LIVE && currentUser) {
-      var clientId = (currentUserRole === 'client') ? currentUser.id : (activeCoachClient || 'rick');
+      var clientId = activeViewClient || (currentUser ? currentUser.id : (activeCoachClient || 'rick'));
       var today = new Date().toISOString().slice(0, 10);
       saveSteps(clientId, today, currentSteps).then(function(ok) {
         if (ok) console.log('✓ Steps saved:', currentSteps);
@@ -9654,7 +9843,7 @@ function logCardioSession() {
   var kcal = Math.round(dur * kcalPerMin);
   var distKm = type === 'Running' ? Math.round(dur * 0.15 * 10) / 10 : type === 'Cycling' ? Math.round(dur * 0.3 * 10) / 10 : Math.round(dur * 0.08 * 10) / 10;
 
-  var clientId = (currentUserRole === 'client') ? currentUser.id : (activeCoachClient || 'rick');
+  var clientId = activeViewClient || (currentUser ? currentUser.id : (activeCoachClient || 'rick'));
   var meta = CLIENT_META[clientId];
   if (meta) {
     if (!meta.cardioSessions) meta.cardioSessions = 0;
@@ -9710,7 +9899,7 @@ function saveWeightLog() {
   if (!inp || !inp.value) { showToast('Enter your weight first'); return; }
   var w = parseFloat(inp.value);
   if (isNaN(w) || w < 30 || w > 300) { showToast('Enter a valid weight (30-300 kg)'); return; }
-  var clientId = activeCoachClient || 'rick';
+  var clientId = activeViewClient || activeCoachClient || 'rick';
   var wLog = WEIGHT_LOG[clientId] || [];
   var prevWeight = wLog.length ? wLog[wLog.length - 1].weight : w;
   var newWeight = Math.round(w * 10) / 10;
@@ -9760,8 +9949,8 @@ function saveWeightLog() {
 
   // Persist to Supabase if live
   if (IS_LIVE && currentUser) {
-    // For client: save as own weight. For coach: save for active client
-    var saveId = (currentUserRole === 'client') ? currentUser.id : clientId;
+    // Save for whatever client is active in the view
+    var saveId = clientId;
     saveWeight(todayKey, newWeight, saveId).then(function(ok) {
       if (ok) console.log('✓ Weight saved to Supabase:', newWeight, 'kg');
       else console.log('⚠ Failed to save weight to Supabase');
@@ -9957,6 +10146,7 @@ function addSuppToClient(suppId) {
   if (supp.name.indexOf('Whey') !== -1 || supp.name.indexOf('Mass Gainer') !== -1) defaultTiming = 'post-workout';
   stack.push({suppId: suppId, timing: defaultTiming, dose: supp.dose});
   renderCoachSupps();
+  saveCoachSuppPlans();
   showToast('✓ ' + supp.name + ' added for ' + (CLIENT_META[activeCoachSuppClient]||{name:'client'}).name.split(' ')[0]);
   // Hide search
   var panel = document.getElementById('supp-search-panel');
@@ -9986,6 +10176,7 @@ function removeSupp(clientId, idx) {
     if (supp) name = supp.name;
     stack.splice(idx, 1);
     renderCoachSupps();
+    saveCoachSuppPlans();
     showToast(name + ' removed');
   }
 }
@@ -9993,6 +10184,8 @@ function removeSupp(clientId, idx) {
 function saveSupps() {
   var name = (CLIENT_META[activeCoachSuppClient]||{name:'client'}).name.split(' ')[0];
   showToast('✓ Supplement plan saved for ' + name);
+  // Persist locally so plans survive page refresh
+  saveCoachSuppPlans();
   // Re-render client side if viewing rick
   renderClientSupps();
 }
@@ -10079,7 +10272,7 @@ function toggleSuppsFromChecklist(el) {
 function renderClientSupps() {
   var body = document.getElementById('client-supps-body');
   if (!body) return;
-  var clientId = activeCoachSuppClient || activeCoachClient || 'rick';
+  var clientId = activeViewClient || activeCoachSuppClient || activeCoachClient || 'rick';
   var stack = ALL_CLIENT_SUPPLEMENTS[clientId] || ALL_CLIENT_SUPPLEMENTS.rick || [];
   var taken = getSuppsTaken(clientId);
   var timings = ['morning','pre-workout','intra-workout','post-workout','evening'];
@@ -10201,6 +10394,7 @@ let foodSearchCat = '';
    PER-CLIENT DATA — shared between coach & client views
 ============================================================ */
 let activeCoachClient = 'niels'; // which client the coach is currently editing
+let activeViewClient = 'nielsreijnen'; // which client the client-side app shows
 
 const ALL_CLIENT_MEALS = {
   niels: [
@@ -10324,13 +10518,20 @@ const ALL_CLIENT_EXERCISES = {
          current:[{kg:null,reps:null,done:false},{kg:null,reps:null,done:false},{kg:null,reps:null,done:false}]}
       ]}
     ]
+  },
+  nielsreijnen: {
+    days: [
+      { name:'Mon — Full Body A', exercises:[] },
+      { name:'Wed — Full Body B', exercises:[] },
+      { name:'Fri — Full Body C', exercises:[] }
+    ]
   }
 };
 
 /* Accessor helpers — coach reads/writes via these */
-function getCoachMeals() { return ALL_CLIENT_MEALS[activeCoachClient] || []; }
-function getClientMeals() { return ALL_CLIENT_MEALS[activeCoachClient] || ALL_CLIENT_MEALS.rick; }
-function getClientExercises() { var d = ALL_CLIENT_EXERCISES[activeCoachClient] || ALL_CLIENT_EXERCISES.rick; return d && d.days ? d.days[clientWorkoutDay||0].exercises : (d||[]); }
+function getCoachMeals() { if (!ALL_CLIENT_MEALS[activeCoachClient]) ALL_CLIENT_MEALS[activeCoachClient] = []; return ALL_CLIENT_MEALS[activeCoachClient]; }
+function getClientMeals() { return ALL_CLIENT_MEALS[activeViewClient] || ALL_CLIENT_MEALS[activeCoachClient] || ALL_CLIENT_MEALS.rick; }
+function getClientExercises() { var cid = activeViewClient || activeCoachClient; var d = ALL_CLIENT_EXERCISES[cid] || ALL_CLIENT_EXERCISES.rick; return d && d.days ? d.days[clientWorkoutDay||0].exercises : (d||[]); }
 
 /* Coach client switching */
 function switchNutritionClient(clientId) {
@@ -10461,6 +10662,9 @@ function saveWorkoutPlan() {
 
   showToast('✓ Plan saved for ' + name + ' — client workout updated');
 
+  // Persist locally so plans survive page refresh
+  saveCoachWorkoutPlans();
+
   // Persist to Supabase
   if (IS_LIVE && currentUser) {
     var planName = 'Training Plan — ' + name;
@@ -10474,9 +10678,18 @@ function saveNutritionPlan() {
   const sel = document.getElementById('nut-client-select');
   const clientId = sel ? sel.value : activeCoachClient;
   const name = sel ? sel.options[sel.selectedIndex].text : 'client';
+  // Ensure coachMeals data is stored in ALL_CLIENT_MEALS for this client
+  ALL_CLIENT_MEALS[clientId] = coachMeals;
+  // Also update activeViewClient's clientMeals if this is the same client
+  if (clientId === activeViewClient) {
+    clientMeals = coachMeals;
+  }
   // Sync to client view
   syncClientMeals();
   showToast('✓ Nutrition plan saved for ' + name + ' — client view updated');
+
+  // Persist locally so plans survive page refresh
+  saveCoachMealPlans();
 
   // Persist to Supabase
   if (IS_LIVE && currentUser) {
@@ -10611,6 +10824,9 @@ function saveBuilderAsTemplate(type) {
 
   // Store the template
   TEMPLATE_DATA[tmplId] = tmplData;
+
+  // Persist custom templates to localStorage so they survive page refresh
+  saveCustomTemplates();
 
   // Update or add visual card to templates page
   var freq = tmplData.days.length > 0 ? tmplData.days.length + 'x/wk' : tmplData.meals.length + ' meals';
@@ -10888,6 +11104,56 @@ var TEMPLATE_DATA = {
     ],
     meals: []
   },
+  pplul: {
+    name: 'PPLUL (Push/Pull/Legs/Upper/Lower)',
+    type: 'training',
+    days: [
+      { name: 'Push Day', exercises: [
+        { name: 'Barbell Bench Press', sets: 4, reps: '6-8' },
+        { name: 'Incline Dumbbell Press', sets: 3, reps: '10-12' },
+        { name: 'Overhead Press', sets: 3, reps: '8-10' },
+        { name: 'Cable Flyes', sets: 3, reps: '12-15' },
+        { name: 'Lateral Raises', sets: 4, reps: '15-20' },
+        { name: 'Tricep Pushdown', sets: 3, reps: '10-12' },
+        { name: 'Overhead Tricep Extension', sets: 3, reps: '10-12' }
+      ]},
+      { name: 'Pull Day', exercises: [
+        { name: 'Barbell Row', sets: 4, reps: '6-8' },
+        { name: 'Lat Pulldown', sets: 3, reps: '10-12' },
+        { name: 'Seated Cable Row', sets: 3, reps: '10-12' },
+        { name: 'Face Pull', sets: 3, reps: '15-20' },
+        { name: 'Barbell Curl', sets: 3, reps: '10-12' },
+        { name: 'Hammer Curl', sets: 3, reps: '10-12' },
+        { name: 'Rear Delt Fly', sets: 3, reps: '15-20' }
+      ]},
+      { name: 'Leg Day', exercises: [
+        { name: 'Barbell Squat', sets: 4, reps: '6-8' },
+        { name: 'Romanian Deadlift', sets: 3, reps: '10-12' },
+        { name: 'Leg Press', sets: 3, reps: '10-12' },
+        { name: 'Leg Curl', sets: 3, reps: '10-12' },
+        { name: 'Leg Extension', sets: 3, reps: '12-15' },
+        { name: 'Calf Raises', sets: 4, reps: '12-15' }
+      ]},
+      { name: 'Upper Day', exercises: [
+        { name: 'Incline Bench Press', sets: 4, reps: '8-10' },
+        { name: 'Weighted Pull-ups', sets: 4, reps: '6-8' },
+        { name: 'Dumbbell Shoulder Press', sets: 3, reps: '10-12' },
+        { name: 'Cable Row', sets: 3, reps: '10-12' },
+        { name: 'Lateral Raises', sets: 3, reps: '15-20' },
+        { name: 'EZ Bar Curl', sets: 3, reps: '10-12' },
+        { name: 'Skull Crushers', sets: 3, reps: '10-12' }
+      ]},
+      { name: 'Lower Day', exercises: [
+        { name: 'Front Squat', sets: 4, reps: '8-10' },
+        { name: 'Stiff-Leg Deadlift', sets: 3, reps: '10-12' },
+        { name: 'Bulgarian Split Squat', sets: 3, reps: '10 each' },
+        { name: 'Hip Thrust', sets: 3, reps: '10-12' },
+        { name: 'Seated Leg Curl', sets: 3, reps: '12-15' },
+        { name: 'Standing Calf Raises', sets: 4, reps: '12-15' }
+      ]}
+    ],
+    meals: []
+  },
   lean_bulk_3200: {
     name: 'Lean Bulk 3200 kcal',
     type: 'nutrition',
@@ -10920,6 +11186,127 @@ var TEMPLATE_DATA = {
   }
 };
 var tmplNextId = 100;
+
+// --- Template Persistence (localStorage) ---
+// Hardcoded template IDs that ship with the app
+var _builtinTemplateIds = ['ppl_hypertrophy', 'fat_loss_2400', 'beginner_foundation', 'lean_bulk_3200', 'pplul'];
+
+function saveCustomTemplates() {
+  try {
+    var custom = {};
+    Object.keys(TEMPLATE_DATA).forEach(function(id) {
+      if (_builtinTemplateIds.indexOf(id) === -1) {
+        custom[id] = TEMPLATE_DATA[id];
+      }
+    });
+    localStorage.setItem('ae_custom_templates', JSON.stringify(custom));
+    localStorage.setItem('ae_tmplNextId', tmplNextId);
+  } catch(e) { console.warn('Template save failed:', e); }
+}
+
+function loadCustomTemplates() {
+  try {
+    var saved = localStorage.getItem('ae_custom_templates');
+    if (saved) {
+      var custom = JSON.parse(saved);
+      Object.keys(custom).forEach(function(id) {
+        if (!TEMPLATE_DATA[id]) {
+          TEMPLATE_DATA[id] = custom[id];
+          // Also add card to the template grid
+          addTemplateCardToGrid(id, custom[id]);
+        }
+      });
+    }
+    var savedId = localStorage.getItem('ae_tmplNextId');
+    if (savedId) tmplNextId = Math.max(tmplNextId, parseInt(savedId) || 100);
+  } catch(e) { console.warn('Template load failed:', e); }
+}
+
+function addTemplateCardToGrid(tmplId, tmplData) {
+  var grid = document.querySelector('.tmpl-grid');
+  if (!grid) return;
+  var freq = tmplData.days && tmplData.days.length > 0 ? tmplData.days.length + 'x/wk' : (tmplData.meals ? tmplData.meals.length + ' meals' : '');
+  var typeTags = tmplData.type === 'training' ? '<span class="tag t-gold">Training</span>'
+    : tmplData.type === 'nutrition' ? '<span class="tag t-gr">Nutrition</span>'
+    : '<span class="tag t-gold">Training</span><span class="tag t-gr">Nutrition</span>';
+  var cardHtml = '<div style="display:flex;justify-content:space-between;margin-bottom:6px"><div class="tmpl-nm">' + (tmplData.name||'Template') + '</div><span style="color:var(--t3)">☆</span></div>'
+    + '<div class="tmpl-meta">' + freq + '</div>'
+    + '<div style="display:flex;gap:5px;margin-bottom:10px">' + typeTags + '</div>'
+    + '<div style="display:flex;gap:6px"><button class="btn btn-p btn-sm" onclick="assignTemplate(this)">Assign</button><button class="btn btn-g btn-sm" onclick="editTemplateInBuilder(this)">Edit</button><button class="btn btn-g btn-sm" onclick="dupeTemplate(this)">Dupe</button></div>'
+    + '<div style="font-size:10px;color:var(--t3);margin-top:8px">Custom template</div>';
+  var addCard = grid.querySelector('[style*="border-style:dashed"]');
+  var newCard = document.createElement('div');
+  newCard.className = 'tmpl-card';
+  newCard.setAttribute('data-tmpl-id', tmplId);
+  newCard.innerHTML = cardHtml;
+  if (addCard) grid.insertBefore(newCard, addCard);
+  else grid.appendChild(newCard);
+}
+
+// --- Coach Plan Persistence (localStorage) ---
+// Saves workout plans, meal plans, and supplement plans so they survive page refresh
+
+function saveCoachWorkoutPlans() {
+  try {
+    localStorage.setItem('ae_client_exercises', JSON.stringify(ALL_CLIENT_EXERCISES));
+    localStorage.setItem('ae_day_data', JSON.stringify(ALL_DAY_DATA));
+  } catch(e) { console.warn('Workout plan save failed:', e); }
+}
+
+function saveCoachMealPlans() {
+  try {
+    localStorage.setItem('ae_client_meals', JSON.stringify(ALL_CLIENT_MEALS));
+  } catch(e) { console.warn('Meal plan save failed:', e); }
+}
+
+function saveCoachSuppPlans() {
+  try {
+    localStorage.setItem('ae_client_supplements', JSON.stringify(ALL_CLIENT_SUPPLEMENTS));
+  } catch(e) { console.warn('Supplement plan save failed:', e); }
+}
+
+function loadAllCoachPlans() {
+  try {
+    // Load workout plans
+    var savedEx = localStorage.getItem('ae_client_exercises');
+    if (savedEx) {
+      var parsed = JSON.parse(savedEx);
+      Object.keys(parsed).forEach(function(id) {
+        ALL_CLIENT_EXERCISES[id] = parsed[id];
+      });
+    }
+    var savedDay = localStorage.getItem('ae_day_data');
+    if (savedDay) {
+      var parsedDay = JSON.parse(savedDay);
+      Object.keys(parsedDay).forEach(function(id) {
+        ALL_DAY_DATA[id] = parsedDay[id];
+      });
+      // Re-set DAY_DATA to active client
+      DAY_DATA = ALL_DAY_DATA[activeCoachClient] || DAY_DATA;
+    }
+
+    // Load meal plans
+    var savedMeals = localStorage.getItem('ae_client_meals');
+    if (savedMeals) {
+      var parsedMeals = JSON.parse(savedMeals);
+      Object.keys(parsedMeals).forEach(function(id) {
+        ALL_CLIENT_MEALS[id] = parsedMeals[id];
+      });
+      coachMeals = ALL_CLIENT_MEALS[activeCoachClient] || coachMeals;
+    }
+
+    // Load supplement plans
+    var savedSupps = localStorage.getItem('ae_client_supplements');
+    if (savedSupps) {
+      var parsedSupps = JSON.parse(savedSupps);
+      Object.keys(parsedSupps).forEach(function(id) {
+        ALL_CLIENT_SUPPLEMENTS[id] = parsedSupps[id];
+      });
+    }
+
+    console.log('✓ Coach plans loaded from local storage');
+  } catch(e) { console.warn('Coach plan load failed:', e); }
+}
 
 /* Template creation */
 function toggleNewTemplate() {
@@ -10964,6 +11351,7 @@ function createNewTemplate() {
     + '<div style="display:flex;gap:6px"><button class="btn btn-p btn-sm" onclick="assignTemplate(this)">Assign</button><button class="btn btn-g btn-sm" onclick="editTemplateInBuilder(this)">Edit</button><button class="btn btn-g btn-sm" onclick="dupeTemplate(this)">Dupe</button></div>'
     + '<div style="font-size:10px;color:var(--t3);margin-top:8px">New · 0 clients</div>';
   grid.insertBefore(newCard, plusCard);
+  saveCustomTemplates();
 
   // Clear form and hide
   document.getElementById('tmpl-name-inp').value = '';
@@ -11124,19 +11512,37 @@ function applyTemplateToClient(tmplId, clientId) {
     ALL_CLIENT_MEALS[clientId] = newMeals;
   }
 
-  // Re-render views if this client is currently active
-  if (activeCoachClient === clientId) {
-    coachMeals = ALL_CLIENT_MEALS[clientId];
-    if (typeof renderCoachMealPlan === 'function') renderCoachMealPlan();
-  }
-  // Rebuild workout day tabs on both client and coach side
+  // Switch the coach to this client so changes are immediately visible
+  activeCoachClient = clientId;
+  coachMeals = ALL_CLIENT_MEALS[clientId] || [];
+  clientMeals = ALL_CLIENT_MEALS[clientId] || [];
+
+  // Update all coach dropdown selects
+  ['wb-client-select', 'nut-client-select', 'supp-client-select'].forEach(function(selId) {
+    var sel = document.getElementById(selId);
+    if (sel) sel.value = clientId;
+  });
+
+  // Re-render all coach and client views
+  if (typeof renderCoachMealPlan === 'function') renderCoachMealPlan();
   if (typeof rebuildClientWorkoutDayTabs === 'function') rebuildClientWorkoutDayTabs(clientId);
   if (typeof rebuildCoachWorkoutDayTabs === 'function') rebuildCoachWorkoutDayTabs(clientId);
+  DAY_DATA = ALL_DAY_DATA[clientId] || ALL_DAY_DATA.niels;
+  activeDay = 0;
+  if (typeof renderDayTabs === 'function') renderDayTabs();
+  if (typeof renderDay === 'function') renderDay(0);
   if (typeof renderWorkout === 'function') renderWorkout();
   if (typeof renderClientMeals === 'function') renderClientMeals();
   if (typeof updateClientNutritionTotals === 'function') updateClientNutritionTotals();
+  if (typeof renderCoachSupps === 'function') renderCoachSupps();
+  if (typeof renderClientSupps === 'function') renderClientSupps();
   if (typeof renderSmartActions === 'function') renderSmartActions();
   if (typeof updateDashboardKPIs === 'function') updateDashboardKPIs();
+  if (typeof updateCoachClientIndicator === 'function') updateCoachClientIndicator();
+
+  // Persist assigned plans locally
+  saveCoachWorkoutPlans();
+  saveCoachMealPlans();
 }
 
 /* Old template editor removed — now using editTemplateInBuilder() */
@@ -11180,6 +11586,7 @@ function dupeTemplate(btn) {
   }
   showToast('✓ Template duplicated');
   clone.scrollIntoView({ behavior:'smooth', block:'center' });
+  saveCustomTemplates();
 }
 
 let coachMeals = ALL_CLIENT_MEALS.niels;
@@ -11448,6 +11855,7 @@ function addFoodToMeal(foodId) {
     kcal: Math.round(food.kcal * grams / 100)
   });
   renderCoachMealPlan();
+  saveCoachMealPlans();
   showToast(`✓ ${food.name} added to ${coachMeals[mealIdx].name}`);
 }
 
@@ -11456,6 +11864,7 @@ function round1(n) { return Math.round(n * 10) / 10; }
 function removeFoodFromMeal(mealIdx, foodIdx) {
   coachMeals[mealIdx].foods.splice(foodIdx, 1);
   renderCoachMealPlan();
+  saveCoachMealPlans();
 }
 
 // Live update coach food grams — updates data + displayed numbers without re-render
@@ -11527,12 +11936,14 @@ function addMealSlot() {
   const times = ['07:00','10:00','13:00','16:00','19:00','21:00'];
   coachMeals.push({name:'Meal ' + num, time: times[num-1] || '12:00', foods:[]});
   renderCoachMealPlan();
+  saveCoachMealPlans();
   showToast('+ Meal slot added');
 }
 
 function removeMealSlot(idx) {
   coachMeals.splice(idx, 1);
   renderCoachMealPlan();
+  saveCoachMealPlans();
 }
 
 function updateMealName(mi, val) { coachMeals[mi].name = val; }
@@ -11742,8 +12153,8 @@ function renderCoachMealPlan() {
 }
 
 function syncClientMeals() {
-  // Point clientMeals to whichever client the coach is editing
-  clientMeals = ALL_CLIENT_MEALS[activeCoachClient] || ALL_CLIENT_MEALS.rick;
+  // Point clientMeals to the active client view (or coach client as fallback)
+  clientMeals = ALL_CLIENT_MEALS[activeViewClient] || ALL_CLIENT_MEALS[activeCoachClient] || ALL_CLIENT_MEALS.rick;
   // Only re-render if client nutrition elements exist (avoid errors if not mounted)
   if (document.getElementById('client-meals-body')) {
     renderClientMeals();
@@ -11754,8 +12165,8 @@ function syncClientMeals() {
 /* ============================================================
    CLIENT MEAL PLAN + FOOD SWAP
 ============================================================ */
-/* clientMeals points to the active coach client's shared data */
-let clientMeals = ALL_CLIENT_MEALS[activeCoachClient] || ALL_CLIENT_MEALS.rick;
+/* clientMeals points to the active client view's shared data */
+let clientMeals = ALL_CLIENT_MEALS[activeViewClient] || ALL_CLIENT_MEALS[activeCoachClient] || ALL_CLIENT_MEALS.rick;
 
 /* ============================================================
    CLIENT NUTRITION DAY HISTORY
@@ -11787,8 +12198,8 @@ function clientNutriDayNav(dir) {
   if (CLIENT_MEAL_HISTORY[clientNutriDayOffset]) {
     clientMeals = CLIENT_MEAL_HISTORY[clientNutriDayOffset];
   } else {
-    // For past days with no data, show empty template from coach plan
-    clientMeals = JSON.parse(JSON.stringify(ALL_CLIENT_MEALS[activeCoachClient] || ALL_CLIENT_MEALS.rick));
+    // For past days with no data, show empty template from client's plan
+    clientMeals = JSON.parse(JSON.stringify(ALL_CLIENT_MEALS[activeViewClient] || ALL_CLIENT_MEALS[activeCoachClient] || ALL_CLIENT_MEALS.rick));
     // Mark past day meals as logged (simulating completed past days)
     if (clientNutriDayOffset < 0) {
       clientMeals.forEach(function(m) { m.logged = true; m.foods.forEach(function(f) { f.checked = true; }); });
@@ -11951,7 +12362,7 @@ function debouncedSaveNutritionLog() {
   if (_nutritionSaveTimer) clearTimeout(_nutritionSaveTimer);
   _nutritionSaveTimer = setTimeout(function() {
     if (IS_LIVE && currentUser) {
-      var clientId = (currentUserRole === 'client' && currentUser) ? currentUser.id : (activeCoachClient || 'rick');
+      var clientId = activeViewClient || (currentUser ? currentUser.id : (activeCoachClient || 'rick'));
       saveDailyNutritionLog(clientId, clientMeals).then(function(ok) {
         if (ok) console.log('✓ Nutrition log synced');
         else console.warn('Nutrition log sync failed');
@@ -12329,6 +12740,7 @@ function doSwap(foodId, calcGrams) {
   };
   closeSwap();
   renderClientMeals();
+  saveCoachMealPlans();
   showToast('✓ Swapped to ' + food.name + ' (' + calcGrams + 'g)');
 }
 
@@ -13148,10 +13560,10 @@ let workoutActive = false;
 
 /* clientExercises points directly to the active client's shared data */
 let clientWorkoutDay = 0;
-let clientExercises = (ALL_CLIENT_EXERCISES[activeCoachClient] || ALL_CLIENT_EXERCISES.rick).days[0].exercises;
+let clientExercises = (ALL_CLIENT_EXERCISES[activeViewClient] || ALL_CLIENT_EXERCISES[activeCoachClient] || ALL_CLIENT_EXERCISES.rick).days[0].exercises;
 
 function switchClientWorkoutDay(idx) {
-  var data = ALL_CLIENT_EXERCISES[activeCoachClient] || ALL_CLIENT_EXERCISES.rick;
+  var data = ALL_CLIENT_EXERCISES[activeViewClient] || ALL_CLIENT_EXERCISES[activeCoachClient] || ALL_CLIENT_EXERCISES.rick;
   if (!data || !data.days || !data.days[idx]) return;
   clientWorkoutDay = idx;
   clientExercises = data.days[idx].exercises;
@@ -13175,7 +13587,7 @@ function switchClientWorkoutDay(idx) {
 function rebuildClientWorkoutDayTabs(clientId) {
   var container = document.getElementById('client-workout-days');
   if (!container) return;
-  var data = ALL_CLIENT_EXERCISES[clientId || activeCoachClient];
+  var data = ALL_CLIENT_EXERCISES[clientId || activeViewClient || activeCoachClient];
   if (!data || !data.days) return;
 
   var dayLabels = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
@@ -13257,7 +13669,7 @@ function renderWorkout() {
     const prevLabel = isPlank ? 'PREV (sec × sets)' : 'PREVIOUS';
 
     // Progressive overload info
-    const _wClientId = (currentUserRole === 'client' && currentUser) ? currentUser.id : (activeCoachClient || 'rick');
+    const _wClientId = activeViewClient || (currentUser ? currentUser.id : (activeCoachClient || 'rick'));
     const exHistory = getExerciseHistory(_wClientId, clientWorkoutDay, ex.name);
     const trend = getProgressTrend(exHistory);
     const trendIcon = getProgressIcon(trend);
@@ -13454,7 +13866,7 @@ function finishWorkout() {
   }
 
   // Save to progressive overload history BEFORE resetting
-  var clientId = (currentUserRole === 'client' && currentUser) ? currentUser.id : (activeCoachClient || 'rick');
+  var clientId = activeViewClient || (currentUser ? currentUser.id : (activeCoachClient || 'rick'));
   saveWorkoutToHistory(clientId, clientWorkoutDay, clientExercises);
 
   // Persist to Supabase
@@ -13528,6 +13940,17 @@ document.addEventListener('DOMContentLoaded', () => {
   renderWeeklySummary('all');
   renderClientList();
 
+  // Load saved coach plans and custom templates from previous sessions
+  if (typeof loadAllCoachPlans === 'function') loadAllCoachPlans();
+  if (typeof loadCustomTemplates === 'function') loadCustomTemplates();
+
+  // Re-render views with loaded data
+  renderCoachMealPlan();
+  renderWorkout();
+  renderCoachSupps();
+  renderClientSupps();
+  renderClientMeals();
+
   // Initialize daily check-ins end date to today
   dailyEndDate = new Date();
 });
@@ -13541,7 +13964,7 @@ function handlePhotoUpload(input, photoType) {
   const reader = new FileReader();
   reader.onload = function(e) {
     const dataUrl = e.target.result;
-    var clientId = activeCoachClient || 'rick';
+    var clientId = activeViewClient || activeCoachClient || 'rick';
 
     // Store in data object
     if (!PROGRESS_PHOTOS[clientId]) {
@@ -13604,8 +14027,8 @@ function saveMeasurements() {
     return;
   }
 
-  // Use correct client ID
-  var clientId = activeCoachClient || 'rick';
+  // Use correct client ID — activeViewClient for athlete view, coach client otherwise
+  var clientId = activeViewClient || activeCoachClient || 'rick';
   var todayKey = new Date().toISOString().slice(0, 10);
 
   // Store latest measurements
@@ -13817,6 +14240,8 @@ async function enterApp() {
         // Update client badge count
         const badge = document.querySelector('#ni-c-clients .ni-badge');
         if (badge) badge.textContent = Object.keys(CLIENT_META).length;
+        // Update "View as Client" button to show coach's own athlete view
+        if (typeof updateSwitchClientButton === 'function') updateSwitchClientButton();
       } catch(e) { console.log('Render refresh:', e); }
     }
   }
@@ -13835,11 +14260,7 @@ async function enterApp() {
   if (typeof updateSwitchClientButton === 'function') updateSwitchClientButton();
 }
 
-function enterDemoMode() {
-  document.getElementById('app-auth').classList.remove('visible');
-  document.getElementById('app-coach').classList.add('visible');
-  showToast('Demo mode — data is not saved');
-}
+// Demo mode removed — app is fully live, login required
 
 function handleLogout() {
   signOut().then(() => {
@@ -13858,7 +14279,12 @@ function handleLogout() {
 
 // On page load: check if user is already logged in
 (async function checkExistingSession() {
-  if (!IS_LIVE) return; // Demo mode — auth screen still shows, user can pick demo
+  if (!IS_LIVE) {
+    // Supabase not loaded — show error on auth screen
+    var errEl = document.getElementById('auth-error');
+    if (errEl) { errEl.textContent = 'Could not connect to server. Please check your internet connection and reload.'; errEl.classList.add('show'); }
+    return;
+  }
   try {
     const { data: { session } } = await sb.auth.getSession();
     if (session?.user) {
