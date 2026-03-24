@@ -2833,7 +2833,7 @@ textarea.t-area:focus{border-color:var(--gold)}
 </div><!-- /app-coach -->
 
 <!-- ============================================================
-     CLIENT APP — Rick Linden (at-risk client, week 3 beginner)
+     CLIENT APP — Niels Reijnen (new client, week 1)
 ============================================================ -->
 <div id="app-client">
 <div class="shell">
@@ -2841,7 +2841,7 @@ textarea.t-area:focus{border-color:var(--gold)}
 <nav class="sidebar" id="client-nav">
   <div class="nav-logo">
     <div class="logo-mark green"><svg viewBox="0 0 16 16" fill="none"><path d="M8 1L10 6.5H16L11.5 10L13.5 16L8 12.5L2.5 16L4.5 10L0 6.5H6L8 1Z" fill="#080A0C"/></svg></div>
-    <div class="logo-words"><div class="brand">AESTHETIC</div><div class="sub">Client App · Week 3</div></div>
+    <div class="logo-words"><div class="brand">AESTHETIC</div><div class="sub">Client App · Week 1</div></div>
   </div>
   <div class="nav-grp">
     <div class="nav-grp-label">Main</div>
@@ -2901,7 +2901,7 @@ textarea.t-area:focus{border-color:var(--gold)}
         <div id="reminder-list" style="padding:8px;max-height:320px;overflow-y:auto"></div>
       </div>
       <div style="position:relative" id="client-profile-wrap">
-        <div class="u-av" onclick="toggleProfileMenu('client',event)" style="width:32px;height:32px;background:linear-gradient(135deg,var(--green),var(--blue));color:var(--black);font-family:var(--fd);font-size:13px;display:flex;align-items:center;justify-content:center;border-radius:50%;cursor:pointer;flex-shrink:0">R</div>
+        <div class="u-av" onclick="toggleProfileMenu('client',event)" style="width:32px;height:32px;background:linear-gradient(135deg,var(--green),var(--blue));color:var(--black);font-family:var(--fd);font-size:13px;display:flex;align-items:center;justify-content:center;border-radius:50%;cursor:pointer;flex-shrink:0">NR</div>
         <div id="client-profile-menu" style="display:none;position:absolute;top:40px;right:0;width:260px;background:var(--s1);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.5);z-index:999;overflow:hidden">
           <div style="padding:14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
             <div class="u-av" id="pm-client-av-big" style="width:36px;height:36px;background:linear-gradient(135deg,var(--gold),var(--gold-d));color:var(--black);font-family:var(--fd);font-size:14px;display:flex;align-items:center;justify-content:center;border-radius:50%;flex-shrink:0">NR</div>
@@ -2935,16 +2935,16 @@ textarea.t-area:focus{border-color:var(--gold)}
       <div style="background:linear-gradient(135deg,rgba(59,255,166,.06),rgba(91,158,255,.04));border:1px solid rgba(59,255,166,.15);border-radius:var(--r2);padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;gap:14px">
         <div style="font-size:28px">💪</div>
         <div>
-          <div style="font-family:var(--fd);font-size:16px;letter-spacing:1px;color:var(--green);margin-bottom:3px">HEY RICK — LET'S GET BACK ON TRACK</div>
-          <div style="font-size:13px;color:var(--t2);line-height:1.5">Week 3 is the hardest week — most people quit here. You're still here. That already puts you ahead. Small steps today = big results in 8 weeks.</div>
+          <div style="font-family:var(--fd);font-size:16px;letter-spacing:1px;color:var(--green);margin-bottom:3px">WELCOME NIELS — DAY 1 STARTS NOW</div>
+          <div style="font-size:13px;color:var(--t2);line-height:1.5">Your transformation journey begins today. Stay consistent, trust the process, and let's build the best version of you. One day at a time.</div>
         </div>
         <button class="btn btn-gr btn-sm" style="margin-left:auto;white-space:nowrap" onclick="rGo('r-training',document.getElementById('ni-r-training'))">Start Today →</button>
       </div>
       <div class="g4">
         <div class="card" id="dash-weight-card">
           <div class="kl" style="display:flex;align-items:center;justify-content:space-between">Body Weight <button class="btn btn-g btn-sm" style="padding:2px 8px;font-size:9px" onclick="toggleWeightInput()" id="log-weight-btn">Log Weight</button></div>
-          <div class="kv" id="dash-weight-val">98.4<span class="ku">kg</span></div>
-          <div class="kd nt" style="margin-top:5px" id="dash-weight-trend">→ Stable this week</div>
+          <div class="kv" id="dash-weight-val">—<span class="ku">kg</span></div>
+          <div class="kd nt" style="margin-top:5px" id="dash-weight-trend">Log your first weigh-in</div>
           <div id="weight-input-area" style="display:none;margin-top:8px">
             <div style="display:flex;gap:6px;align-items:center">
               <input type="number" id="weight-log-inp" step="0.1" placeholder="e.g. 97.8" style="flex:1;background:var(--s3);border:1px solid var(--border);border-radius:8px;color:var(--t1);font-family:var(--fm);font-size:13px;padding:8px 10px;outline:none;-moz-appearance:textfield" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border)'">
@@ -2953,29 +2953,29 @@ textarea.t-area:focus{border-color:var(--gold)}
             </div>
           </div>
           <div class="mini-chart" style="margin-top:12px" id="dash-weight-chart">
-            <div class="mc-bar" style="height:60%"></div><div class="mc-bar" style="height:58%"></div><div class="mc-bar active" style="height:62%"></div><div class="mc-bar active" style="height:65%"></div><div class="mc-bar today" style="height:63%"></div>
+            <div class="mc-bar" style="height:0%"></div><div class="mc-bar" style="height:0%"></div><div class="mc-bar" style="height:0%"></div><div class="mc-bar" style="height:0%"></div><div class="mc-bar today" style="height:0%"></div>
           </div>
         </div>
         <div class="card" id="dash-steps-card">
           <div class="kl" style="display:flex;align-items:center;gap:6px">Steps Today <span style="font-size:9px;color:var(--t3);font-weight:400">👟</span></div>
-          <div class="kv" id="dash-step-val" style="color:var(--orange)">2,487<span class="ku">/ 10,000</span></div>
-          <div class="kd nt" id="dash-step-status">7,513 remaining</div>
-          <div class="pbar" style="margin-top:12px"><div class="pfill" id="dash-step-bar" style="width:25%;background:var(--orange)"></div></div>
+          <div class="kv" id="dash-step-val" style="color:var(--orange)">0<span class="ku">/ 10,000</span></div>
+          <div class="kd nt" id="dash-step-status">10,000 remaining</div>
+          <div class="pbar" style="margin-top:12px"><div class="pfill" id="dash-step-bar" style="width:0%;background:var(--orange)"></div></div>
         </div>
         <div class="card" id="dash-water-card">
           <div class="kl" style="display:flex;align-items:center;gap:6px">Water Today <span style="font-size:9px;color:var(--t3);font-weight:400">💧</span></div>
-          <div class="kv" id="dash-water-val" style="color:var(--blue)">0.5<span class="ku">/ 3L</span></div>
-          <div class="kd nt" id="dash-water-status">2.5L remaining</div>
+          <div class="kv" id="dash-water-val" style="color:var(--blue)">0<span class="ku">/ 3L</span></div>
+          <div class="kd nt" id="dash-water-status">3L remaining</div>
           <div style="display:flex;align-items:center;gap:8px;margin-top:10px">
-            <div class="pbar" style="flex:1;margin:0"><div class="pfill" id="dash-water-bar" style="width:17%;background:var(--blue)"></div></div>
+            <div class="pbar" style="flex:1;margin:0"><div class="pfill" id="dash-water-bar" style="width:0%;background:var(--blue)"></div></div>
             <button class="btn btn-g btn-sm" style="padding:3px 10px;font-size:10px;white-space:nowrap" onclick="addWater()">+ 250ml</button>
           </div>
         </div>
         <div class="card">
           <div class="kl">Calories Today</div>
-          <div class="kv">1,240<span class="ku">/ 2,200</span></div>
-          <div class="kd up">↑ 960 remaining</div>
-          <div class="pbar" style="margin-top:12px"><div class="pfill" style="width:56%"></div></div>
+          <div class="kv">0<span class="ku">/ 2,200</span></div>
+          <div class="kd nt">2,200 remaining</div>
+          <div class="pbar" style="margin-top:12px"><div class="pfill" style="width:0%"></div></div>
         </div>
         <div class="card" id="streak-engagement-card" style="grid-column:1/-1">
           <!-- Dynamic streak & engagement content rendered by renderStreakCard() -->
@@ -2984,20 +2984,20 @@ textarea.t-area:focus{border-color:var(--gold)}
       <div class="g7030">
         <div>
           <div class="card" id="dash-checklist" style="margin-bottom:16px">
-            <div class="section-hd" style="font-size:16px">TODAY'S CHECKLIST <span class="mla" id="ci-counter" style="font-size:11px;color:var(--orange)">1/8 complete</span></div>
-            <div class="pbar" style="margin-bottom:14px"><div class="pfill" id="ci-pbar" style="width:12%;background:var(--orange)"></div></div>
-            <div class="ci done" id="ci-weighin" onclick="toggleCI(this)"><div class="cb"><svg viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="ct">Morning weigh-in</span><span class="cm2">98.4 kg</span></div>
+            <div class="section-hd" style="font-size:16px">TODAY'S CHECKLIST <span class="mla" id="ci-counter" style="font-size:11px;color:var(--orange)">0/8 complete</span></div>
+            <div class="pbar" style="margin-bottom:14px"><div class="pfill" id="ci-pbar" style="width:0%;background:var(--orange)"></div></div>
+            <div class="ci" id="ci-weighin" onclick="toggleCI(this)"><div class="cb"></div><span class="ct">Morning weigh-in</span><span class="cm2">— kg</span></div>
             <div class="ci" id="ci-cardio" onclick="toggleCI(this)"><div class="cb"></div><span class="ct">Cardio / 10,000 steps</span><span class="cm2" id="ci-cardio-status">0 / 10,000</span></div>
             <div class="ci" id="ci-supplements" onclick="toggleSuppsFromChecklist(this)"><div class="cb"></div><span class="ct">Take supplements</span><span class="cm2" id="ci-supps-status">0 / 6 taken</span></div>
-            <div class="ci" id="ci-meals" onclick="toggleCI(this)"><div class="cb"></div><span class="ct">Log all meals</span><span class="cm2" id="ci-meals-status">1 / 3 logged</span></div>
-            <div class="ci" id="ci-protein" onclick="toggleCI(this)"><div class="cb"></div><span class="ct">Hit protein target</span><span class="cm2" id="ci-protein-status" style="color:var(--orange)">68 / 180g</span></div>
-            <div class="ci" id="ci-workout" onclick="toggleCI(this)"><div class="cb"></div><span class="ct">Complete workout</span><span class="cm2" id="ci-workout-status" style="color:var(--orange)">Session 3 today</span></div>
-            <div class="ci" id="ci-water" onclick="toggleCI(this)"><div class="cb"></div><span class="ct">Water intake: 3L minimum</span><span class="cm2" id="ci-water-status">0.5 / 3L</span></div>
+            <div class="ci" id="ci-meals" onclick="toggleCI(this)"><div class="cb"></div><span class="ct">Log all meals</span><span class="cm2" id="ci-meals-status">0 / 3 logged</span></div>
+            <div class="ci" id="ci-protein" onclick="toggleCI(this)"><div class="cb"></div><span class="ct">Hit protein target</span><span class="cm2" id="ci-protein-status" style="color:var(--orange)">0 / 180g</span></div>
+            <div class="ci" id="ci-workout" onclick="toggleCI(this)"><div class="cb"></div><span class="ct">Complete workout</span><span class="cm2" id="ci-workout-status" style="color:var(--orange)">Session 1 today</span></div>
+            <div class="ci" id="ci-water" onclick="toggleCI(this)"><div class="cb"></div><span class="ct">Water intake: 3L minimum</span><span class="cm2" id="ci-water-status">0 / 3L</span></div>
             <div class="ci" id="ci-checkin" onclick="toggleCI(this)"><div class="cb"></div><span class="ct">Evening check-in</span><span class="cm2">Tonight</span></div>
           </div>
           <div style="background:linear-gradient(135deg,var(--s1),rgba(200,169,110,.03));border:1px solid rgba(200,169,110,.2);border-radius:var(--r2);padding:16px">
             <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);font-weight:500;margin-bottom:10px">📬 MESSAGE FROM COACH</div>
-            <div style="font-size:13px;color:var(--t1);line-height:1.6;margin-bottom:12px">"Hey Rick, haven't heard from you in a few days — hope you're good! Life gets busy, no stress. Your plan is totally adjustable. What's been the biggest challenge this week? Let's make this easier for you 💪"</div>
+            <div style="font-size:13px;color:var(--t1);line-height:1.6;margin-bottom:12px">"Welcome Niels! Excited to start this journey with you. Your plan is ready — training, nutrition, and supplements are all set. Let's crush Week 1 together 💪"</div>
             <div style="font-size:11px;color:var(--t3);margin-bottom:10px">Niels · Today 10:30</div>
             <button class="btn btn-p btn-sm" onclick="rGo('r-chat',document.getElementById('ni-r-chat'))">Reply to Coach →</button>
           </div>
@@ -3006,20 +3006,20 @@ textarea.t-area:focus{border-color:var(--gold)}
           <div class="card" style="margin-bottom:14px">
             <div class="kl">This Week</div>
             <div style="display:flex;align-items:baseline;gap:4px;margin:6px 0 4px">
-              <span style="font-family:var(--fd);font-size:28px;color:var(--orange)">2</span>
+              <span style="font-family:var(--fd);font-size:28px;color:var(--t3)">0</span>
               <span style="font-size:12px;color:var(--t3)">/ 3 workouts</span>
             </div>
-            <div class="kd nt" style="margin-bottom:8px">1 workout missed</div>
-            <div class="pbar"><div class="pfill" style="width:66%;background:var(--orange)"></div></div>
+            <div class="kd nt" style="margin-bottom:8px">Week 1 — Let's go!</div>
+            <div class="pbar"><div class="pfill" style="width:0%;background:var(--green)"></div></div>
             <div style="display:flex;gap:5px;margin-top:10px">
-              <div style="flex:1;text-align:center;padding:6px 4px;background:var(--s2);border-radius:6px;border:1px solid rgba(59,255,166,.2)"><div style="font-size:9px;color:var(--t3);margin-bottom:2px">Mon</div><div style="font-size:11px;color:var(--green)">✓</div></div>
-              <div style="flex:1;text-align:center;padding:6px 4px;background:var(--s2);border-radius:6px;border:1px solid rgba(59,255,166,.2)"><div style="font-size:9px;color:var(--t3);margin-bottom:2px">Wed</div><div style="font-size:11px;color:var(--green)">✓</div></div>
-              <div style="flex:1;text-align:center;padding:6px 4px;background:var(--s2);border-radius:6px;border:1px solid rgba(255,165,0,.2)"><div style="font-size:9px;color:var(--t3);margin-bottom:2px">Fri</div><div style="font-size:11px;color:var(--orange)">—</div></div>
+              <div style="flex:1;text-align:center;padding:6px 4px;background:var(--s2);border-radius:6px;border:1px solid var(--border)"><div style="font-size:9px;color:var(--t3);margin-bottom:2px">Mon</div><div style="font-size:11px;color:var(--t3)">—</div></div>
+              <div style="flex:1;text-align:center;padding:6px 4px;background:var(--s2);border-radius:6px;border:1px solid var(--border)"><div style="font-size:9px;color:var(--t3);margin-bottom:2px">Wed</div><div style="font-size:11px;color:var(--t3)">—</div></div>
+              <div style="flex:1;text-align:center;padding:6px 4px;background:var(--s2);border-radius:6px;border:1px solid var(--border)"><div style="font-size:9px;color:var(--t3);margin-bottom:2px">Fri</div><div style="font-size:11px;color:var(--t3)">—</div></div>
             </div>
           </div>
           <div class="card" style="margin-bottom:14px">
             <div class="kl">Today's Workout</div>
-            <div style="font-size:14px;font-weight:500;color:var(--t1);margin:6px 0 3px">Full Body Session 3</div>
+            <div style="font-size:14px;font-weight:500;color:var(--t1);margin:6px 0 3px">Full Body Session 1</div>
             <div style="font-size:12px;color:var(--t3);margin-bottom:10px">4 exercises · ~40 min · Beginner friendly</div>
             <button class="btn btn-gr" style="width:100%" onclick="rGo('r-training',document.getElementById('ni-r-training'))">Start Workout ▶</button>
           </div>
@@ -3045,7 +3045,7 @@ textarea.t-area:focus{border-color:var(--gold)}
       <div class="g7030">
         <div>
           <div class="card" style="margin-bottom:14px;display:flex;align-items:center;gap:16px" id="workout-header">
-            <div><div class="kl">FULL BODY SESSION A — BEGINNER</div><div style="font-family:var(--fd);font-size:20px;color:var(--t1);letter-spacing:1px;margin-top:3px">WEEK 3 · FOUNDATION</div><div style="font-size:12px;color:var(--t3);margin-top:3px">4 exercises · ~40 min · Focus on form</div><div style="display:flex;gap:6px;margin-top:8px"><span class="tag t-gr">Beginner</span><span class="tag t-bl">Full Body</span><span class="tag t-gy">3×/week</span></div></div>
+            <div><div class="kl">FULL BODY SESSION A — BEGINNER</div><div style="font-family:var(--fd);font-size:20px;color:var(--t1);letter-spacing:1px;margin-top:3px">WEEK 1 · FOUNDATION</div><div style="font-size:12px;color:var(--t3);margin-top:3px">4 exercises · ~40 min · Focus on form</div><div style="display:flex;gap:6px;margin-top:8px"><span class="tag t-gr">Beginner</span><span class="tag t-bl">Full Body</span><span class="tag t-gy">3×/week</span></div></div>
             <button class="btn btn-gr" style="margin-left:auto;white-space:nowrap" id="start-workout-btn" onclick="startWorkout()">▶ Start</button>
           </div>
           <div id="workout-exercises"></div>
@@ -3496,12 +3496,12 @@ textarea.t-area:focus{border-color:var(--gold)}
       <div style="display:flex;flex-direction:column;height:calc(100vh - 200px);max-height:560px">
         <div style="flex:1;display:flex;flex-direction:column;gap:14px;overflow-y:auto;padding:4px 0" id="rick-chat">
           <div style="font-size:10px;text-align:center;color:var(--t3);letter-spacing:1px">TODAY</div>
-          <div class="msg coach-msg"><div class="msg-av">N</div><div><div class="msg-bubble">Hey Rick, haven't heard from you in a few days — hope you're good! Life gets busy, no stress 🙌</div><div class="msg-time">10:30</div></div></div>
-          <div class="msg coach-msg"><div class="msg-av">N</div><div><div class="msg-bubble">Your plan is totally adjustable. What's been the biggest challenge this week? Let's make this easier for you 💪</div><div class="msg-time">10:31</div></div></div>
+          <div class="msg coach-msg"><div class="msg-av">N</div><div><div class="msg-bubble">Welcome Niels! Your plan is all set — training, nutrition and supplements are ready. Let's crush Week 1 together 💪</div><div class="msg-time">09:00</div></div></div>
+          <div class="msg coach-msg"><div class="msg-av">N</div><div><div class="msg-bubble">Start with your morning weigh-in, then check today's workout. Any questions, just message me here!</div><div class="msg-time">09:01</div></div></div>
           <div style="text-align:center;font-size:11px;color:var(--t3);padding:6px;background:var(--s2);border-radius:20px;border:1px solid var(--border)">Type your reply below — your coach is online now ●</div>
         </div>
         <div class="chat-input-bar">
-          <textarea class="chat-input" rows="1" placeholder="Reply to Niels..." id="rick-input" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendRickMsg()}"></textarea>
+          <textarea class="chat-input" rows="1" placeholder="Reply to Coach..." id="rick-input" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendRickMsg()}"></textarea>
           <button class="btn btn-gr btn-sm" onclick="sendRickMsg()"><svg viewBox="0 0 14 14" fill="none" width="13" height="13"><path d="M12 7L2 2l2 5-2 5 10-5z" fill="currentColor"/></svg>Send</button>
         </div>
       </div>
@@ -4386,7 +4386,8 @@ const ALL_CLIENT_SUPPLEMENTS = {
     {suppId:1, timing:'post-workout', dose:'30g'},
     {suppId:26, timing:'post-workout', dose:'1 scoop'},
     {suppId:22, timing:'evening', dose:'30g'}
-  ]
+  ],
+  nielsreijnen: []
 };
 
 let activeCoachSuppClient = 'niels';
@@ -4414,6 +4415,9 @@ const CHAT_THREADS = {
     {from:'client', text:'Squats felt great today 🦵', time:'07:50'},
     {from:'coach', text:'Let\'s go Stefan! Ready to move you to the strength block next week. New 1RM test incoming 🏋️', time:'08:05'},
   ],
+  nielsreijnen: [
+    {from:'coach', text:'Welcome Niels! Your plan is all set. Let\'s crush Week 1 together 💪', time:'09:00'},
+  ],
 };
 
 let CLIENT_META = {
@@ -4421,6 +4425,7 @@ let CLIENT_META = {
   rick: {name:'Rick Linden', av:'RL', initials:'RL', color:'var(--red)', bg:'var(--red-d)', bgColor:'var(--red-d)', goal:'Fat loss', week:3, totalWeeks:12, weight:98.4, mood:'😔', workoutDays:[1,3,5], stepTarget:10000, cardioSessions:0},
   mike: {name:'Mike Hartman', av:'MH', initials:'MH', color:'var(--blue)', bg:'var(--blue-d)', bgColor:'var(--blue-d)', goal:'Muscle gain', week:14, totalWeeks:20, weight:84.2, mood:'😊', workoutDays:[1,3,5], stepTarget:10000, cardioSessions:0},
   stefan: {name:'Stefan Wolff', av:'SW', initials:'SW', color:'var(--orange)', bg:'var(--orange-d)', bgColor:'var(--orange-d)', goal:'Recomp', week:11, totalWeeks:16, weight:78.6, mood:'😤', workoutDays:[1,2,4,5], stepTarget:10000, cardioSessions:0},
+  nielsreijnen: {name:'Niels Reijnen', av:'NR', initials:'NR', color:'var(--green)', bg:'var(--green-d)', bgColor:'var(--green-d)', goal:'Fat loss', week:1, totalWeeks:12, weight:0, mood:'😊', workoutDays:[1,3,5], stepTarget:10000, cardioSessions:0},
 };
 
 let activeChatClient = 'niels';
@@ -4609,8 +4614,8 @@ async function switchProfile(mode) {
   document.getElementById('client-nav').classList.remove('open');
 
   if (mode === 'client') {
-    // Determine which client to show
-    var clientId = activeCoachClient;
+    // Determine which client to show — use nielsreijnen for demo/client view
+    var clientId = (currentUserRole === 'client' && currentUser) ? currentUser.id : 'nielsreijnen';
     var meta = CLIENT_META[clientId] || {};
     var clientName = meta.name || 'Client';
     var clientInitials = meta.av || meta.initials || 'C';
@@ -4666,13 +4671,20 @@ async function switchProfile(mode) {
     var greetEl = document.querySelector('#screen-r-dashboard [style*="letter-spacing:1px"]');
     if (greetEl) {
       var firstName = clientName.split(' ')[0].toUpperCase();
-      greetEl.textContent = 'HEY ' + firstName + ' — LET\'S CRUSH IT TODAY';
+      var week = meta.week || 1;
+      if (week <= 1) {
+        greetEl.textContent = 'WELCOME ' + firstName + ' — DAY 1 STARTS NOW';
+      } else {
+        greetEl.textContent = 'HEY ' + firstName + ' — LET\'S CRUSH IT TODAY';
+      }
     }
 
     // Update weight display if we have real data
     var dashWeight = document.getElementById('dash-weight-val');
-    if (dashWeight && meta.weight) {
+    if (dashWeight && meta.weight && meta.weight > 0) {
       dashWeight.innerHTML = meta.weight.toFixed(1) + '<span class="ku">kg</span>';
+    } else if (dashWeight) {
+      dashWeight.innerHTML = '—<span class="ku">kg</span>';
     }
 
     // Re-render client views — picks up any coach edits
@@ -5347,7 +5359,7 @@ function updateMS(input, labelId, unit, min, max) {
 /* ============================================================
    CLIENT BODY WEIGHTS — for preset calculations
 ============================================================ */
-let CLIENT_WEIGHTS = {niels:81.4, rick:98.4, stefan:78.6, mike:84.2};
+let CLIENT_WEIGHTS = {niels:81.4, rick:98.4, stefan:78.6, mike:84.2, nielsreijnen:0};
 
 /* ============================================================
    PROGRESS PHOTOS — store dataURLS keyed by client
@@ -5356,7 +5368,8 @@ const PROGRESS_PHOTOS = {
   niels: {front:null, side:null, back:null},
   rick: {front:null, side:null, back:null},
   stefan: {front:null, side:null, back:null},
-  mike: {front:null, side:null, back:null}
+  mike: {front:null, side:null, back:null},
+  nielsreijnen: {front:null, side:null, back:null}
 };
 
 /* ============================================================
@@ -5366,7 +5379,8 @@ const CLIENT_MEASUREMENTS = {
   niels: {weight:null, waist:null, chest:null, arms:null, thighs:null},
   rick: {weight:null, waist:null, chest:null, arms:null, thighs:null},
   stefan: {weight:null, waist:null, chest:null, arms:null, thighs:null},
-  mike: {weight:null, waist:null, chest:null, arms:null, thighs:null}
+  mike: {weight:null, waist:null, chest:null, arms:null, thighs:null},
+  nielsreijnen: {weight:null, waist:null, chest:null, arms:null, thighs:null}
 };
 
 // Weekly measurement history per client: array of {date, weight, waist, chest, arms, thighs}
@@ -5379,7 +5393,8 @@ const MEASUREMENT_HISTORY = {
   ],
   niels: [{date:'2026-03-15', weight:81.4, waist:82, chest:100, arms:37, thighs:58}],
   stefan: [{date:'2026-03-15', weight:78.6, waist:78, chest:96, arms:34, thighs:56}],
-  mike: [{date:'2026-03-15', weight:84.2, waist:86, chest:102, arms:35.5, thighs:59}]
+  mike: [{date:'2026-03-15', weight:84.2, waist:86, chest:102, arms:35.5, thighs:59}],
+  nielsreijnen: []
 };
 
 // Daily weight log per client: array of {date, weight}
@@ -5409,7 +5424,8 @@ const WEIGHT_LOG = {
   ],
   niels: [{date:'2026-03-19', weight:81.4}],
   stefan: [{date:'2026-03-19', weight:78.6}],
-  mike: [{date:'2026-03-19', weight:84.2}]
+  mike: [{date:'2026-03-19', weight:84.2}],
+  nielsreijnen: []
 };
 
 /* ============================================================
@@ -10254,6 +10270,11 @@ const ALL_CLIENT_MEALS = {
       {id:47, fname:'Sweet Potato', grams:300, p:4.8, c:60, f:0.3, kcal:258},
       {id:116, fname:'Broccoli', grams:120, p:3.4, c:8.4, f:0.5, kcal:41}
     ]}
+  ],
+  nielsreijnen: [
+    {name:'Breakfast', time:'07:00', logged:false, foods:[]},
+    {name:'Lunch', time:'13:00', logged:false, foods:[]},
+    {name:'Dinner', time:'19:00', logged:false, foods:[]}
   ]
 };
 
