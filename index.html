@@ -7,6 +7,1281 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  // === SUPABASE CONNECTION ===
+  const SUPABASE_URL = 'https://vnahttyexvtanbsezksp.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_1XL8uTWj1ZmsFS24AUx-IQ_edvHz8R9';
+  const sb = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+
+  // Auth state
+  let currentUser = null;
+  let currentUserRole = null; // 'coach' or 'client'
+
+  // Check if we're connected to Supabase
+  const IS_LIVE = !!sb;
+  if (IS_LIVE) {
+    console.log('✓ Supabase connected:', SUPABASE_URL);
+    // Listen for auth state changes
+    sb.auth.onAuthStateChange((event, session) => {
+      if (session?.user) {
+        currentUser = session.user;
+        // Profile role is fetched in handleAuth — don't duplicate here to avoid race conditions
+        console.log('✓ Auth state changed:', event, session.user.email);
+      } else if (event === 'SIGNED_OUT') {
+        currentUser = null;
+        currentUserRole = null;
+      }
+    });
+  } else {
+    console.log('⚠ Supabase not loaded — running in demo mode');
+  }
+
+  // === DATA LAYER: reads from Supabase if live, falls back to hardcoded demo data ===
+  async function fetchClients() {
+    if (!IS_LIVE || !currentUser) return null;
+    const { data, error } = await sb
+      .from('coach_clients')
+      .select('*, client:profiles!client_id(id, full_name, initials, color, bg_color)')
+      .eq('coach_id', currentUser.id);
+    return error ? null : data;
+  }
+
+  async function fetchMealPlan(clientId) {
+    if (!IS_LIVE) return null;
+    const { data: plan } = await sb
+      .from('meal_plans')
+      .select('id')
+      .eq('client_id', clientId)
+      .eq('is_active', true)
+      .single();
+    if (!plan) return null;
+    const { data: meals } = await sb
+      .from('meals')
+      .select('*, meal_foods(*, foods(name, category))')
+      .eq('meal_plan_id', plan.id)
+      .order('sort_order');
+    return meals;
+  }
+
+  async function fetchDailyCheckins(clientId, days) {
+    if (!IS_LIVE) return null;
+    const since = new Date();
+    since.setDate(since.getDate() - (days || 30));
+    const { data } = await sb
+      .from('daily_checkins')
+      .select('*')
+      .eq('client_id', clientId)
+      .gte('date', since.toISOString().slice(0, 10))
+      .order('date', { ascending: false });
+    return data;
+  }
+
+  async function fetchWeightLog(clientId) {
+    if (!IS_LIVE) return null;
+    const { data } = await sb
+      .from('weight_log')
+      .select('*')
+      .eq('client_id', clientId)
+      .order('date', { ascending: true });
+    return data;
+  }
+
+  async function saveMeasurement(clientId, date, measurements) {
+    // measurements = { weight, waist, chest, arms, thighs }
+    if (!IS_LIVE || !currentUser) return false;
+    const { error } = await sb
+      .from('measurements')
+      .upsert({
+        client_id: clientId, date,
+        weight: measurements.weight, waist: measurements.waist,
+        chest: measurements.chest, arms: measurements.arms, thighs: measurements.thighs
+      }, { onConflict: 'client_id,date' });
+    if (error) console.error('saveMeasurement error:', error);
+    return !error;
+  }
+
+  async function fetchMeasurements(clientId) {
+    if (!IS_LIVE) return null;
+    const { data } = await sb
+      .from('measurements')
+      .select('*')
+      .eq('client_id', clientId)
+      .order('date', { ascending: true });
+    return data;
+  }
+
+  async function uploadProgressPhoto(clientId, pose, dataUrl) {
+    // Upload a base64 photo to Supabase Storage and save reference in progress_photos table
+    if (!IS_LIVE || !currentUser) return false;
+    try {
+      var today = new Date().toISOString().slice(0, 10);
+      var storagePath = clientId + '/' + today + '_' + pose + '.jpg';
+
+      // Convert data URL to blob
+      var byteString = atob(dataUrl.split(',')[1]);
+      var mimeString = dataUrl.split(',')[0].split(':')[1].split(';')[0];
+      var ab = new ArrayBuffer(byteString.length);
+      var ia = new Uint8Array(ab);
+      for (var i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
+      var blob = new Blob([ab], { type: mimeString });
+
+      // Upload to storage (upsert to overwrite if same day/pose)
+      const { error: uploadErr } = await sb.storage
+        .from('progress-photos')
+        .upload(storagePath, blob, { upsert: true, contentType: mimeString });
+
+      if (uploadErr) { console.error('Photo upload error:', uploadErr); return false; }
+
+      // Save reference in progress_photos table
+      const { error: dbErr } = await sb.from('progress_photos')
+        .upsert({
+          client_id: clientId, date: today, pose: pose, storage_path: storagePath
+        }, { onConflict: 'client_id,date' });
+
+      // Note: unique constraint is on client_id+date, but we may have multiple poses per day
+      // If that fails, try insert instead
+      if (dbErr) {
+        await sb.from('progress_photos').insert({
+          client_id: clientId, date: today, pose: pose, storage_path: storagePath
+        });
+      }
+
+      console.log('✓ Progress photo uploaded:', pose, storagePath);
+      return true;
+    } catch (err) {
+      console.error('uploadProgressPhoto error:', err);
+      return false;
+    }
+  }
+
+  async function fetchProgressPhotos(clientId) {
+    if (!IS_LIVE) return null;
+    try {
+      const { data, error } = await sb.from('progress_photos')
+        .select('*')
+        .eq('client_id', clientId)
+        .order('date', { ascending: false })
+        .limit(10);
+
+      if (error || !data || data.length === 0) return null;
+
+      // Get signed URLs for each photo
+      var photos = {};
+      for (var i = 0; i < data.length; i++) {
+        var p = data[i];
+        const { data: urlData } = await sb.storage
+          .from('progress-photos')
+          .createSignedUrl(p.storage_path, 3600); // 1 hour expiry
+        if (urlData && urlData.signedUrl) {
+          // Group by pose, keep latest
+          if (!photos[p.pose]) {
+            photos[p.pose] = { url: urlData.signedUrl, date: p.date };
+          }
+        }
+      }
+      return photos; // { front: { url, date }, side: { url, date }, back: { url, date } }
+    } catch (err) {
+      console.error('fetchProgressPhotos error:', err);
+      return null;
+    }
+  }
+
+  async function saveDailyCheckin(checkinData) {
+    if (!IS_LIVE || !currentUser) return false;
+    const { error } = await sb
+      .from('daily_checkins')
+      .upsert({ ...checkinData, client_id: currentUser.id }, { onConflict: 'client_id,date' });
+    return !error;
+  }
+
+  async function saveWeeklyCheckin(clientId, checkinData) {
+    if (!IS_LIVE || !currentUser) return false;
+    const cid = clientId || currentUser.id;
+    const { error } = await sb
+      .from('weekly_checkins')
+      .upsert({ ...checkinData, client_id: cid }, { onConflict: 'client_id,week_number' });
+    if (error) console.error('saveWeeklyCheckin error:', error);
+    return !error;
+  }
+
+  async function fetchWeeklyCheckins(clientId) {
+    if (!IS_LIVE) return null;
+    const { data, error } = await sb
+      .from('weekly_checkins')
+      .select('*')
+      .eq('client_id', clientId)
+      .order('week_number', { ascending: true });
+    if (error) { console.error('fetchWeeklyCheckins error:', error); return null; }
+    return data;
+  }
+
+  async function saveCoachFeedback(checkinId, feedback) {
+    if (!IS_LIVE || !currentUser) return false;
+    const { error } = await sb
+      .from('weekly_checkins')
+      .update({ coach_feedback: feedback, coach_responded_at: new Date().toISOString() })
+      .eq('id', checkinId);
+    if (error) console.error('saveCoachFeedback error:', error);
+    return !error;
+  }
+
+  // ========== STEPS & CARDIO PERSISTENCE ==========
+
+  async function saveSteps(clientId, date, steps) {
+    // Upserts steps into daily_checkins for this client+date
+    if (!IS_LIVE || !currentUser) return false;
+    const { error } = await sb
+      .from('daily_checkins')
+      .upsert({ client_id: clientId, date, steps }, { onConflict: 'client_id,date' });
+    if (error) console.error('saveSteps error:', error);
+    return !error;
+  }
+
+  async function fetchTodaySteps(clientId) {
+    if (!IS_LIVE) return null;
+    var today = new Date().toISOString().slice(0, 10);
+    const { data, error } = await sb
+      .from('daily_checkins')
+      .select('steps')
+      .eq('client_id', clientId)
+      .eq('date', today)
+      .single();
+    if (error || !data) return null;
+    return data.steps;
+  }
+
+  async function saveCardioSession(clientId, session) {
+    // session = { type, duration_minutes, distance_km, kcal_burned, notes }
+    if (!IS_LIVE || !currentUser) return false;
+    var today = new Date().toISOString().slice(0, 10);
+    const { error } = await sb.from('cardio_sessions').insert({
+      client_id: clientId,
+      date: today,
+      type: session.type || 'Walking',
+      duration_minutes: session.duration_minutes || 0,
+      distance_km: session.distance_km || 0,
+      kcal_burned: session.kcal_burned || 0,
+      notes: session.notes || ''
+    });
+    if (error) console.error('saveCardioSession error:', error);
+    return !error;
+  }
+
+  async function fetchTodayCardio(clientId) {
+    if (!IS_LIVE) return null;
+    var today = new Date().toISOString().slice(0, 10);
+    const { data, error } = await sb.from('cardio_sessions')
+      .select('*')
+      .eq('client_id', clientId)
+      .eq('date', today)
+      .order('created_at', { ascending: true });
+    if (error || !data) return null;
+    return data;
+  }
+
+  async function fetchCardioHistory(clientId, days) {
+    if (!IS_LIVE) return null;
+    var since = new Date();
+    since.setDate(since.getDate() - (days || 30));
+    const { data, error } = await sb.from('cardio_sessions')
+      .select('*')
+      .eq('client_id', clientId)
+      .gte('date', since.toISOString().slice(0, 10))
+      .order('date', { ascending: false });
+    if (error) return null;
+    return data;
+  }
+
+  async function saveWeight(date, weight, clientId) {
+    if (!IS_LIVE || !currentUser) return false;
+    const cid = clientId || currentUser.id;
+    const { error } = await sb
+      .from('weight_log')
+      .upsert({ client_id: cid, date, weight }, { onConflict: 'client_id,date' });
+    return !error;
+  }
+
+  async function sendMessage(receiverId, text) {
+    if (!IS_LIVE || !currentUser) return false;
+    const { error } = await sb
+      .from('messages')
+      .insert({ sender_id: currentUser.id, receiver_id: receiverId, text });
+    return !error;
+  }
+
+  async function fetchMessages(otherUserId) {
+    if (!IS_LIVE || !currentUser) return null;
+    const { data } = await sb
+      .from('messages')
+      .select('*')
+      .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${currentUser.id})`)
+      .order('created_at', { ascending: true });
+    return data;
+  }
+
+  // Real-time subscriptions
+  function subscribeToMessages(otherUserId, callback) {
+    if (!IS_LIVE) return null;
+    return sb.channel('messages')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: `receiver_id=eq.${currentUser.id}`
+      }, payload => callback(payload.new))
+      .subscribe();
+  }
+
+  function subscribeToDailyCheckins(clientId, callback) {
+    if (!IS_LIVE) return null;
+    return sb.channel('daily_checkins_' + clientId)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'daily_checkins',
+        filter: `client_id=eq.${clientId}`
+      }, payload => callback(payload.new))
+      .subscribe();
+  }
+
+  // ========== TRAINING PLAN PERSISTENCE ==========
+
+  async function saveTrainingPlan(clientId, planName, days) {
+    // days = [{ name:'Mon — Full Body A', exercises:[{ name, sets, targetReps, previous[], current[] }] }]
+    if (!IS_LIVE || !currentUser) return false;
+    try {
+      // Upsert the training plan (one active plan per client)
+      // First deactivate any existing active plan
+      await sb.from('training_plans').update({ is_active: false })
+        .eq('client_id', clientId).eq('is_active', true);
+
+      // Insert new active plan
+      const { data: plan, error: planErr } = await sb.from('training_plans').insert({
+        client_id: clientId,
+        coach_id: currentUser.id,
+        name: planName || 'Training Plan',
+        is_active: true
+      }).select('id').single();
+
+      if (planErr || !plan) { console.error('saveTrainingPlan plan error:', planErr); return false; }
+
+      // Insert each day
+      for (let di = 0; di < days.length; di++) {
+        const day = days[di];
+        const { data: dayRow, error: dayErr } = await sb.from('training_plan_days').insert({
+          training_plan_id: plan.id,
+          name: day.name,
+          day_of_week: di,
+          sort_order: di
+        }).select('id').single();
+
+        if (dayErr || !dayRow) { console.error('saveTrainingPlan day error:', dayErr); continue; }
+
+        // Insert exercises for this day
+        const exRows = day.exercises.map((ex, ei) => ({
+          training_plan_day_id: dayRow.id,
+          name: ex.name,
+          sets: ex.sets || 3,
+          target_reps: ex.targetReps || '10-12',
+          sort_order: ei
+        }));
+        if (exRows.length > 0) {
+          const { error: exErr } = await sb.from('training_plan_exercises').insert(exRows);
+          if (exErr) console.error('saveTrainingPlan exercises error:', exErr);
+        }
+      }
+      console.log('✓ Training plan saved to Supabase for client', clientId);
+      return true;
+    } catch (err) {
+      console.error('saveTrainingPlan error:', err);
+      return false;
+    }
+  }
+
+  async function fetchTrainingPlan(clientId) {
+    if (!IS_LIVE) return null;
+    try {
+      // Get active training plan for this client
+      const { data: plan } = await sb.from('training_plans').select('id, name')
+        .eq('client_id', clientId).eq('is_active', true).single();
+      if (!plan) return null;
+
+      // Get days with exercises
+      const { data: days } = await sb.from('training_plan_days').select('id, name, day_of_week, sort_order')
+        .eq('training_plan_id', plan.id).order('sort_order');
+      if (!days || days.length === 0) return null;
+
+      // Get exercises for all days
+      const dayIds = days.map(d => d.id);
+      const { data: exercises } = await sb.from('training_plan_exercises')
+        .select('*').in('training_plan_day_id', dayIds).order('sort_order');
+
+      // Build the structure matching ALL_CLIENT_EXERCISES format
+      const result = { days: [] };
+      days.forEach(day => {
+        const dayExercises = (exercises || [])
+          .filter(ex => ex.training_plan_day_id === day.id)
+          .map(ex => {
+            const numSets = ex.sets || 3;
+            const empty = [];
+            for (let s = 0; s < numSets; s++) empty.push({ kg: null, reps: null, done: false });
+            return {
+              name: ex.name,
+              sets: numSets,
+              targetReps: ex.target_reps || '10-12',
+              previous: empty.map(() => ({ kg: 0, reps: 0 })),
+              current: empty
+            };
+          });
+        result.days.push({ name: day.name, exercises: dayExercises });
+      });
+
+      return result;
+    } catch (err) {
+      console.error('fetchTrainingPlan error:', err);
+      return null;
+    }
+  }
+
+  // ========== WORKOUT SESSION LOGGING (PERSISTENCE) ==========
+
+  async function saveWorkoutSession(clientId, dayIndex, dayName, exercises, notes) {
+    // Saves a completed workout session + individual sets to Supabase
+    // exercises = [{ name, current:[{ kg, reps, done }], sets }]
+    if (!IS_LIVE || !currentUser) return false;
+    try {
+      // Calculate total volume
+      var totalVolume = 0;
+      exercises.forEach(function(ex) {
+        ex.current.forEach(function(s) {
+          if (s.done) totalVolume += (s.kg || 0) * (s.reps || 0);
+        });
+      });
+
+      var today = new Date().toISOString().slice(0, 10);
+
+      // Insert the session
+      const { data: session, error: sessErr } = await sb.from('workout_sessions').insert({
+        client_id: clientId,
+        day_index: dayIndex,
+        day_name: dayName || '',
+        date: today,
+        total_volume: totalVolume,
+        notes: notes || null
+      }).select('id').single();
+
+      if (sessErr || !session) {
+        console.error('saveWorkoutSession session error:', sessErr);
+        return false;
+      }
+
+      // Insert all sets across all exercises
+      var setRows = [];
+      var sortOrder = 0;
+      exercises.forEach(function(ex) {
+        for (var si = 0; si < ex.current.length; si++) {
+          var s = ex.current[si];
+          if (s.done) {
+            setRows.push({
+              session_id: session.id,
+              exercise_name: ex.name,
+              set_number: si + 1,
+              weight_kg: s.kg || 0,
+              reps: s.reps || 0,
+              is_done: true
+            });
+            sortOrder++;
+          }
+        }
+      });
+
+      if (setRows.length > 0) {
+        const { error: setsErr } = await sb.from('workout_sets').insert(setRows);
+        if (setsErr) console.error('saveWorkoutSession sets error:', setsErr);
+      }
+
+      console.log('✓ Workout session saved to Supabase:', session.id, 'volume:', totalVolume);
+      return true;
+    } catch (err) {
+      console.error('saveWorkoutSession error:', err);
+      return false;
+    }
+  }
+
+  async function fetchWorkoutHistory(clientId) {
+    // Returns data in WORKOUT_HISTORY format: { dayIndex: [{ date, exercises:[{ name, sets:[{kg,reps}], volume }] }] }
+    if (!IS_LIVE) return null;
+    try {
+      // Get all sessions for this client, ordered by date
+      const { data: sessions, error: sessErr } = await sb.from('workout_sessions')
+        .select('id, day_index, day_name, date, total_volume')
+        .eq('client_id', clientId)
+        .order('date', { ascending: true });
+
+      if (sessErr || !sessions || sessions.length === 0) return null;
+
+      // Get all sets for these sessions in one query
+      var sessionIds = sessions.map(function(s) { return s.id; });
+      const { data: allSets, error: setsErr } = await sb.from('workout_sets')
+        .select('session_id, exercise_name, set_number, weight_kg, reps, is_done')
+        .in('session_id', sessionIds)
+        .order('set_number', { ascending: true });
+
+      if (setsErr) console.warn('fetchWorkoutHistory sets error:', setsErr);
+
+      // Group sets by session_id
+      var setsBySession = {};
+      (allSets || []).forEach(function(s) {
+        if (!setsBySession[s.session_id]) setsBySession[s.session_id] = [];
+        setsBySession[s.session_id].push(s);
+      });
+
+      // Build WORKOUT_HISTORY format: { dayIndex: [ sessions ] }
+      var history = {};
+      sessions.forEach(function(sess) {
+        var di = sess.day_index || 0;
+        if (!history[di]) history[di] = [];
+
+        var sessSetsList = setsBySession[sess.id] || [];
+
+        // Group sets by exercise name, preserving order
+        var exerciseMap = {};
+        var exerciseOrder = [];
+        sessSetsList.forEach(function(s) {
+          if (!exerciseMap[s.exercise_name]) {
+            exerciseMap[s.exercise_name] = [];
+            exerciseOrder.push(s.exercise_name);
+          }
+          exerciseMap[s.exercise_name].push({ kg: Number(s.weight_kg) || 0, reps: s.reps || 0 });
+        });
+
+        var exercisesArr = exerciseOrder.map(function(name) {
+          var sets = exerciseMap[name];
+          var volume = sets.reduce(function(sum, s) { return sum + (s.kg * s.reps); }, 0);
+          return { name: name, sets: sets, volume: volume };
+        });
+
+        history[di].push({ date: sess.date, exercises: exercisesArr });
+      });
+
+      return history;
+    } catch (err) {
+      console.error('fetchWorkoutHistory error:', err);
+      return null;
+    }
+  }
+
+  // Helper: populate exercise "previous" data from workout history
+  function _populatePreviousFromHistory(clientId) {
+    var exData = ALL_CLIENT_EXERCISES[clientId];
+    var hist = WORKOUT_HISTORY[clientId];
+    if (!exData || !exData.days || !hist) return;
+
+    exData.days.forEach(function(day, dayIdx) {
+      var daySessions = hist[dayIdx];
+      if (!daySessions || daySessions.length === 0) return;
+
+      // Get the last session for this day
+      var lastSession = daySessions[daySessions.length - 1];
+
+      day.exercises.forEach(function(ex) {
+        // Find this exercise in the last session
+        var histEx = lastSession.exercises.find(function(he) { return he.name === ex.name; });
+        if (histEx && histEx.sets && histEx.sets.length > 0) {
+          // Fill previous with actual data from last session
+          ex.previous = histEx.sets.map(function(s) {
+            return { kg: s.kg || 0, reps: s.reps || 0 };
+          });
+          // Ensure previous array matches the number of sets
+          while (ex.previous.length < ex.sets) {
+            ex.previous.push({ kg: 0, reps: 0 });
+          }
+        }
+      });
+    });
+  }
+
+  // Helper: map weekly check-in from Supabase snake_case to in-memory camelCase
+  function _mapWeeklyCheckinFromDB(row) {
+    return {
+      week: row.week_number,
+      date: row.date,
+      mood: row.mood || '😐 Average',
+      sleepQuality: row.sleep_quality || 5,
+      digestion: row.digestion || 5,
+      energy: row.energy || 5,
+      pain: row.pain || 'no',
+      painDetail: row.pain_detail || '',
+      nutritionAdherence: row.nutrition_adherence || 5,
+      workoutsCompleted: row.workouts_completed || 0,
+      waterAvg: Number(row.water_avg) || 2.0,
+      stepsGoal: row.steps_goal || 'Some Days',
+      biggestStruggle: row.biggest_struggle || '',
+      whatWentWell: row.what_went_well || '',
+      whatDoBetter: row.what_to_improve || '',
+      motivation: row.motivation || 5,
+      questionsForCoach: row.questions_for_coach || '',
+      planChanges: row.plan_changes || '',
+      hasPhotos: !!row.has_photos,
+      coachFeedback: row.coach_feedback || '',
+      coachRespondedAt: row.coach_responded_at || null,
+      _id: row.id // Keep DB ID for coach feedback saves
+    };
+  }
+
+  // Helper: restore nutrition log state (checked/logged) from saved snapshot
+  function _restoreNutritionLogState(clientId, savedMeals) {
+    var meals = ALL_CLIENT_MEALS[clientId];
+    if (!meals || !savedMeals) return;
+
+    // Match saved meals to current plan meals by name + index
+    savedMeals.forEach(function(saved, mi) {
+      if (!meals[mi]) return;
+      // Match by name if possible, fall back to index
+      var target = meals[mi];
+      if (saved.name && target.name && saved.name !== target.name) {
+        // Try to find by name in case order changed
+        var byName = meals.find(function(m) { return m.name === saved.name; });
+        if (byName) target = byName;
+        else return; // meal doesn't exist in current plan
+      }
+
+      // Restore meal logged state
+      target.logged = !!saved.logged;
+
+      // Restore food checked state
+      if (saved.foods && target.foods) {
+        saved.foods.forEach(function(sf, fi) {
+          if (target.foods[fi] && target.foods[fi].fname === sf.fname) {
+            target.foods[fi].checked = !!sf.checked;
+          } else {
+            // Try matching by food name
+            var match = target.foods.find(function(f) { return f.fname === sf.fname; });
+            if (match) match.checked = !!sf.checked;
+          }
+        });
+
+        // Restore client-added foods that aren't in the base plan
+        saved.foods.forEach(function(sf) {
+          if (sf.addedByClient) {
+            var exists = target.foods.find(function(f) { return f.fname === sf.fname && f.addedByClient; });
+            if (!exists) {
+              // Re-add client food
+              target.foods.push({
+                fname: sf.fname,
+                grams: sf.grams,
+                p: sf.p, c: sf.c, f: sf.f, kcal: sf.kcal,
+                checked: !!sf.checked,
+                addedByClient: true
+              });
+            }
+          }
+        });
+      }
+    });
+  }
+
+  // ========== MEAL PLAN PERSISTENCE ==========
+
+  async function saveMealPlan(clientId, meals) {
+    // meals = [{ name:'Breakfast', time:'07:00', foods:[{ id, fname, grams, p, c, f, kcal }] }]
+    if (!IS_LIVE || !currentUser) return false;
+    try {
+      // Deactivate existing active meal plan
+      await sb.from('meal_plans').update({ is_active: false })
+        .eq('client_id', clientId).eq('is_active', true);
+
+      // Insert new active plan
+      const { data: plan, error: planErr } = await sb.from('meal_plans').insert({
+        client_id: clientId,
+        coach_id: currentUser.id,
+        name: 'Meal Plan',
+        is_active: true
+      }).select('id').single();
+
+      if (planErr || !plan) { console.error('saveMealPlan plan error:', planErr); return false; }
+
+      // Insert each meal with its foods
+      for (let mi = 0; mi < meals.length; mi++) {
+        const meal = meals[mi];
+        const { data: mealRow, error: mealErr } = await sb.from('meals').insert({
+          meal_plan_id: plan.id,
+          name: meal.name,
+          time: meal.time || null,
+          sort_order: mi
+        }).select('id').single();
+
+        if (mealErr || !mealRow) { console.error('saveMealPlan meal error:', mealErr); continue; }
+
+        // Insert foods for this meal (include calculated macros)
+        const foodRows = meal.foods.map((f, fi) => ({
+          meal_id: mealRow.id,
+          food_id: f.id || null,
+          grams: f.grams || 0,
+          protein: f.p || 0,
+          carbs: f.c || 0,
+          fat: f.f || 0,
+          kcal: f.kcal || 0,
+          sort_order: fi
+        }));
+        if (foodRows.length > 0) {
+          const { error: foodErr } = await sb.from('meal_foods').insert(foodRows);
+          if (foodErr) console.error('saveMealPlan foods error:', foodErr);
+        }
+      }
+      console.log('✓ Meal plan saved to Supabase for client', clientId);
+      return true;
+    } catch (err) {
+      console.error('saveMealPlan error:', err);
+      return false;
+    }
+  }
+
+  async function fetchFullMealPlan(clientId) {
+    // Returns meals in ALL_CLIENT_MEALS format: [{ name, time, logged, foods:[{ id, fname, grams, p, c, f, kcal }] }]
+    if (!IS_LIVE) return null;
+    try {
+      const { data: plan } = await sb.from('meal_plans').select('id')
+        .eq('client_id', clientId).eq('is_active', true).single();
+      if (!plan) return null;
+
+      const { data: meals } = await sb.from('meals').select('id, name, time, sort_order')
+        .eq('meal_plan_id', plan.id).order('sort_order');
+      if (!meals || meals.length === 0) return null;
+
+      // Get all meal_foods with joined food data
+      const mealIds = meals.map(m => m.id);
+      const { data: mealFoods } = await sb.from('meal_foods')
+        .select('*, foods(id, name, category, protein_per_100g, carbs_per_100g, fat_per_100g, kcal_per_100g)')
+        .in('meal_id', mealIds).order('sort_order');
+
+      // Build the structure
+      return meals.map(meal => {
+        const foods = (mealFoods || [])
+          .filter(mf => mf.meal_id === meal.id)
+          .map(mf => {
+            const fd = mf.foods; // joined food data
+            const g = mf.grams || 0;
+            const ratio = g / 100;
+            // Use stored macros from meal_foods if available, otherwise compute from food
+            return {
+              id: fd ? fd.id : mf.food_id,
+              fname: fd ? fd.name : 'Unknown',
+              grams: g,
+              p: mf.protein || (fd ? Math.round(fd.protein_per_100g * ratio * 10) / 10 : 0),
+              c: mf.carbs || (fd ? Math.round(fd.carbs_per_100g * ratio * 10) / 10 : 0),
+              f: mf.fat || (fd ? Math.round(fd.fat_per_100g * ratio * 10) / 10 : 0),
+              kcal: mf.kcal || (fd ? Math.round(fd.kcal_per_100g * ratio) : 0)
+            };
+          });
+        return { name: meal.name, time: meal.time || '', logged: false, foods };
+      });
+    } catch (err) {
+      console.error('fetchFullMealPlan error:', err);
+      return null;
+    }
+  }
+
+  // ========== DAILY NUTRITION LOG PERSISTENCE ==========
+
+  async function saveDailyNutritionLog(clientId, meals) {
+    // Saves today's meal log state (which meals/foods are checked) to Supabase
+    // Uses upsert on (client_id, date) so we always update today's entry
+    if (!IS_LIVE || !currentUser) return false;
+    try {
+      var today = new Date().toISOString().slice(0, 10);
+
+      // Calculate totals from logged meals
+      var totalKcal = 0, totalP = 0, totalC = 0, totalF = 0;
+      var mealsLogged = 0;
+      meals.forEach(function(m) {
+        if (m.logged) {
+          mealsLogged++;
+          m.foods.forEach(function(f) {
+            totalKcal += (f.kcal || 0);
+            totalP += (f.p || 0);
+            totalC += (f.c || 0);
+            totalF += (f.f || 0);
+          });
+        }
+      });
+
+      // Build a lightweight snapshot of meal state (logged + food checked status)
+      var mealsSnapshot = meals.map(function(m) {
+        return {
+          name: m.name,
+          time: m.time || '',
+          logged: !!m.logged,
+          foods: m.foods.map(function(f) {
+            return {
+              fname: f.fname,
+              grams: f.grams,
+              p: f.p, c: f.c, f: f.f, kcal: f.kcal,
+              checked: !!f.checked,
+              addedByClient: !!f.addedByClient
+            };
+          })
+        };
+      });
+
+      const { error } = await sb.from('daily_nutrition_logs').upsert({
+        client_id: clientId,
+        date: today,
+        meals_data: mealsSnapshot,
+        total_kcal: Math.round(totalKcal),
+        total_protein: Math.round(totalP * 10) / 10,
+        total_carbs: Math.round(totalC * 10) / 10,
+        total_fat: Math.round(totalF * 10) / 10,
+        meals_logged: mealsLogged,
+        meals_total: meals.length,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'client_id,date' });
+
+      if (error) {
+        console.error('saveDailyNutritionLog error:', error);
+        return false;
+      }
+      console.log('✓ Daily nutrition log saved:', today, mealsLogged + '/' + meals.length + ' meals');
+      return true;
+    } catch (err) {
+      console.error('saveDailyNutritionLog error:', err);
+      return false;
+    }
+  }
+
+  async function fetchDailyNutritionLog(clientId, date) {
+    // Fetches a specific day's nutrition log (defaults to today)
+    if (!IS_LIVE) return null;
+    try {
+      var targetDate = date || new Date().toISOString().slice(0, 10);
+      const { data, error } = await sb.from('daily_nutrition_logs')
+        .select('*')
+        .eq('client_id', clientId)
+        .eq('date', targetDate)
+        .single();
+
+      if (error || !data) return null;
+      return data;
+    } catch (err) {
+      console.error('fetchDailyNutritionLog error:', err);
+      return null;
+    }
+  }
+
+  async function fetchNutritionLogHistory(clientId, days) {
+    // Fetches recent nutrition logs for adherence tracking
+    if (!IS_LIVE) return null;
+    try {
+      var since = new Date();
+      since.setDate(since.getDate() - (days || 30));
+      const { data, error } = await sb.from('daily_nutrition_logs')
+        .select('date, meals_logged, meals_total, total_kcal, total_protein, total_carbs, total_fat')
+        .eq('client_id', clientId)
+        .gte('date', since.toISOString().slice(0, 10))
+        .order('date', { ascending: false });
+
+      if (error) return null;
+      return data;
+    } catch (err) {
+      console.error('fetchNutritionLogHistory error:', err);
+      return null;
+    }
+  }
+
+  // Auth helpers
+  async function signIn(email, password) {
+    if (!IS_LIVE) return { error: 'Not connected to Supabase' };
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    return { data, error };
+  }
+
+  async function signUp(email, password, fullName, role) {
+    if (!IS_LIVE) return { error: 'Not connected to Supabase' };
+    const { data, error } = await sb.auth.signUp({
+      email, password,
+      options: { data: { full_name: fullName } }
+    });
+    if (!error && data.user) {
+      // Set role
+      await sb.from('profiles').update({ role }).eq('id', data.user.id);
+    }
+    return { data, error };
+  }
+
+  async function signOut() {
+    if (!IS_LIVE) return;
+    await sb.auth.signOut();
+    currentUser = null;
+    currentUserRole = null;
+  }
+
+  // === LIVE DATA LOADER ===
+  // Fetches from Supabase and populates the same data structures the app uses
+  const AVATAR_COLORS = [
+    {color:'var(--gold)', bg:'var(--gold-d)'},
+    {color:'var(--red)', bg:'var(--red-d)'},
+    {color:'var(--blue)', bg:'var(--blue-d)'},
+    {color:'var(--orange)', bg:'var(--orange-d)'},
+    {color:'var(--green)', bg:'var(--green-d)'},
+  ];
+
+  async function loadLiveData() {
+    if (!IS_LIVE || !currentUser) return false;
+    console.log('⏳ Loading live data from Supabase...');
+
+    try {
+      if (currentUserRole === 'coach') {
+        // --- COACH: load client list ---
+        const { data: clients, error } = await sb
+          .from('coach_clients')
+          .select('*, client:profiles!client_id(id, full_name, email, initials, color, bg_color)')
+          .eq('coach_id', currentUser.id)
+          .eq('status', 'active');
+
+        if (error) { console.error('Failed to load clients:', error); return false; }
+
+        // Build CLIENT_META from live data
+        const liveMeta = {};
+        const liveWeights = {};
+        clients.forEach((cc, i) => {
+          const p = cc.client;
+          const clientKey = p.id; // use UUID as key
+          const nameParts = (p.full_name || 'Unknown').split(' ');
+          const initials = p.initials || (nameParts[0][0] + (nameParts[1] ? nameParts[1][0] : '')).toUpperCase();
+          const colorSet = AVATAR_COLORS[i % AVATAR_COLORS.length];
+
+          liveMeta[clientKey] = {
+            name: p.full_name,
+            av: initials,
+            initials: initials,
+            color: p.color || colorSet.color,
+            bg: p.bg_color || colorSet.bg,
+            bgColor: p.bg_color || colorSet.bg,
+            goal: cc.goal || 'Fat loss',
+            week: cc.program_week || 1,
+            totalWeeks: cc.total_weeks || 12,
+            weight: 0,
+            mood: '😊',
+            workoutDays: cc.workout_days || [1,3,5],
+            stepTarget: cc.step_target || 10000,
+            cardioSessions: cc.cardio_sessions || 0,
+            email: p.email,
+            supabaseId: p.id
+          };
+          liveWeights[clientKey] = 0;
+        });
+
+        // Fetch latest weight for each client
+        for (const clientKey of Object.keys(liveMeta)) {
+          const { data: wt } = await sb
+            .from('weight_log')
+            .select('weight')
+            .eq('client_id', clientKey)
+            .order('date', { ascending: false })
+            .limit(1);
+          if (wt && wt.length > 0) {
+            liveMeta[clientKey].weight = wt[0].weight;
+            liveWeights[clientKey] = wt[0].weight;
+          }
+        }
+
+        // Only replace if we got data
+        if (Object.keys(liveMeta).length > 0) {
+          CLIENT_META = liveMeta;
+          CLIENT_WEIGHTS = liveWeights;
+          // Set first client as active
+          activeCoachClient = Object.keys(CLIENT_META)[0];
+          console.log('✓ Loaded', Object.keys(CLIENT_META).length, 'clients from Supabase');
+
+          // --- Load training + nutrition plans for each client ---
+          for (const clientKey of Object.keys(liveMeta)) {
+            // Training plan
+            const trainingData = await fetchTrainingPlan(clientKey);
+            if (trainingData && trainingData.days && trainingData.days.length > 0) {
+              ALL_CLIENT_EXERCISES[clientKey] = trainingData;
+              // Also populate ALL_DAY_DATA for the workout builder
+              const builderDays = trainingData.days.map(day =>
+                day.exercises.map(ex => ({
+                  name: ex.name,
+                  muscle: '',
+                  sets: ex.sets || 3,
+                  reps: ex.targetReps || '10-12'
+                }))
+              );
+              // Pad to 7 days (3 training + 4 rest)
+              while (builderDays.length < 7) builderDays.push([]);
+              ALL_DAY_DATA[clientKey] = builderDays;
+              console.log('✓ Training plan loaded for', liveMeta[clientKey].name);
+            }
+
+            // Meal plan
+            const mealData = await fetchFullMealPlan(clientKey);
+            if (mealData && mealData.length > 0) {
+              ALL_CLIENT_MEALS[clientKey] = mealData;
+              console.log('✓ Meal plan loaded for', liveMeta[clientKey].name);
+            }
+
+            // Today's nutrition log (restore checked/logged state)
+            const nutLog = await fetchDailyNutritionLog(clientKey);
+            if (nutLog && nutLog.meals_data) {
+              _restoreNutritionLogState(clientKey, nutLog.meals_data);
+              console.log('✓ Nutrition log restored for', liveMeta[clientKey].name, '(' + nutLog.meals_logged + '/' + nutLog.meals_total + ' meals)');
+            }
+
+            // Full weight log history
+            const weightLogData = await fetchWeightLog(clientKey);
+            if (weightLogData && weightLogData.length > 0) {
+              WEIGHT_LOG[clientKey] = weightLogData.map(w => ({ date: w.date, weight: Number(w.weight) }));
+              console.log('✓ Weight log loaded for', liveMeta[clientKey].name, '(' + weightLogData.length + ' entries)');
+            }
+
+            // Measurements history
+            const measData = await fetchMeasurements(clientKey);
+            if (measData && measData.length > 0) {
+              MEASUREMENT_HISTORY[clientKey] = measData.map(m => ({
+                date: m.date, weight: Number(m.weight), waist: Number(m.waist),
+                chest: Number(m.chest), arms: Number(m.arms), thighs: Number(m.thighs)
+              }));
+              var latest = measData[measData.length - 1];
+              CLIENT_MEASUREMENTS[clientKey] = {
+                weight: Number(latest.weight), waist: Number(latest.waist),
+                chest: Number(latest.chest), arms: Number(latest.arms), thighs: Number(latest.thighs)
+              };
+              console.log('✓ Measurements loaded for', liveMeta[clientKey].name);
+            }
+
+            // Progress photos
+            const photoData = await fetchProgressPhotos(clientKey);
+            if (photoData) {
+              if (!PROGRESS_PHOTOS[clientKey]) PROGRESS_PHOTOS[clientKey] = {front:null, side:null, back:null};
+              Object.keys(photoData).forEach(pose => {
+                PROGRESS_PHOTOS[clientKey][pose] = photoData[pose].url;
+              });
+              console.log('✓ Progress photos loaded for', liveMeta[clientKey].name);
+            }
+
+            // Weekly check-ins
+            const wcData = await fetchWeeklyCheckins(clientKey);
+            if (wcData && wcData.length > 0) {
+              WEEKLY_CHECKIN_DATA[clientKey] = wcData.map(_mapWeeklyCheckinFromDB);
+              console.log('✓ Weekly check-ins loaded for', liveMeta[clientKey].name, '(' + wcData.length + ' entries)');
+            }
+
+            // Workout history (for progressive overload)
+            const histData = await fetchWorkoutHistory(clientKey);
+            if (histData && Object.keys(histData).length > 0) {
+              WORKOUT_HISTORY[clientKey] = histData;
+              // Populate "previous" data on exercises from last session
+              _populatePreviousFromHistory(clientKey);
+              console.log('✓ Workout history loaded for', liveMeta[clientKey].name);
+            }
+
+            // --- Data for Coach Dashboard Insights ---
+            // Daily check-ins (last 30 days) → for activity tracking
+            const dcData = await fetchDailyCheckins(clientKey, 30);
+            if (dcData && dcData.length > 0) {
+              _cachedDailyCheckins[clientKey] = dcData;
+              // Also populate DAILY_CHECKIN_DATA from real data
+              if (!DAILY_CHECKIN_DATA[clientKey]) DAILY_CHECKIN_DATA[clientKey] = {};
+              dcData.forEach(function(row) {
+                DAILY_CHECKIN_DATA[clientKey][row.date] = {
+                  weight: Number(row.weight || 0), steps: Number(row.steps || 0),
+                  hydration: Number(row.hydration || 0), sleep: Number(row.sleep || 0),
+                  mood: row.mood || '😐', kcal: row.kcal ? Number(row.kcal) : null,
+                  protein: row.protein ? Number(row.protein) : null,
+                  carbs: row.carbs ? Number(row.carbs) : null,
+                  fat: row.fat ? Number(row.fat) : null,
+                  hunger: row.hunger != null ? Number(row.hunger) : null,
+                  energy: row.energy != null ? Number(row.energy) : null,
+                  stress: row.stress != null ? Number(row.stress) : null,
+                  digestion: row.digestion || null, note: row.note || ''
+                };
+              });
+              console.log('✓ Daily check-ins loaded for', liveMeta[clientKey].name, '(' + dcData.length + ' days)');
+            }
+
+            // Nutrition log history (last 30 days) → for meal adherence scoring
+            const nutHistory = await fetchNutritionLogHistory(clientKey, 30);
+            if (nutHistory && nutHistory.length > 0) {
+              _cachedNutritionLogs[clientKey] = nutHistory;
+              console.log('✓ Nutrition log history loaded for', liveMeta[clientKey].name, '(' + nutHistory.length + ' days)');
+            }
+
+            // Build workout dates set from WORKOUT_HISTORY
+            if (WORKOUT_HISTORY[clientKey]) {
+              _cachedWorkoutDates[clientKey] = new Set();
+              Object.keys(WORKOUT_HISTORY[clientKey]).forEach(function(dayIdx) {
+                var sessions = WORKOUT_HISTORY[clientKey][dayIdx];
+                if (sessions) sessions.forEach(function(s) {
+                  if (s.date) _cachedWorkoutDates[clientKey].add(s.date);
+                });
+              });
+            }
+          }
+
+          // Build CLIENT_ACTIVITY from real data for all clients
+          buildAllClientActivity();
+
+          // Set active client's data as current
+          DAY_DATA = ALL_DAY_DATA[activeCoachClient] || DAY_DATA;
+          coachMeals = ALL_CLIENT_MEALS[activeCoachClient] || coachMeals;
+        } else {
+          console.log('⚠ No clients found — keeping demo data');
+          // Build activity from demo DAILY_CHECKIN_DATA for demo clients
+          buildAllClientActivity();
+        }
+
+      } else if (currentUserRole === 'client') {
+        // --- CLIENT: load own data ---
+        // Fetch latest weight
+        const { data: wt } = await sb
+          .from('weight_log')
+          .select('weight, date')
+          .eq('client_id', currentUser.id)
+          .order('date', { ascending: false })
+          .limit(1);
+
+        // Fetch coach_clients entry for this client's program info
+        const { data: ccData } = await sb
+          .from('coach_clients')
+          .select('*')
+          .eq('client_id', currentUser.id)
+          .eq('status', 'active')
+          .limit(1);
+
+        if (ccData && ccData.length > 0) {
+          const cc = ccData[0];
+          window._clientProgram = {
+            goal: cc.goal || 'Fat loss',
+            week: cc.program_week || 1,
+            totalWeeks: cc.total_weeks || 12,
+            workoutDays: cc.workout_days || [1,3,5],
+            stepTarget: cc.step_target || 10000,
+          };
+        }
+
+        if (wt && wt.length > 0) {
+          window._clientWeight = wt[0].weight;
+        }
+
+        // Load client's training plan
+        const trainingData = await fetchTrainingPlan(currentUser.id);
+        if (trainingData && trainingData.days && trainingData.days.length > 0) {
+          ALL_CLIENT_EXERCISES[currentUser.id] = trainingData;
+          clientExercises = trainingData.days[clientWorkoutDay || 0].exercises;
+          console.log('✓ Client training plan loaded');
+        }
+
+        // Load client's meal plan
+        const mealData = await fetchFullMealPlan(currentUser.id);
+        if (mealData && mealData.length > 0) {
+          ALL_CLIENT_MEALS[currentUser.id] = mealData;
+          clientMeals = mealData;
+          console.log('✓ Client meal plan loaded');
+        }
+
+        // Restore today's nutrition log
+        const nutLog = await fetchDailyNutritionLog(currentUser.id);
+        if (nutLog && nutLog.meals_data) {
+          _restoreNutritionLogState(currentUser.id, nutLog.meals_data);
+          clientMeals = ALL_CLIENT_MEALS[currentUser.id] || clientMeals;
+          console.log('✓ Client nutrition log restored');
+        }
+
+        // Full weight log
+        const weightLogData = await fetchWeightLog(currentUser.id);
+        if (weightLogData && weightLogData.length > 0) {
+          WEIGHT_LOG[currentUser.id] = weightLogData.map(w => ({ date: w.date, weight: Number(w.weight) }));
+          console.log('✓ Client weight log loaded (' + weightLogData.length + ' entries)');
+        }
+
+        // Measurements history
+        const measData = await fetchMeasurements(currentUser.id);
+        if (measData && measData.length > 0) {
+          MEASUREMENT_HISTORY[currentUser.id] = measData.map(m => ({
+            date: m.date, weight: Number(m.weight), waist: Number(m.waist),
+            chest: Number(m.chest), arms: Number(m.arms), thighs: Number(m.thighs)
+          }));
+          var latest = measData[measData.length - 1];
+          CLIENT_MEASUREMENTS[currentUser.id] = {
+            weight: Number(latest.weight), waist: Number(latest.waist),
+            chest: Number(latest.chest), arms: Number(latest.arms), thighs: Number(latest.thighs)
+          };
+          console.log('✓ Client measurements loaded');
+        }
+
+        // Progress photos
+        const photoData = await fetchProgressPhotos(currentUser.id);
+        if (photoData) {
+          if (!PROGRESS_PHOTOS[currentUser.id]) PROGRESS_PHOTOS[currentUser.id] = {front:null, side:null, back:null};
+          Object.keys(photoData).forEach(pose => {
+            PROGRESS_PHOTOS[currentUser.id][pose] = photoData[pose].url;
+          });
+          console.log('✓ Client progress photos loaded');
+        }
+
+        // Weekly check-ins
+        const wcData = await fetchWeeklyCheckins(currentUser.id);
+        if (wcData && wcData.length > 0) {
+          WEEKLY_CHECKIN_DATA[currentUser.id] = wcData.map(_mapWeeklyCheckinFromDB);
+          console.log('✓ Client weekly check-ins loaded (' + wcData.length + ')');
+        }
+
+        // Load client's workout history
+        const histData = await fetchWorkoutHistory(currentUser.id);
+        if (histData && Object.keys(histData).length > 0) {
+          WORKOUT_HISTORY[currentUser.id] = histData;
+          _populatePreviousFromHistory(currentUser.id);
+          console.log('✓ Client workout history loaded');
+        }
+
+        // Load today's steps
+        const todaySteps = await fetchTodaySteps(currentUser.id);
+        if (todaySteps !== null && todaySteps > 0) {
+          currentSteps = todaySteps;
+          console.log('✓ Client steps loaded:', todaySteps);
+        }
+
+        // --- Data for client activity tracking ---
+        const dcData = await fetchDailyCheckins(currentUser.id, 30);
+        if (dcData && dcData.length > 0) {
+          _cachedDailyCheckins[currentUser.id] = dcData;
+          if (!DAILY_CHECKIN_DATA[currentUser.id]) DAILY_CHECKIN_DATA[currentUser.id] = {};
+          dcData.forEach(function(row) {
+            DAILY_CHECKIN_DATA[currentUser.id][row.date] = {
+              weight: Number(row.weight || 0), steps: Number(row.steps || 0),
+              hydration: Number(row.hydration || 0), sleep: Number(row.sleep || 0),
+              mood: row.mood || '😐'
+            };
+          });
+        }
+        const nutHistory = await fetchNutritionLogHistory(currentUser.id, 30);
+        if (nutHistory && nutHistory.length > 0) {
+          _cachedNutritionLogs[currentUser.id] = nutHistory;
+        }
+        if (WORKOUT_HISTORY[currentUser.id]) {
+          _cachedWorkoutDates[currentUser.id] = new Set();
+          Object.keys(WORKOUT_HISTORY[currentUser.id]).forEach(function(dayIdx) {
+            var sessions = WORKOUT_HISTORY[currentUser.id][dayIdx];
+            if (sessions) sessions.forEach(function(s) {
+              if (s.date) _cachedWorkoutDates[currentUser.id].add(s.date);
+            });
+          });
+        }
+        // Build activity for client
+        CLIENT_ACTIVITY[currentUser.id] = buildClientActivityFromData(currentUser.id);
+
+        console.log('✓ Client data loaded');
+      }
+
+      return true;
+    } catch (err) {
+      console.error('loadLiveData error:', err);
+      return false;
+    }
+  }
+</script>
 <style>
 /* ============================================================
    TOKENS
@@ -409,6 +1684,8 @@ textarea.t-area:focus{border-color:var(--gold)}
 .day-tab{padding:5px 11px;border-radius:6px;font-size:11.5px;font-weight:500;cursor:pointer;background:var(--s2);border:1px solid var(--border);color:var(--t3);transition:all .13s}
 .day-tab:hover{color:var(--t1)}
 .day-tab.active{background:var(--gold-d);border-color:rgba(200,169,110,.25);color:var(--gold)}
+.day-tab-x{margin-left:5px;font-size:13px;opacity:.3;cursor:pointer;line-height:1;vertical-align:middle}
+.day-tab-x:hover{opacity:1;color:var(--red)}
 .day-tab.rest{color:var(--blue)}
 .drop-zone{min-height:120px;border:2px dashed var(--border);border-radius:var(--r);padding:12px;display:flex;flex-direction:column;gap:4px;transition:border-color .15s}
 .drop-zone-empty{align-items:center;justify-content:center;color:var(--t3)}
@@ -679,16 +1956,106 @@ textarea.t-area:focus{border-color:var(--gold)}
 .swap-match.great{background:var(--green-d);color:var(--green)}
 .swap-match.good{background:var(--gold-d);color:var(--gold)}
 .swap-match.ok{background:var(--orange-d);color:var(--orange)}
+
+/* ============================================================
+   LOGIN / SIGNUP SCREEN
+============================================================ */
+#app-auth{display:none;min-height:100vh;background:var(--black);align-items:center;justify-content:center;padding:24px}
+#app-auth.visible{display:flex}
+.auth-card{width:min(420px,100%);background:var(--s1);border:1px solid var(--border2);border-radius:16px;padding:40px 32px;box-shadow:0 24px 80px rgba(0,0,0,.5)}
+.auth-logo{text-align:center;margin-bottom:32px}
+.auth-logo .brand{font-family:var(--fh);font-size:28px;letter-spacing:2px;color:var(--gold)}
+.auth-logo .sub{font-size:12px;color:var(--t3);margin-top:4px}
+.auth-tabs{display:flex;gap:0;margin-bottom:28px;border-radius:10px;overflow:hidden;border:1px solid var(--border)}
+.auth-tab{flex:1;padding:10px;text-align:center;font-size:13px;font-weight:600;color:var(--t3);cursor:pointer;background:var(--s2);transition:all .15s;letter-spacing:.5px}
+.auth-tab.active{background:var(--gold-d);color:var(--gold);border-color:var(--gold)}
+.auth-field{margin-bottom:16px}
+.auth-field label{display:block;font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px}
+.auth-field input,.auth-field select{width:100%;padding:12px 14px;background:var(--s3);border:1px solid var(--border);border-radius:10px;color:var(--t1);font-size:14px;font-family:var(--fb);outline:none;transition:border-color .15s}
+.auth-field input:focus,.auth-field select:focus{border-color:var(--gold)}
+.auth-field select{appearance:none;cursor:pointer}
+.auth-btn{width:100%;padding:14px;border:none;border-radius:10px;font-size:14px;font-weight:700;font-family:var(--fh);letter-spacing:1.5px;cursor:pointer;transition:all .15s;margin-top:8px}
+.auth-btn-primary{background:linear-gradient(135deg,var(--gold),var(--gold-l));color:var(--black)}
+.auth-btn-primary:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(200,169,110,.25)}
+.auth-btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+.auth-error{background:var(--red-d);color:var(--red);padding:10px 14px;border-radius:8px;font-size:12px;margin-bottom:16px;display:none}
+.auth-error.show{display:block}
+.auth-success{background:var(--green-d);color:var(--green);padding:10px 14px;border-radius:8px;font-size:12px;margin-bottom:16px;display:none}
+.auth-success.show{display:block}
+.auth-divider{text-align:center;color:var(--t3);font-size:11px;margin:20px 0;position:relative}
+.auth-divider::before,.auth-divider::after{content:'';position:absolute;top:50%;width:calc(50% - 20px);height:1px;background:var(--border)}
+.auth-divider::before{left:0}
+.auth-divider::after{right:0}
+.auth-demo-btn{width:100%;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--s2);color:var(--t2);font-size:13px;font-family:var(--fb);cursor:pointer;transition:all .15s}
+.auth-demo-btn:hover{border-color:var(--gold);color:var(--gold);background:var(--gold-g)}
+.auth-footer{text-align:center;margin-top:20px;font-size:11px;color:var(--t3)}
+#signup-fields{display:none}
 </style>
 </head>
 <body>
+
+<!-- ============================================================
+     LOGIN / SIGNUP SCREEN
+============================================================ -->
+<div id="app-auth" class="visible">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="logo-mark gold" style="width:48px;height:48px;margin:0 auto 12px"><svg viewBox="0 0 16 16" fill="none"><path d="M8 1L10 6.5H16L11.5 10L13.5 16L8 12.5L2.5 16L4.5 10L0 6.5H6L8 1Z" fill="#080A0C"/></svg></div>
+      <div class="brand">AESTHETIC LIFESTYLE</div>
+      <div class="sub">Premium Fitness Coaching Platform</div>
+    </div>
+
+    <div class="auth-tabs">
+      <div class="auth-tab active" onclick="authTab('login')">SIGN IN</div>
+      <div class="auth-tab" onclick="authTab('signup')">CREATE ACCOUNT</div>
+    </div>
+
+    <div id="auth-error" class="auth-error"></div>
+    <div id="auth-success" class="auth-success"></div>
+
+    <form id="auth-form" onsubmit="handleAuth(event)">
+      <div id="signup-fields">
+        <div class="auth-field">
+          <label>Full Name</label>
+          <input type="text" id="auth-name" placeholder="e.g. Niels van der Berg" autocomplete="name">
+        </div>
+        <div class="auth-field">
+          <label>I am a...</label>
+          <select id="auth-role">
+            <option value="coach">Coach — I manage clients</option>
+            <option value="client">Client — I train with a coach</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="auth-field">
+        <label>Email</label>
+        <input type="email" id="auth-email" placeholder="you@example.com" required autocomplete="email">
+      </div>
+      <div class="auth-field">
+        <label>Password</label>
+        <input type="password" id="auth-password" placeholder="Min. 6 characters" required minlength="6" autocomplete="current-password">
+      </div>
+
+      <button type="submit" class="auth-btn auth-btn-primary" id="auth-submit-btn">
+        SIGN IN
+      </button>
+    </form>
+
+    <div class="auth-divider">or</div>
+    <button class="auth-demo-btn" onclick="enterDemoMode()">
+      Continue in Demo Mode (no account needed)
+    </button>
+    <div class="auth-footer">Your data is stored securely on Supabase (EU)</div>
+  </div>
+</div>
 
 <!-- Profile switching is handled via sidebar bottom cards -->
 
 <!-- ============================================================
      COACH APP
 ============================================================ -->
-<div id="app-coach" class="visible">
+<div id="app-coach">
 <div class="shell">
 
 <nav class="sidebar" id="coach-nav">
@@ -727,10 +2094,14 @@ textarea.t-area:focus{border-color:var(--gold)}
       <div><div class="u-name">Niels — Head Coach</div><div class="u-role">Aesthetic Lifestyle</div></div>
       <div class="rt-dot" style="margin-left:auto" title="Live sync active"></div>
     </div>
-    <div class="switch-profile-btn" onclick="switchProfile('client')">
-      <div class="switch-av" style="background:linear-gradient(135deg,var(--green),var(--blue));color:var(--black)">R</div>
-      <span>Switch to Client View</span>
+    <div class="switch-profile-btn" id="coach-switch-to-client-btn" onclick="switchProfile('client')">
+      <div class="switch-av" id="switch-client-av" style="background:linear-gradient(135deg,var(--gold),var(--gold-d));color:var(--black)">NR</div>
+      <span id="switch-client-label">Switch to Client View</span>
       <svg viewBox="0 0 16 16" fill="none" width="14" height="14" style="margin-left:auto;opacity:.5"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="switch-profile-btn" onclick="handleLogout()" style="margin-top:6px;opacity:.6">
+      <svg viewBox="0 0 16 16" fill="none" width="16" height="16" style="color:var(--t3)"><path d="M6 2H3a1 1 0 00-1 1v10a1 1 0 001 1h3M11 11l3-3-3-3M6 8h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span style="color:var(--t3)">Sign Out</span>
     </div>
   </div>
 </nav>
@@ -760,8 +2131,8 @@ textarea.t-area:focus{border-color:var(--gold)}
           <div id="pm-coach-stats" style="padding:8px 14px;border-bottom:1px solid var(--border);display:flex;gap:12px"></div>
           <div style="padding:6px">
             <div class="pm-row" onclick="closeProfileMenu();switchProfile('client')" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;transition:background .1s" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">
-              <div class="u-av" style="width:24px;height:24px;background:linear-gradient(135deg,var(--green),var(--blue));color:var(--black);font-size:9px;display:flex;align-items:center;justify-content:center;border-radius:50%;flex-shrink:0">R</div>
-              <span style="font-size:12px;color:var(--t1);flex:1">Switch to Client</span>
+              <div class="u-av" id="pm-switch-client-av" style="width:24px;height:24px;background:linear-gradient(135deg,var(--gold),var(--gold-d));color:var(--black);font-size:9px;display:flex;align-items:center;justify-content:center;border-radius:50%;flex-shrink:0">NR</div>
+              <span id="pm-switch-client-label" style="font-size:12px;color:var(--t1);flex:1">View as Client</span>
               <svg viewBox="0 0 10 10" width="10" height="10" style="opacity:.3"><path d="M3 1l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
             </div>
             <div class="pm-row" onclick="closeProfileMenu();showToast('Settings coming soon')" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;transition:background .1s" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='transparent'">
@@ -948,7 +2319,13 @@ textarea.t-area:focus{border-color:var(--gold)}
     <div class="screen" id="screen-c-wbuilder">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
         <div><div style="font-family:var(--fd);font-size:22px;letter-spacing:1.5px">WORKOUT BUILDER</div><div style="font-size:12px;color:var(--t3);margin-top:2px">Drag exercises from library · Edit sets, reps, weight inline</div></div>
-        <div style="display:flex;gap:8px"><select class="form-inp" style="width:160px" id="wb-client-select" onchange="switchWorkoutClient(this.value)"><option value="niels">Niels van Berg</option><option value="rick">Rick Linden</option><option value="stefan">Stefan Wolff</option><option value="mike">Mike Hartman</option></select><button class="btn btn-p btn-sm" id="wb-save-btn" onclick="saveWorkoutPlan()">Save Plan</button></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn btn-g btn-sm" onclick="showLoadTemplateModal('training')" title="Load from template">📋 Load Template</button>
+          <select class="form-inp" style="width:160px" id="wb-client-select" onchange="switchWorkoutClient(this.value)"><option value="niels">Niels van Berg</option><option value="rick">Rick Linden</option><option value="stefan">Stefan Wolff</option><option value="mike">Mike Hartman</option></select>
+          <div id="wb-save-wrap">
+            <button class="btn btn-p btn-sm" onclick="toggleSaveMenu('wb')" style="padding:6px 14px">Save ▾</button>
+          </div>
+        </div>
       </div>
       <div class="builder-layout">
         <div>
@@ -1058,16 +2435,7 @@ textarea.t-area:focus{border-color:var(--gold)}
           </div>
         </div>
         <div class="wk-canvas">
-          <div class="day-tabs" id="coach-day-tabs">
-            <div class="day-tab active" onclick="cSwitchDay(this,0)">Push A</div>
-            <div class="day-tab" onclick="cSwitchDay(this,1)">Pull A</div>
-            <div class="day-tab" onclick="cSwitchDay(this,2)">Legs A</div>
-            <div class="day-tab rest" onclick="cSwitchDay(this,3)">Rest</div>
-            <div class="day-tab" onclick="cSwitchDay(this,4)">Push B</div>
-            <div class="day-tab" onclick="cSwitchDay(this,5)">Pull B</div>
-            <div class="day-tab" onclick="cSwitchDay(this,6)">Legs B</div>
-            <button class="btn btn-g btn-sm" style="margin-left:4px">+ Day</button>
-          </div>
+          <div class="day-tabs" id="coach-day-tabs"></div>
           <div id="coach-drop-zone"></div>
         </div>
       </div>
@@ -1075,7 +2443,13 @@ textarea.t-area:focus{border-color:var(--gold)}
 
     <!-- NUTRITION EDITOR -->
     <div class="screen" id="screen-c-nutrition">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px"><div><div style="font-family:var(--fd);font-size:22px;letter-spacing:1.5px">NUTRITION EDITOR</div><div style="font-size:12px;color:var(--t3);margin-top:2px">Adjust macros · Edit meals · Set auto-adjust rules</div></div><div style="display:flex;gap:8px"><select class="form-inp" style="width:160px" id="nut-client-select" onchange="switchNutritionClient(this.value)"><option value="niels">Niels van Berg</option><option value="rick">Rick Linden</option><option value="stefan">Stefan Wolff</option><option value="mike">Mike Hartman</option></select><button class="btn btn-p btn-sm" id="nut-save-btn" onclick="saveNutritionPlan()">Save</button></div></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px"><div><div style="font-family:var(--fd);font-size:22px;letter-spacing:1.5px">NUTRITION EDITOR</div><div style="font-size:12px;color:var(--t3);margin-top:2px">Adjust macros · Edit meals · Set auto-adjust rules</div></div><div style="display:flex;gap:8px;align-items:center">
+          <button class="btn btn-g btn-sm" onclick="showLoadTemplateModal('nutrition')" title="Load from template">📋 Load Template</button>
+          <select class="form-inp" style="width:160px" id="nut-client-select" onchange="switchNutritionClient(this.value)"><option value="niels">Niels van Berg</option><option value="rick">Rick Linden</option><option value="stefan">Stefan Wolff</option><option value="mike">Mike Hartman</option></select>
+          <div id="nut-save-wrap">
+            <button class="btn btn-p btn-sm" onclick="toggleSaveMenu('nut')" style="padding:6px 14px">Save ▾</button>
+          </div>
+        </div></div>
       <!-- Goal presets -->
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">
         <span style="font-size:11px;color:var(--t3);letter-spacing:1px;text-transform:uppercase">Quick Preset</span>
@@ -1154,10 +2528,10 @@ textarea.t-area:focus{border-color:var(--gold)}
         <div style="display:flex;gap:8px"><button class="btn btn-p btn-sm" onclick="createNewTemplate()">Create Template</button><button class="btn btn-g btn-sm" onclick="toggleNewTemplate()">Cancel</button></div>
       </div>
       <div class="tmpl-grid">
-        <div class="tmpl-card starred" data-tmpl-id="ppl_hypertrophy"><div style="display:flex;justify-content:space-between;margin-bottom:6px"><div class="tmpl-nm">PPL Hypertrophy v3</div><span style="color:var(--gold)">⭐</span></div><div class="tmpl-meta">Push/Pull/Legs · 6×/wk · 12 weeks</div><div style="display:flex;gap:5px;margin-bottom:10px"><span class="tag t-gold">Training</span><span class="tag t-bl">Hypertrophy</span></div><div style="display:flex;gap:6px"><button class="btn btn-p btn-sm" onclick="assignTemplate(this)">Assign</button><button class="btn btn-g btn-sm" onclick="editTemplate(this)">Edit</button><button class="btn btn-g btn-sm" onclick="dupeTemplate(this)">Dupe</button></div><div style="font-size:10px;color:var(--t3);margin-top:8px">Used with 8 clients</div></div>
-        <div class="tmpl-card starred" data-tmpl-id="fat_loss_2400"><div style="display:flex;justify-content:space-between;margin-bottom:6px"><div class="tmpl-nm">Fat Loss 2400 kcal</div><span style="color:var(--gold)">⭐</span></div><div class="tmpl-meta">P:195 C:260 F:70 · 4 meals</div><div style="display:flex;gap:5px;margin-bottom:10px"><span class="tag t-gr">Nutrition</span><span class="tag t-rd">Fat Loss</span></div><div style="display:flex;gap:6px"><button class="btn btn-p btn-sm" onclick="assignTemplate(this)">Assign</button><button class="btn btn-g btn-sm" onclick="editTemplate(this)">Edit</button><button class="btn btn-g btn-sm" onclick="dupeTemplate(this)">Dupe</button></div><div style="font-size:10px;color:var(--t3);margin-top:8px">Most popular · 12 clients</div></div>
-        <div class="tmpl-card" data-tmpl-id="beginner_foundation"><div style="display:flex;justify-content:space-between;margin-bottom:6px"><div class="tmpl-nm">Beginner Foundation</div><span style="color:var(--t3)">☆</span></div><div class="tmpl-meta">Full Body · 3×/wk · 8 weeks</div><div style="display:flex;gap:5px;margin-bottom:10px"><span class="tag t-gold">Training</span><span class="tag t-gy">Beginner</span></div><div style="display:flex;gap:6px"><button class="btn btn-p btn-sm" onclick="assignTemplate(this)">Assign</button><button class="btn btn-g btn-sm" onclick="editTemplate(this)">Edit</button><button class="btn btn-g btn-sm" onclick="dupeTemplate(this)">Dupe</button></div><div style="font-size:10px;color:var(--t3);margin-top:8px">Used with 4 clients</div></div>
-        <div class="tmpl-card" data-tmpl-id="lean_bulk_3200"><div style="display:flex;justify-content:space-between;margin-bottom:6px"><div class="tmpl-nm">Lean Bulk 3200 kcal</div><span style="color:var(--t3)">☆</span></div><div class="tmpl-meta">P:200 C:380 F:90 · 5 meals</div><div style="display:flex;gap:5px;margin-bottom:10px"><span class="tag t-gr">Nutrition</span><span class="tag t-bl">Muscle Gain</span></div><div style="display:flex;gap:6px"><button class="btn btn-p btn-sm" onclick="assignTemplate(this)">Assign</button><button class="btn btn-g btn-sm" onclick="editTemplate(this)">Edit</button><button class="btn btn-g btn-sm" onclick="dupeTemplate(this)">Dupe</button></div><div style="font-size:10px;color:var(--t3);margin-top:8px">Used with 6 clients</div></div>
+        <div class="tmpl-card starred" data-tmpl-id="ppl_hypertrophy"><div style="display:flex;justify-content:space-between;margin-bottom:6px"><div class="tmpl-nm">PPL Hypertrophy v3</div><span style="color:var(--gold)">⭐</span></div><div class="tmpl-meta">Push/Pull/Legs · 6×/wk · 12 weeks</div><div style="display:flex;gap:5px;margin-bottom:10px"><span class="tag t-gold">Training</span><span class="tag t-bl">Hypertrophy</span></div><div style="display:flex;gap:6px"><button class="btn btn-p btn-sm" onclick="assignTemplate(this)">Assign</button><button class="btn btn-g btn-sm" onclick="editTemplateInBuilder(this)">Edit</button><button class="btn btn-g btn-sm" onclick="dupeTemplate(this)">Dupe</button></div><div style="font-size:10px;color:var(--t3);margin-top:8px">Used with 8 clients</div></div>
+        <div class="tmpl-card starred" data-tmpl-id="fat_loss_2400"><div style="display:flex;justify-content:space-between;margin-bottom:6px"><div class="tmpl-nm">Fat Loss 2400 kcal</div><span style="color:var(--gold)">⭐</span></div><div class="tmpl-meta">P:195 C:260 F:70 · 4 meals</div><div style="display:flex;gap:5px;margin-bottom:10px"><span class="tag t-gr">Nutrition</span><span class="tag t-rd">Fat Loss</span></div><div style="display:flex;gap:6px"><button class="btn btn-p btn-sm" onclick="assignTemplate(this)">Assign</button><button class="btn btn-g btn-sm" onclick="editTemplateInBuilder(this)">Edit</button><button class="btn btn-g btn-sm" onclick="dupeTemplate(this)">Dupe</button></div><div style="font-size:10px;color:var(--t3);margin-top:8px">Most popular · 12 clients</div></div>
+        <div class="tmpl-card" data-tmpl-id="beginner_foundation"><div style="display:flex;justify-content:space-between;margin-bottom:6px"><div class="tmpl-nm">Beginner Foundation</div><span style="color:var(--t3)">☆</span></div><div class="tmpl-meta">Full Body · 3×/wk · 8 weeks</div><div style="display:flex;gap:5px;margin-bottom:10px"><span class="tag t-gold">Training</span><span class="tag t-gy">Beginner</span></div><div style="display:flex;gap:6px"><button class="btn btn-p btn-sm" onclick="assignTemplate(this)">Assign</button><button class="btn btn-g btn-sm" onclick="editTemplateInBuilder(this)">Edit</button><button class="btn btn-g btn-sm" onclick="dupeTemplate(this)">Dupe</button></div><div style="font-size:10px;color:var(--t3);margin-top:8px">Used with 4 clients</div></div>
+        <div class="tmpl-card" data-tmpl-id="lean_bulk_3200"><div style="display:flex;justify-content:space-between;margin-bottom:6px"><div class="tmpl-nm">Lean Bulk 3200 kcal</div><span style="color:var(--t3)">☆</span></div><div class="tmpl-meta">P:200 C:380 F:90 · 5 meals</div><div style="display:flex;gap:5px;margin-bottom:10px"><span class="tag t-gr">Nutrition</span><span class="tag t-bl">Muscle Gain</span></div><div style="display:flex;gap:6px"><button class="btn btn-p btn-sm" onclick="assignTemplate(this)">Assign</button><button class="btn btn-g btn-sm" onclick="editTemplateInBuilder(this)">Edit</button><button class="btn btn-g btn-sm" onclick="dupeTemplate(this)">Dupe</button></div><div style="font-size:10px;color:var(--t3);margin-top:8px">Used with 6 clients</div></div>
         <div class="tmpl-card" style="border-style:dashed;cursor:pointer;display:flex;align-items:center;justify-content:center;min-height:160px;flex-direction:column;gap:8px" onclick="toggleNewTemplate();window.scrollTo({top:document.getElementById('new-template-panel').offsetTop-80,behavior:'smooth'})"><div style="font-size:28px;color:var(--t3)">+</div><div style="font-size:13px;color:var(--t3)">Create template</div></div>
       </div>
     </div>
@@ -1489,14 +2863,18 @@ textarea.t-area:focus{border-color:var(--gold)}
     <div class="ni client-nav" id="ni-r-subscription" onclick="rGo('r-subscription',this)"><svg viewBox="0 0 16 16" fill="none"><rect x="1" y="3" width="14" height="10" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M1 7h14" stroke="currentColor" stroke-width="1.5"/><path d="M4 10h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>My Subscription</div>
   </div>
   <div class="nav-bottom">
-    <div class="u-card">
-      <div class="u-av" style="background:linear-gradient(135deg,var(--green),var(--blue));color:var(--black)">R</div>
-      <div><div class="u-name">Rick Linden</div><div class="u-role">Client · Week 3</div></div>
+    <div class="u-card" id="client-sidebar-user-card">
+      <div class="u-av" style="background:linear-gradient(135deg,var(--green),var(--blue));color:var(--black)">NR</div>
+      <div><div class="u-name">Niels Reijnen</div><div class="u-role">Client · Week 1</div></div>
     </div>
     <div class="switch-profile-btn" onclick="switchProfile('coach')">
       <div class="switch-av" style="background:linear-gradient(135deg,var(--gold),var(--gold-l));color:var(--black)">N</div>
       <span>Switch to Coach View</span>
       <svg viewBox="0 0 16 16" fill="none" width="14" height="14" style="margin-left:auto;opacity:.5"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="switch-profile-btn" onclick="handleLogout()" style="margin-top:6px;opacity:.6">
+      <svg viewBox="0 0 16 16" fill="none" width="16" height="16" style="color:var(--t3)"><path d="M6 2H3a1 1 0 00-1 1v10a1 1 0 001 1h3M11 11l3-3-3-3M6 8h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span style="color:var(--t3)">Sign Out</span>
     </div>
   </div>
 </nav>
@@ -1526,8 +2904,8 @@ textarea.t-area:focus{border-color:var(--gold)}
         <div class="u-av" onclick="toggleProfileMenu('client',event)" style="width:32px;height:32px;background:linear-gradient(135deg,var(--green),var(--blue));color:var(--black);font-family:var(--fd);font-size:13px;display:flex;align-items:center;justify-content:center;border-radius:50%;cursor:pointer;flex-shrink:0">R</div>
         <div id="client-profile-menu" style="display:none;position:absolute;top:40px;right:0;width:260px;background:var(--s1);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.5);z-index:999;overflow:hidden">
           <div style="padding:14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
-            <div class="u-av" style="width:36px;height:36px;background:linear-gradient(135deg,var(--green),var(--blue));color:var(--black);font-family:var(--fd);font-size:14px;display:flex;align-items:center;justify-content:center;border-radius:50%;flex-shrink:0">R</div>
-            <div><div style="font-size:13px;font-weight:600;color:var(--t1)" id="pm-client-name">Rick Linden</div><div style="font-size:10px;color:var(--t3)" id="pm-client-meta">Client · Week 3</div></div>
+            <div class="u-av" id="pm-client-av-big" style="width:36px;height:36px;background:linear-gradient(135deg,var(--gold),var(--gold-d));color:var(--black);font-family:var(--fd);font-size:14px;display:flex;align-items:center;justify-content:center;border-radius:50%;flex-shrink:0">NR</div>
+            <div><div style="font-size:13px;font-weight:600;color:var(--t1)" id="pm-client-name">Niels Reijnen</div><div style="font-size:10px;color:var(--t3)" id="pm-client-meta">Client · Week 1</div></div>
           </div>
           <div id="pm-client-stats" style="padding:8px 14px;border-bottom:1px solid var(--border);display:flex;gap:12px"></div>
           <div style="padding:6px">
@@ -3038,7 +4416,7 @@ const CHAT_THREADS = {
   ],
 };
 
-const CLIENT_META = {
+let CLIENT_META = {
   niels: {name:'Niels van Berg', av:'NB', initials:'NB', color:'var(--gold)', bg:'var(--gold-d)', bgColor:'var(--gold-d)', goal:'Fat loss', week:8, totalWeeks:12, weight:81.4, mood:'😊', workoutDays:[1,3,5], stepTarget:10000, cardioSessions:0},
   rick: {name:'Rick Linden', av:'RL', initials:'RL', color:'var(--red)', bg:'var(--red-d)', bgColor:'var(--red-d)', goal:'Fat loss', week:3, totalWeeks:12, weight:98.4, mood:'😔', workoutDays:[1,3,5], stepTarget:10000, cardioSessions:0},
   mike: {name:'Mike Hartman', av:'MH', initials:'MH', color:'var(--blue)', bg:'var(--blue-d)', bgColor:'var(--blue-d)', goal:'Muscle gain', week:14, totalWeeks:20, weight:84.2, mood:'😊', workoutDays:[1,3,5], stepTarget:10000, cardioSessions:0},
@@ -3202,17 +4580,104 @@ function buildCoachProfileStats() {
     '</div>';
 }
 
-function switchProfile(mode) {
+// Update the "Switch to Client View" button in coach sidebar + profile menu with active client info
+function updateSwitchClientButton() {
+  var meta = CLIENT_META[activeCoachClient];
+  if (!meta) return;
+  var initials = meta.av || meta.initials || '?';
+  var gradient = 'linear-gradient(135deg,' + (meta.color || 'var(--gold)') + ',' + (meta.bg || 'var(--gold-d)') + ')';
+  var label = 'View as ' + (meta.name || 'Client');
+
+  // Sidebar button
+  var avEl = document.getElementById('switch-client-av');
+  var labelEl = document.getElementById('switch-client-label');
+  if (avEl) { avEl.textContent = initials; avEl.style.background = gradient; }
+  if (labelEl) labelEl.textContent = label;
+
+  // Profile menu button
+  var pmAvEl = document.getElementById('pm-switch-client-av');
+  var pmLabelEl = document.getElementById('pm-switch-client-label');
+  if (pmAvEl) { pmAvEl.textContent = initials; pmAvEl.style.background = gradient; }
+  if (pmLabelEl) pmLabelEl.textContent = label;
+}
+
+async function switchProfile(mode) {
   document.getElementById('app-coach').classList.toggle('visible', mode === 'coach');
   document.getElementById('app-client').classList.toggle('visible', mode === 'client');
   // Close any open mobile navs on profile switch
   document.getElementById('coach-nav').classList.remove('open');
   document.getElementById('client-nav').classList.remove('open');
-  // Re-render client views when switching to client — picks up any coach edits
+
   if (mode === 'client') {
-    clientMeals = ALL_CLIENT_MEALS[activeCoachClient] || ALL_CLIENT_MEALS.rick;
-    // Update client workout to match the active client's plan
-    var exData = ALL_CLIENT_EXERCISES[activeCoachClient];
+    // Determine which client to show
+    var clientId = activeCoachClient;
+    var meta = CLIENT_META[clientId] || {};
+    var clientName = meta.name || 'Client';
+    var clientInitials = meta.av || meta.initials || 'C';
+
+    // Update client sidebar user card with the real client info
+    var clientUserCard = document.getElementById('client-sidebar-user-card');
+    if (clientUserCard) {
+      var avEl = clientUserCard.querySelector('.u-av');
+      var nameEl = clientUserCard.querySelector('.u-name');
+      var roleEl = clientUserCard.querySelector('.u-role');
+      var gradient = 'linear-gradient(135deg,' + (meta.color || 'var(--gold)') + ',' + (meta.bg || 'var(--gold-d)') + ')';
+      if (avEl) { avEl.textContent = clientInitials; avEl.style.background = gradient; }
+      if (nameEl) nameEl.textContent = clientName;
+      if (roleEl) roleEl.textContent = 'Client · Week ' + (meta.week || 1);
+    }
+
+    // Update client profile menu header
+    var pmAvBig = document.getElementById('pm-client-av-big');
+    var pmName = document.getElementById('pm-client-name');
+    var pmMeta = document.getElementById('pm-client-meta');
+    if (pmAvBig) { pmAvBig.textContent = clientInitials; pmAvBig.style.background = 'linear-gradient(135deg,' + (meta.color || 'var(--gold)') + ',' + (meta.bg || 'var(--gold-d)') + ')'; }
+    if (pmName) pmName.textContent = clientName;
+    if (pmMeta) pmMeta.textContent = 'Client · Week ' + (meta.week || 1);
+
+    // Load real data from Supabase if live
+    if (IS_LIVE && clientId) {
+      try {
+        // Fetch weight history for the client
+        var { data: weightData } = await sb.from('weight_log').select('weight, date').eq('client_id', clientId).order('date', { ascending: false }).limit(30);
+        if (weightData && weightData.length > 0) {
+          window._clientWeight = weightData[0].weight;
+          window._clientWeightHistory = weightData;
+          // Update client dashboard weight display
+          var cwEl = document.getElementById('client-current-weight');
+          if (cwEl) cwEl.textContent = weightData[0].weight.toFixed(1) + ' kg';
+        }
+
+        // Fetch weekly check-ins
+        var { data: checkins } = await sb.from('weekly_checkins').select('*').eq('client_id', clientId).order('created_at', { ascending: false }).limit(12);
+        if (checkins) window._clientCheckins = checkins;
+
+        // Fetch daily check-ins
+        var { data: dailyData } = await sb.from('daily_checkins').select('*').eq('client_id', clientId).order('date', { ascending: false }).limit(30);
+        if (dailyData) window._clientDailyCheckins = dailyData;
+
+        console.log('✓ Client view loaded with real data for', clientName);
+      } catch (e) {
+        console.log('Client data fetch error:', e.message);
+      }
+    }
+
+    // Update client dashboard greeting with the real name
+    var greetEl = document.querySelector('#screen-r-dashboard [style*="letter-spacing:1px"]');
+    if (greetEl) {
+      var firstName = clientName.split(' ')[0].toUpperCase();
+      greetEl.textContent = 'HEY ' + firstName + ' — LET\'S CRUSH IT TODAY';
+    }
+
+    // Update weight display if we have real data
+    var dashWeight = document.getElementById('dash-weight-val');
+    if (dashWeight && meta.weight) {
+      dashWeight.innerHTML = meta.weight.toFixed(1) + '<span class="ku">kg</span>';
+    }
+
+    // Re-render client views — picks up any coach edits
+    clientMeals = ALL_CLIENT_MEALS[clientId] || ALL_CLIENT_MEALS[activeCoachClient] || ALL_CLIENT_MEALS.rick;
+    var exData = ALL_CLIENT_EXERCISES[clientId] || ALL_CLIENT_EXERCISES[activeCoachClient];
     if (exData && exData.days) {
       clientExercises = exData.days[clientWorkoutDay || 0].exercises;
     }
@@ -3220,13 +4685,21 @@ function switchProfile(mode) {
     updateClientNutritionTotals();
     renderWorkout();
     renderClientSupps();
+
+    showToast('Switched to Client view — ' + clientName);
+  } else {
+    // Switching back to coach view
+    var coachName = (currentUser && currentUser.user_metadata && currentUser.user_metadata.full_name) ? currentUser.user_metadata.full_name : 'Coach';
+
+    // Refresh coach views with latest data
+    try {
+      if (typeof renderClientList === 'function') renderClientList();
+      if (typeof renderSmartActions === 'function') renderSmartActions();
+      if (typeof updateDashboardKPIs === 'function') updateDashboardKPIs();
+    } catch(e) { console.log('Coach refresh:', e); }
+
+    showToast('Switched to Coach view — ' + coachName);
   }
-  var clientName = (CLIENT_META[activeCoachClient] || {name:'Rick Linden'}).name;
-  const msgs = {
-    coach: 'Switched to Coach view — Niels',
-    client: 'Switched to Client view — ' + clientName
-  };
-  showToast(msgs[mode]);
 }
 
 /* ============================================================
@@ -3815,6 +5288,34 @@ function submitWeeklyCheckin() {
   if (!WEEKLY_CHECKIN_DATA[clientId]) WEEKLY_CHECKIN_DATA[clientId] = [];
   WEEKLY_CHECKIN_DATA[clientId].push(entry);
 
+  // Persist to Supabase if live
+  if (IS_LIVE && currentUser) {
+    var checkinClientId = (currentUserRole === 'client') ? currentUser.id : clientId;
+    saveWeeklyCheckin(checkinClientId, {
+      week_number: week,
+      date: today,
+      mood: mood,
+      sleep_quality: sleepQ,
+      digestion: digQ,
+      energy: enQ,
+      motivation: motQ,
+      nutrition_adherence: nutrQ,
+      workouts_completed: workouts,
+      water_avg: water,
+      steps_goal: stepsVal,
+      biggest_struggle: struggle.trim(),
+      what_went_well: wentWell.trim(),
+      what_to_improve: doBetter.trim(),
+      questions_for_coach: questions.trim(),
+      plan_changes: planChanges.trim(),
+      pain: painVal,
+      pain_detail: painText,
+      has_photos: false
+    }).then(function(ok) {
+      if (ok) console.log('✓ Weekly check-in saved to Supabase');
+    });
+  }
+
   showToast('Weekly review submitted! Your coach will review and respond.');
   switchJournalTab('daily');
 }
@@ -3846,7 +5347,7 @@ function updateMS(input, labelId, unit, min, max) {
 /* ============================================================
    CLIENT BODY WEIGHTS — for preset calculations
 ============================================================ */
-const CLIENT_WEIGHTS = {niels:81.4, rick:98.4, stefan:78.6, mike:84.2};
+let CLIENT_WEIGHTS = {niels:81.4, rick:98.4, stefan:78.6, mike:84.2};
 
 /* ============================================================
    PROGRESS PHOTOS — store dataURLS keyed by client
@@ -4296,6 +5797,13 @@ function quickAddCardio(clientId) {
 
   showToast('✓ ' + meta.name + ': Cardio session added (' + meta.cardioSessions + ' total this week)');
 
+  // Persist to Supabase
+  if (IS_LIVE && currentUser) {
+    saveCardioSession(clientId, { type: 'Walking', duration_minutes: 30, kcal_burned: 180 }).then(function(ok) {
+      if (ok) console.log('✓ Quick cardio saved for', meta.name);
+    });
+  }
+
   // Update quick panel if open
   var qp = document.getElementById('quick-panel');
   if (qp && qp.classList.contains('open')) {
@@ -4334,7 +5842,7 @@ const ALL_DAY_DATA = {
 };
 let DAY_DATA = ALL_DAY_DATA.niels;
 let activeDay = 0, dragging = null;
-const DAY_NAMES = ['Push A','Pull A','Legs A','Rest','Push B','Pull B','Legs B'];
+var DAY_NAMES = ['Push A','Pull A','Legs A','Rest','Push B','Pull B','Legs B'];
 
 function dStart(e, name, muscle) { dragging = {name, muscle}; }
 
@@ -4370,7 +5878,75 @@ function saveCurrentDay() {
 function initCoachBuilder() {
   const dz = document.getElementById('coach-drop-zone');
   if (!dz) return;
+  renderDayTabs();
   renderDay(activeDay);
+}
+
+/* Dynamic day tabs: render, rename, add, delete */
+function renderDayTabs() {
+  var container = document.getElementById('coach-day-tabs');
+  if (!container) return;
+  if (!DAY_NAMES || DAY_NAMES.length === 0) { DAY_NAMES = ['Day 1']; DAY_DATA = [[]]; }
+  var html = '';
+  DAY_NAMES.forEach(function(name, i) {
+    var isActive = i === activeDay ? ' active' : '';
+    var isRest = name.toLowerCase() === 'rest' ? ' rest' : '';
+    html += '<div class="day-tab' + isActive + isRest + '" onclick="cSwitchDay(this,' + i + ')" ondblclick="renameDayTab(' + i + ',this)">'
+      + '<span>' + name + '</span>';
+    if (DAY_NAMES.length > 1) {
+      html += '<span class="day-tab-x" onclick="event.stopPropagation();removeDay(' + i + ')" title="Delete day">&times;</span>';
+    }
+    html += '</div>';
+  });
+  html += '<button class="btn btn-g btn-sm" style="margin-left:4px;white-space:nowrap" onclick="addNewDay()">+ Day</button>';
+  container.innerHTML = html;
+}
+
+function renameDayTab(idx, tabEl) {
+  var currentName = DAY_NAMES[idx];
+  var span = tabEl.querySelector('span');
+  if (!span) return;
+  var input = document.createElement('input');
+  input.type = 'text';
+  input.value = currentName;
+  input.style.cssText = 'width:70px;background:var(--bg3);border:1px solid var(--gold);border-radius:4px;color:var(--t1);font-size:11px;padding:2px 6px;text-align:center;outline:none;font-family:var(--fb)';
+  input.onclick = function(e) { e.stopPropagation(); };
+  function finishRename() {
+    var newName = input.value.trim() || currentName;
+    DAY_NAMES[idx] = newName;
+    renderDayTabs();
+  }
+  input.onblur = finishRename;
+  input.onkeydown = function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); finishRename(); }
+    if (e.key === 'Escape') { renderDayTabs(); }
+  };
+  span.replaceWith(input);
+  input.select();
+}
+
+function addNewDay() {
+  saveCurrentDay();
+  var dayNum = DAY_NAMES.length + 1;
+  DAY_NAMES.push('Day ' + dayNum);
+  DAY_DATA.push([]);
+  activeDay = DAY_NAMES.length - 1;
+  renderDayTabs();
+  renderDay(activeDay);
+  showToast('Added Day ' + dayNum);
+}
+
+function removeDay(idx) {
+  if (DAY_NAMES.length <= 1) { showToast('Need at least 1 day'); return; }
+  var name = DAY_NAMES[idx];
+  if (!confirm('Delete "' + name + '"? This removes all exercises for that day.')) return;
+  DAY_NAMES.splice(idx, 1);
+  DAY_DATA.splice(idx, 1);
+  if (activeDay >= DAY_NAMES.length) activeDay = DAY_NAMES.length - 1;
+  if (activeDay < 0) activeDay = 0;
+  renderDayTabs();
+  renderDay(activeDay);
+  showToast('Deleted "' + name + '"');
 }
 
 function cSwitchDay(el, idx) {
@@ -5256,6 +6832,26 @@ function switchCheckinTab(tab) {
 }
 
 // Populate weekly client dropdown dynamically from CLIENT_META
+// Populate all coach client dropdowns from CLIENT_META
+function populateCoachClientDropdowns() {
+  var selectors = ['wb-client-select', 'nut-client-select', 'supp-client-select'];
+  selectors.forEach(function(selId) {
+    var sel = document.getElementById(selId);
+    if (!sel) return;
+    var currentVal = sel.value;
+    sel.innerHTML = '';
+    Object.keys(CLIENT_META).forEach(function(id) {
+      var opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = CLIENT_META[id].name;
+      sel.appendChild(opt);
+    });
+    // Restore or set to active client
+    if (currentVal && CLIENT_META[currentVal]) sel.value = currentVal;
+    else sel.value = activeCoachClient || Object.keys(CLIENT_META)[0];
+  });
+}
+
 function populateWeeklyClientDropdown() {
   var sel = document.getElementById('summary-client-select');
   if (!sel) return;
@@ -7990,7 +9586,83 @@ function syncSteps() {
     }
 
     showToast('+' + newSteps.toLocaleString() + ' steps synced from Apple Watch');
+
+    // Persist to Supabase
+    _persistCurrentSteps();
   }, 1200);
+}
+
+// Persist current step count to Supabase (debounced)
+var _stepsSaveTimer = null;
+function _persistCurrentSteps() {
+  if (_stepsSaveTimer) clearTimeout(_stepsSaveTimer);
+  _stepsSaveTimer = setTimeout(function() {
+    if (IS_LIVE && currentUser) {
+      var clientId = (currentUserRole === 'client') ? currentUser.id : (activeCoachClient || 'rick');
+      var today = new Date().toISOString().slice(0, 10);
+      saveSteps(clientId, today, currentSteps).then(function(ok) {
+        if (ok) console.log('✓ Steps saved:', currentSteps);
+      });
+    }
+  }, 1000);
+}
+
+// Manual step entry (for when no watch is connected)
+function manualStepEntry() {
+  var val = prompt('Enter your current step count:');
+  if (!val) return;
+  var steps = parseInt(val);
+  if (isNaN(steps) || steps < 0 || steps > 100000) {
+    showToast('Enter a valid step count');
+    return;
+  }
+  currentSteps = steps;
+  updateStepUI();
+  _persistCurrentSteps();
+  showToast('Steps updated: ' + steps.toLocaleString());
+}
+
+// Log a cardio session
+function logCardioSession() {
+  var typeEl = document.getElementById('cardio-type');
+  var durEl = document.getElementById('cardio-duration');
+  var type = typeEl ? typeEl.value : 'Walking';
+  var dur = durEl ? parseInt(durEl.value) : 0;
+  if (!dur || dur < 1) {
+    showToast('Enter duration in minutes');
+    return;
+  }
+
+  // Estimate kcal: ~6-10 kcal/min depending on type
+  var kcalPerMin = type === 'HIIT' ? 10 : type === 'Running' ? 9 : type === 'Cycling' ? 7 : 6;
+  var kcal = Math.round(dur * kcalPerMin);
+  var distKm = type === 'Running' ? Math.round(dur * 0.15 * 10) / 10 : type === 'Cycling' ? Math.round(dur * 0.3 * 10) / 10 : Math.round(dur * 0.08 * 10) / 10;
+
+  var clientId = (currentUserRole === 'client') ? currentUser.id : (activeCoachClient || 'rick');
+  var meta = CLIENT_META[clientId];
+  if (meta) {
+    if (!meta.cardioSessions) meta.cardioSessions = 0;
+    meta.cardioSessions++;
+  }
+
+  // Save to Supabase
+  if (IS_LIVE && currentUser) {
+    saveCardioSession(clientId, {
+      type: type, duration_minutes: dur, distance_km: distKm, kcal_burned: kcal
+    }).then(function(ok) {
+      if (ok) console.log('✓ Cardio session saved:', type, dur + 'min');
+    });
+  }
+
+  // Update UI
+  showToast('✓ ' + type + ' logged: ' + dur + ' min · ~' + kcal + ' kcal');
+
+  // Clear form
+  if (durEl) durEl.value = '';
+
+  // Update cardio count display
+  var countEl = document.getElementById('cardio-session-count');
+  if (countEl && meta) countEl.textContent = meta.cardioSessions;
 }
 
 /* ============================================================
@@ -8069,6 +9741,16 @@ function saveWeightLog() {
   // Hide input
   document.getElementById('weight-input-area').style.display = 'none';
   showToast('Weight logged: ' + newWeight + ' kg ✓');
+
+  // Persist to Supabase if live
+  if (IS_LIVE && currentUser) {
+    // For client: save as own weight. For coach: save for active client
+    var saveId = (currentUserRole === 'client') ? currentUser.id : clientId;
+    saveWeight(todayKey, newWeight, saveId).then(function(ok) {
+      if (ok) console.log('✓ Weight saved to Supabase:', newWeight, 'kg');
+      else console.log('⚠ Failed to save weight to Supabase');
+    });
+  }
 }
 
 function updateDashWeightChart(clientId) {
@@ -8633,6 +10315,8 @@ function getClientExercises() { var d = ALL_CLIENT_EXERCISES[activeCoachClient] 
 function switchNutritionClient(clientId) {
   activeCoachClient = clientId;
   coachMeals = getCoachMeals();
+  window._editingTemplateId = null;
+  window._pendingTemplateId = null;
   renderCoachMealPlan();
   updateCoachClientIndicator();
   showToast('Editing nutrition for ' + (CLIENT_META[clientId]||{name:clientId}).name);
@@ -8643,9 +10327,10 @@ function switchWorkoutClient(clientId) {
   // Switch workout data to this client
   saveCurrentDay();
   DAY_DATA = ALL_DAY_DATA[clientId] || ALL_DAY_DATA.niels;
+  DAY_NAMES = ['Push A','Pull A','Legs A','Rest','Push B','Pull B','Legs B'];
   activeDay = 0;
-  // Reset day tab highlight
-  document.querySelectorAll('#coach-day-tabs .day-tab').forEach(function(t,i) { t.classList.toggle('active', i===0); });
+  window._editingTemplateId = null;
+  renderDayTabs();
   renderDay(0);
   updateCoachClientIndicator();
   showToast('Viewing workout for ' + (CLIENT_META[clientId]||{name:clientId}).name);
@@ -8754,13 +10439,346 @@ function saveWorkoutPlan() {
   }
 
   showToast('✓ Plan saved for ' + name + ' — client workout updated');
+
+  // Persist to Supabase
+  if (IS_LIVE && currentUser) {
+    var planName = 'Training Plan — ' + name;
+    saveTrainingPlan(clientId, planName, newDays).then(function(ok) {
+      if (ok) showToast('✓ Training plan synced to cloud');
+      else console.warn('Training plan cloud save failed');
+    });
+  }
 }
 function saveNutritionPlan() {
   const sel = document.getElementById('nut-client-select');
+  const clientId = sel ? sel.value : activeCoachClient;
   const name = sel ? sel.options[sel.selectedIndex].text : 'client';
   // Sync to client view
   syncClientMeals();
   showToast('✓ Nutrition plan saved for ' + name + ' — client view updated');
+
+  // Persist to Supabase
+  if (IS_LIVE && currentUser) {
+    var meals = ALL_CLIENT_MEALS[clientId] || ALL_CLIENT_MEALS[activeCoachClient];
+    if (meals) {
+      saveMealPlan(clientId, meals).then(function(ok) {
+        if (ok) showToast('✓ Meal plan synced to cloud');
+        else console.warn('Meal plan cloud save failed');
+      });
+    }
+  }
+}
+
+/* ============================================================
+   SAVE DROPDOWN & TEMPLATE INTEGRATION FOR BUILDERS
+============================================================ */
+
+// Toggle save dropdown menu
+function toggleSaveMenu(prefix) {
+  // Remove any existing floating save menu
+  var existing = document.getElementById('floating-save-menu');
+  if (existing) { existing.remove(); return; }
+
+  // Get button position to anchor the menu
+  var btn = document.querySelector('#' + prefix + '-save-wrap .btn');
+  if (!btn) return;
+  var rect = btn.getBoundingClientRect();
+
+  // Determine which save functions to call based on prefix
+  var saveClientFn = prefix === 'wb' ? 'saveWorkoutPlan' : 'saveNutritionPlan';
+  var saveTemplateFn = prefix === 'wb' ? "saveBuilderAsTemplate('training')" : "saveBuilderAsTemplate('nutrition')";
+
+  // Create floating menu on body
+  var menu = document.createElement('div');
+  menu.id = 'floating-save-menu';
+  menu.style.cssText = 'position:fixed;top:' + (rect.bottom + 6) + 'px;right:' + (window.innerWidth - rect.right) + 'px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;min-width:210px;z-index:99999;box-shadow:0 12px 32px rgba(0,0,0,.6)';
+  menu.innerHTML = '<button style="display:block;width:100%;text-align:left;padding:12px 16px;background:none;border:none;color:var(--t1);font-size:13px;cursor:pointer;border-bottom:1px solid var(--border);white-space:nowrap" onmouseover="this.style.background=\'var(--s3)\'" onmouseout="this.style.background=\'none\'" onclick="' + saveClientFn + '();document.getElementById(\'floating-save-menu\').remove()">💾 Save to Client</button>'
+    + '<button style="display:block;width:100%;text-align:left;padding:12px 16px;background:none;border:none;color:var(--t1);font-size:13px;cursor:pointer;white-space:nowrap" onmouseover="this.style.background=\'var(--s3)\'" onmouseout="this.style.background=\'none\'" onclick="' + saveTemplateFn + ';document.getElementById(\'floating-save-menu\').remove()">📋 Save as Template</button>';
+  document.body.appendChild(menu);
+
+  // Close on outside click
+  setTimeout(function() {
+    document.addEventListener('click', function _close(e) {
+      if (!e.target.closest('#floating-save-menu') && !e.target.closest('#' + prefix + '-save-wrap')) {
+        var m = document.getElementById('floating-save-menu');
+        if (m) m.remove();
+        document.removeEventListener('click', _close);
+      }
+    });
+  }, 10);
+}
+
+// Save current builder content as a new template
+function saveBuilderAsTemplate(type) {
+  var pendingId = window._pendingTemplateId || null;
+  var existingId = window._editingTemplateId || null;
+  var tmplId;
+  var name;
+
+  if (pendingId && TEMPLATE_DATA[pendingId]) {
+    // Created via "Create Template" — fill in the empty template that was already made
+    tmplId = pendingId;
+    name = TEMPLATE_DATA[pendingId].name;
+    var newName = prompt('Template name:', name);
+    if (!newName || !newName.trim()) return;
+    name = newName.trim();
+  } else if (existingId && TEMPLATE_DATA[existingId]) {
+    // Editing an existing template — ask overwrite or new
+    var existingName = TEMPLATE_DATA[existingId].name;
+    var choice = confirm('Update existing template "' + existingName + '"?\n\nOK = Update existing\nCancel = Save as new template');
+    if (choice) {
+      tmplId = existingId;
+      name = prompt('Template name:', existingName);
+      if (!name || !name.trim()) return;
+      name = name.trim();
+    } else {
+      tmplId = 'tmpl_' + (tmplNextId++);
+      name = prompt('New template name:', '');
+      if (!name || !name.trim()) return;
+      name = name.trim();
+    }
+  } else {
+    // Fresh save — always create new
+    tmplId = 'tmpl_' + (tmplNextId++);
+    name = prompt('Template name:', '');
+    if (!name || !name.trim()) return;
+    name = name.trim();
+  }
+
+  window._editingTemplateId = null;
+  window._pendingTemplateId = null;
+  var tmplData = { name: name, type: type, days: [], meals: [] };
+
+  if (type === 'training') {
+    // Read from DAY_DATA (workout builder)
+    saveCurrentDay();
+    var builderDays = DAY_DATA || [];
+    var dayNames = (typeof DAY_NAMES !== 'undefined') ? DAY_NAMES : ['Day 1','Day 2','Day 3','Day 4','Day 5','Day 6','Day 7'];
+    builderDays.forEach(function(exercises, idx) {
+      if (exercises && exercises.length > 0) {
+        tmplData.days.push({
+          name: dayNames[idx] || ('Day ' + (idx+1)),
+          exercises: exercises.map(function(e) {
+            return { name: e.name, sets: parseInt(e.sets) || 3, reps: e.reps || '10-12' };
+          })
+        });
+      }
+    });
+    if (tmplData.days.length === 0) {
+      showToast('No exercises found — add exercises first');
+      return;
+    }
+  } else if (type === 'nutrition') {
+    // Read from coachMeals (nutrition editor)
+    var meals = coachMeals || [];
+    meals.forEach(function(meal, idx) {
+      if (meal && meal.foods && meal.foods.length > 0) {
+        tmplData.meals.push({
+          name: meal.name || ('Meal ' + (idx+1)),
+          time: meal.time || '',
+          foods: meal.foods.map(function(f) {
+            return { fname: f.fname, grams: f.grams, p: f.p, c: f.c, f: f.f, kcal: f.kcal };
+          })
+        });
+      }
+    });
+    if (tmplData.meals.length === 0) {
+      showToast('No meals found — add foods first');
+      return;
+    }
+  }
+
+  // Store the template
+  TEMPLATE_DATA[tmplId] = tmplData;
+
+  // Update or add visual card to templates page
+  var freq = tmplData.days.length > 0 ? tmplData.days.length + 'x/wk' : tmplData.meals.length + ' meals';
+  var typeTags = type === 'training' ? '<span class="tag t-gold">Training</span>' : '<span class="tag t-gr">Nutrition</span>';
+  var cardHtml = '<div style="display:flex;justify-content:space-between;margin-bottom:6px"><div class="tmpl-nm">' + name + '</div><span style="color:var(--t3)">☆</span></div>'
+    + '<div class="tmpl-meta">' + freq + '</div>'
+    + '<div style="display:flex;gap:5px;margin-bottom:10px">' + typeTags + '</div>'
+    + '<div style="display:flex;gap:6px"><button class="btn btn-p btn-sm" onclick="assignTemplate(this)">Assign</button><button class="btn btn-g btn-sm" onclick="editTemplateInBuilder(this)">Edit</button><button class="btn btn-g btn-sm" onclick="dupeTemplate(this)">Dupe</button></div>'
+    + '<div style="font-size:10px;color:var(--t3);margin-top:8px">Updated</div>';
+
+  var grid = document.querySelector('.tmpl-grid');
+  if (grid) {
+    // Check if card already exists (editing existing template)
+    var existingCard = grid.querySelector('[data-tmpl-id="' + tmplId + '"]');
+    if (existingCard) {
+      existingCard.innerHTML = cardHtml;
+    } else {
+      var addCard = grid.querySelector('[style*="border-style:dashed"]');
+      var newCard = document.createElement('div');
+      newCard.className = 'tmpl-card';
+      newCard.setAttribute('data-tmpl-id', tmplId);
+      newCard.innerHTML = cardHtml;
+      if (addCard) grid.insertBefore(newCard, addCard);
+      else grid.appendChild(newCard);
+    }
+  }
+
+  showToast('✓ Template "' + name + '" saved!');
+
+  // Restore client data if we were editing a template
+  restorePreTemplateState();
+}
+
+function restorePreTemplateState() {
+  var state = window._preTemplateState;
+  if (!state) return;
+  window._preTemplateState = null;
+
+  // Restore workout builder
+  DAY_DATA = state.dayData;
+  DAY_NAMES = state.dayNames;
+  activeDay = state.activeDay;
+
+  // Restore nutrition editor
+  coachMeals = state.coachMeals;
+  activeCoachClient = state.client;
+}
+
+// Show a modal to pick a template and load it into the builder
+function showLoadTemplateModal(targetType) {
+  var existing = document.getElementById('load-tmpl-modal');
+  if (existing) existing.remove();
+
+  // Filter templates by type
+  var matchingTemplates = [];
+  Object.keys(TEMPLATE_DATA).forEach(function(id) {
+    var t = TEMPLATE_DATA[id];
+    if (targetType === 'training' && (t.type === 'training' || t.type === 'both') && t.days && t.days.length > 0) {
+      matchingTemplates.push({ id: id, name: t.name, info: t.days.length + ' days' });
+    }
+    if (targetType === 'nutrition' && (t.type === 'nutrition' || t.type === 'both') && t.meals && t.meals.length > 0) {
+      matchingTemplates.push({ id: id, name: t.name, info: t.meals.length + ' meals' });
+    }
+  });
+
+  var overlay = document.createElement('div');
+  overlay.id = 'load-tmpl-modal';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px;width:360px;max-height:70vh;overflow-y:auto">';
+  html += '<div style="font-family:var(--fd);font-size:16px;letter-spacing:1px;margin-bottom:14px">LOAD TEMPLATE</div>';
+
+  if (matchingTemplates.length === 0) {
+    html += '<div style="font-size:12px;color:var(--t3);text-align:center;padding:20px">No ' + targetType + ' templates found.<br>Create one first using "Save as Template".</div>';
+  } else {
+    matchingTemplates.forEach(function(t) {
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--s2);border:1px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer" '
+        + 'onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'" '
+        + 'onclick="loadTemplateIntoBuilder(\'' + t.id + '\',\'' + targetType + '\');document.getElementById(\'load-tmpl-modal\').remove()">';
+      html += '<div><div style="font-size:13px;font-weight:500;color:var(--t1)">' + t.name + '</div>';
+      html += '<div style="font-size:10px;color:var(--t3);margin-top:2px">' + t.info + '</div></div>';
+      html += '<span style="font-size:11px;color:var(--accent)">Load →</span>';
+      html += '</div>';
+    });
+  }
+
+  html += '<button class="btn btn-g btn-sm" onclick="document.getElementById(\'load-tmpl-modal\').remove()" style="width:100%;margin-top:8px;padding:8px">Cancel</button>';
+  html += '</div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+// Load a template's data into the workout builder or nutrition editor
+function loadTemplateIntoBuilder(tmplId, type) {
+  var tmpl = TEMPLATE_DATA[tmplId];
+  if (!tmpl) { showToast('Template not found'); return; }
+
+  if (type === 'training') {
+    // Load template days into DAY_DATA and DAY_NAMES
+    DAY_DATA = [];
+    DAY_NAMES = [];
+    tmpl.days.forEach(function(day) {
+      DAY_NAMES.push(day.name || ('Day ' + (DAY_NAMES.length + 1)));
+      var exercises = day.exercises.map(function(ex) {
+        return { name: ex.name, muscle: ex.muscle || '', sets: ex.sets || 3, reps: ex.reps || '10-12' };
+      });
+      DAY_DATA.push(exercises);
+    });
+    if (DAY_DATA.length === 0) { DAY_DATA.push([]); DAY_NAMES.push('Day 1'); }
+
+    // Refresh builder UI
+    activeDay = 0;
+    renderDayTabs();
+    renderDay(activeDay);
+    showToast('✓ Loaded "' + tmpl.name + '" into Workout Builder');
+  } else if (type === 'nutrition') {
+    // Load template meals into coachMeals (nutrition editor format)
+    coachMeals = tmpl.meals.map(function(meal) {
+      return {
+        name: meal.name,
+        time: meal.time || '',
+        foods: meal.foods.map(function(f) {
+          return { fname: f.fname, grams: f.grams, p: f.p || 0, c: f.c || 0, f: f.f || 0, kcal: f.kcal || 0 };
+        })
+      };
+    });
+    renderCoachMealPlan();
+    showToast('✓ Loaded "' + tmpl.name + '" into Nutrition Editor');
+  }
+}
+
+// Edit a template by loading it into the appropriate builder
+function editTemplateInBuilder(btn) {
+  var card = btn.closest('.tmpl-card');
+  if (!card) return;
+  var tmplId = card.getAttribute('data-tmpl-id');
+  if (!tmplId || !TEMPLATE_DATA[tmplId]) {
+    showToast('Template data not found');
+    return;
+  }
+  var tmpl = TEMPLATE_DATA[tmplId];
+
+  // Store which template we're editing so we can save back
+  window._editingTemplateId = tmplId;
+
+  // Save current client data before loading template
+  saveCurrentDay();
+  var _savedDayData = DAY_DATA;
+  var _savedDayNames = DAY_NAMES.slice();
+  var _savedActiveDay = activeDay;
+  var _savedCoachMeals = coachMeals;
+  var _savedCoachClient = activeCoachClient;
+  window._preTemplateState = { dayData: _savedDayData, dayNames: _savedDayNames, activeDay: _savedActiveDay, coachMeals: _savedCoachMeals, client: _savedCoachClient };
+
+  if (tmpl.type === 'training' || tmpl.type === 'both') {
+    // Set DAY_DATA and DAY_NAMES from template (cGo will trigger initCoachBuilder → renderDayTabs + renderDay)
+    DAY_DATA = [];
+    DAY_NAMES = [];
+    tmpl.days.forEach(function(day) {
+      DAY_NAMES.push(day.name || ('Day ' + (DAY_NAMES.length + 1)));
+      var exercises = day.exercises.map(function(ex) {
+        return { name: ex.name, muscle: ex.muscle || '', sets: ex.sets || 3, reps: ex.reps || '10-12' };
+      });
+      DAY_DATA.push(exercises);
+    });
+    if (DAY_DATA.length === 0) { DAY_DATA.push([]); DAY_NAMES.push('Day 1'); }
+    activeDay = 0;
+    // Navigate to workout builder — initCoachBuilder() will render the data
+    var navItem = document.getElementById('ni-c-wbuilder');
+    if (navItem) cGo('c-wbuilder', navItem);
+    showToast('Editing "' + tmpl.name + '" — use Save ▾ → Save as Template when done');
+  } else if (tmpl.type === 'nutrition') {
+    // Set coachMeals directly then navigate
+    coachMeals = tmpl.meals.map(function(meal) {
+      return {
+        name: meal.name, time: meal.time || '',
+        foods: meal.foods.map(function(f) {
+          return { fname: f.fname, grams: f.grams, p: f.p || 0, c: f.c || 0, f: f.f || 0, kcal: f.kcal || 0 };
+        })
+      };
+    });
+    // Navigate to nutrition editor
+    var navItem2 = document.getElementById('ni-c-nutrition');
+    if (navItem2) cGo('c-nutrition', navItem2);
+    // Render after navigation so DOM is visible
+    setTimeout(function() { renderCoachMealPlan(); }, 50);
+    showToast('Editing template: ' + tmpl.name + ' — Save as Template when done');
+  }
 }
 
 /* ============================================================
@@ -8922,7 +10940,7 @@ function createNewTemplate() {
   newCard.innerHTML = '<div style="display:flex;justify-content:space-between;margin-bottom:6px"><div class="tmpl-nm">' + name + '</div><span style="color:var(--t3)">☆</span></div>'
     + '<div class="tmpl-meta">' + freq + ' · ' + duration + '</div>'
     + '<div style="display:flex;gap:5px;margin-bottom:10px">' + (typeTags[type]||'') + (goalTags[goal]||'') + '</div>'
-    + '<div style="display:flex;gap:6px"><button class="btn btn-p btn-sm" onclick="assignTemplate(this)">Assign</button><button class="btn btn-g btn-sm" onclick="editTemplate(this)">Edit</button><button class="btn btn-g btn-sm" onclick="dupeTemplate(this)">Dupe</button></div>'
+    + '<div style="display:flex;gap:6px"><button class="btn btn-p btn-sm" onclick="assignTemplate(this)">Assign</button><button class="btn btn-g btn-sm" onclick="editTemplateInBuilder(this)">Edit</button><button class="btn btn-g btn-sm" onclick="dupeTemplate(this)">Dupe</button></div>'
     + '<div style="font-size:10px;color:var(--t3);margin-top:8px">New · 0 clients</div>';
   grid.insertBefore(newCard, plusCard);
 
@@ -8932,7 +10950,31 @@ function createNewTemplate() {
   document.getElementById('tmpl-freq-inp').value = '';
   document.getElementById('tmpl-notes-inp').value = '';
   toggleNewTemplate();
-  showToast('✓ Template "' + name + '" created');
+
+  // Don't set _editingTemplateId — "Save as Template" will update this card
+  // via the tmplId stored on the card. We use a different approach:
+  // store a "pending template" that Save as Template will fill in
+  window._editingTemplateId = null;
+  window._pendingTemplateId = newTmplId;
+
+  // Navigate to the appropriate builder so user can add exercises/meals
+  if (type === 'training' || type === 'both') {
+    // Clear builder and start fresh for this template
+    DAY_NAMES = ['Day 1','Day 2','Day 3','Day 4','Day 5','Day 6','Day 7'];
+    DAY_DATA = [[],[],[],[],[],[],[]];
+    activeDay = 0;
+    var navItem = document.getElementById('ni-c-wbuilder');
+    if (navItem) cGo('c-wbuilder', navItem);
+    showToast('✓ "' + name + '" created — now add exercises, then Save ▾ → Save as Template');
+  } else if (type === 'nutrition') {
+    coachMeals = [{ name: 'Meal 1', time: '', foods: [] }];
+    var navItem2 = document.getElementById('ni-c-nutrition');
+    if (navItem2) cGo('c-nutrition', navItem2);
+    setTimeout(function() { renderCoachMealPlan(); }, 50);
+    showToast('✓ "' + name + '" created — now add foods, then Save ▾ → Save as Template');
+  } else {
+    showToast('✓ Template "' + name + '" created');
+  }
 }
 
 /* ============================================================
@@ -9076,375 +11118,27 @@ function applyTemplateToClient(tmplId, clientId) {
   if (typeof updateDashboardKPIs === 'function') updateDashboardKPIs();
 }
 
-function editTemplate(btn) {
-  var card = btn.closest('.tmpl-card');
-  if (!card) return;
-  var tmplId = card.getAttribute('data-tmpl-id');
-  var tmplName = card.querySelector('.tmpl-nm') ? card.querySelector('.tmpl-nm').textContent : 'Template';
-
-  // Get or create template data
-  if (!tmplId) {
-    tmplId = 'tmpl_' + (tmplNextId++);
-    card.setAttribute('data-tmpl-id', tmplId);
-  }
-  if (!TEMPLATE_DATA[tmplId]) {
-    // Detect type from tags
-    var hasTraining = card.innerHTML.indexOf('Training') !== -1;
-    var hasNutrition = card.innerHTML.indexOf('Nutrition') !== -1;
-    TEMPLATE_DATA[tmplId] = {
-      name: tmplName,
-      type: hasTraining && hasNutrition ? 'both' : hasNutrition ? 'nutrition' : 'training',
-      days: hasTraining ? [{ name: 'Day 1', exercises: [] }] : [],
-      meals: hasNutrition ? [{ name: 'Meal 1', foods: [] }] : []
-    };
-  }
-
-  openTemplateEditor(tmplId, card);
-}
-
-function openTemplateEditor(tmplId, card) {
-  var tmpl = TEMPLATE_DATA[tmplId];
-  if (!tmpl) return;
-
-  // Remove any existing editor
-  var existing = document.getElementById('tmpl-editor-overlay');
-  if (existing) existing.remove();
-
-  var overlay = document.createElement('div');
-  overlay.id = 'tmpl-editor-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;background:var(--bg1);z-index:9999;overflow-y:auto;padding:0';
-
-  var hasWorkouts = tmpl.type === 'training' || tmpl.type === 'both';
-  var hasMeals = tmpl.type === 'nutrition' || tmpl.type === 'both';
-
-  var html = '<div style="max-width:800px;margin:0 auto;padding:20px">';
-
-  // Header
-  html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;padding-bottom:14px;border-bottom:1px solid var(--border)">';
-  html += '<div><div style="font-family:var(--fd);font-size:20px;letter-spacing:1.5px">EDIT TEMPLATE</div>';
-  html += '<div style="font-size:12px;color:var(--t3);margin-top:2px">Modify workouts and meals</div></div>';
-  html += '<button class="btn btn-g btn-sm" onclick="closeTemplateEditor()" style="padding:6px 16px">✕ Close</button>';
-  html += '</div>';
-
-  // Template name
-  html += '<div class="card" style="margin-bottom:16px;padding:14px">';
-  html += '<label style="font-size:9px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--t3);display:block;margin-bottom:4px">Template Name</label>';
-  html += '<input class="form-inp" id="te-name" value="' + tmpl.name.replace(/"/g, '&quot;') + '" style="font-size:14px;font-weight:600;padding:8px 12px">';
-  html += '</div>';
-
-  // Tabs for training/nutrition
-  if (hasWorkouts && hasMeals) {
-    html += '<div style="display:flex;gap:0;margin-bottom:16px;border:1px solid var(--border);border-radius:8px;overflow:hidden">';
-    html += '<button id="te-tab-workout" class="btn btn-p" onclick="switchTETab(\'workout\')" style="flex:1;border-radius:0;padding:10px">🏋️ Workouts</button>';
-    html += '<button id="te-tab-meals" class="btn btn-g" onclick="switchTETab(\'meals\')" style="flex:1;border-radius:0;padding:10px">🍽️ Meals</button>';
-    html += '</div>';
-  }
-
-  // === WORKOUTS SECTION ===
-  if (hasWorkouts) {
-    html += '<div id="te-workouts-section">';
-    html += renderTEWorkouts(tmplId);
-    html += '</div>';
-  }
-
-  // === MEALS SECTION ===
-  if (hasMeals) {
-    html += '<div id="te-meals-section" style="' + (hasWorkouts && hasMeals ? 'display:none' : '') + '">';
-    html += renderTEMeals(tmplId);
-    html += '</div>';
-  }
-
-  // Save button
-  html += '<div style="display:flex;gap:10px;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">';
-  html += '<button class="btn btn-p" onclick="saveFullTemplate(\'' + tmplId + '\')" style="flex:1;padding:12px;font-size:14px">💾 Save Template</button>';
-  html += '<button class="btn btn-g" onclick="closeTemplateEditor()" style="padding:12px 20px">Cancel</button>';
-  html += '</div>';
-
-  html += '</div>';
-  overlay.innerHTML = html;
-  document.body.appendChild(overlay);
-}
-
-function switchTETab(tab) {
-  var wk = document.getElementById('te-workouts-section');
-  var ml = document.getElementById('te-meals-section');
-  var tabW = document.getElementById('te-tab-workout');
-  var tabM = document.getElementById('te-tab-meals');
-  if (tab === 'workout') {
-    if (wk) wk.style.display = '';
-    if (ml) ml.style.display = 'none';
-    if (tabW) { tabW.className = 'btn btn-p'; tabW.style.cssText = 'flex:1;border-radius:0;padding:10px'; }
-    if (tabM) { tabM.className = 'btn btn-g'; tabM.style.cssText = 'flex:1;border-radius:0;padding:10px'; }
-  } else {
-    if (wk) wk.style.display = 'none';
-    if (ml) ml.style.display = '';
-    if (tabM) { tabM.className = 'btn btn-p'; tabM.style.cssText = 'flex:1;border-radius:0;padding:10px'; }
-    if (tabW) { tabW.className = 'btn btn-g'; tabW.style.cssText = 'flex:1;border-radius:0;padding:10px'; }
-  }
-}
-
-function renderTEWorkouts(tmplId) {
-  var tmpl = TEMPLATE_DATA[tmplId];
-  if (!tmpl) return '';
-  var html = '';
-
-  tmpl.days.forEach(function(day, di) {
-    html += '<div class="card" style="margin-bottom:12px;padding:14px">';
-    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">';
-    html += '<input class="form-inp" value="' + day.name.replace(/"/g, '&quot;') + '" onchange="TEMPLATE_DATA[\'' + tmplId + '\'].days[' + di + '].name=this.value" style="flex:1;font-size:13px;font-weight:600;padding:6px 10px">';
-    html += '<button class="btn btn-sm" onclick="removeTEDay(\'' + tmplId + '\',' + di + ')" style="color:var(--red);padding:4px 8px;font-size:11px" title="Remove day">🗑️</button>';
-    html += '</div>';
-
-    // Exercise table
-    html += '<div style="display:grid;grid-template-columns:1fr 60px 80px 30px;gap:4px;font-size:10px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;color:var(--t3);margin-bottom:4px;padding:0 4px">';
-    html += '<div>Exercise</div><div>Sets</div><div>Reps</div><div></div></div>';
-
-    day.exercises.forEach(function(ex, ei) {
-      html += '<div style="display:grid;grid-template-columns:1fr 60px 80px 30px;gap:4px;align-items:center;padding:4px;border-radius:6px;background:var(--bg2);margin-bottom:3px">';
-      html += '<input class="form-inp" value="' + ex.name.replace(/"/g, '&quot;') + '" onchange="TEMPLATE_DATA[\'' + tmplId + '\'].days[' + di + '].exercises[' + ei + '].name=this.value" style="font-size:12px;padding:5px 8px">';
-      html += '<input class="form-inp" type="number" value="' + ex.sets + '" onchange="TEMPLATE_DATA[\'' + tmplId + '\'].days[' + di + '].exercises[' + ei + '].sets=parseInt(this.value)||3" style="font-size:12px;padding:5px 6px;text-align:center">';
-      html += '<input class="form-inp" value="' + ex.reps + '" onchange="TEMPLATE_DATA[\'' + tmplId + '\'].days[' + di + '].exercises[' + ei + '].reps=this.value" style="font-size:12px;padding:5px 6px;text-align:center">';
-      html += '<button onclick="removeTEExercise(\'' + tmplId + '\',' + di + ',' + ei + ')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:13px;padding:2px" title="Remove">✕</button>';
-      html += '</div>';
-    });
-
-    html += '<button class="btn btn-g btn-sm" onclick="addTEExercise(\'' + tmplId + '\',' + di + ')" style="margin-top:6px;width:100%;padding:6px;font-size:11px">+ Add Exercise</button>';
-    html += '</div>';
-  });
-
-  html += '<button class="btn btn-g" onclick="addTEDay(\'' + tmplId + '\')" style="width:100%;padding:10px;margin-top:4px;border-style:dashed;font-size:12px">+ Add Training Day</button>';
-  return html;
-}
-
-function renderTEMeals(tmplId) {
-  var tmpl = TEMPLATE_DATA[tmplId];
-  if (!tmpl) return '';
-  var html = '';
-
-  tmpl.meals.forEach(function(meal, mi) {
-    var mealKcal = 0, mealP = 0, mealC = 0, mealF = 0;
-    meal.foods.forEach(function(f) { mealKcal += f.kcal; mealP += f.p; mealC += f.c; mealF += f.f; });
-
-    html += '<div class="card" style="margin-bottom:12px;padding:14px">';
-    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">';
-    html += '<input class="form-inp" value="' + meal.name.replace(/"/g, '&quot;') + '" onchange="TEMPLATE_DATA[\'' + tmplId + '\'].meals[' + mi + '].name=this.value" style="flex:1;font-size:13px;font-weight:600;padding:6px 10px">';
-    html += '<div style="font-size:10px;color:var(--t2);white-space:nowrap">' + Math.round(mealKcal) + ' kcal</div>';
-    html += '<button class="btn btn-sm" onclick="removeTEMeal(\'' + tmplId + '\',' + mi + ')" style="color:var(--red);padding:4px 8px;font-size:11px" title="Remove meal">🗑️</button>';
-    html += '</div>';
-
-    // Macro summary
-    html += '<div style="display:flex;gap:12px;font-size:10px;margin-bottom:8px;padding:4px 8px;background:var(--bg2);border-radius:6px">';
-    html += '<span style="color:var(--green)">P: ' + Math.round(mealP) + 'g</span>';
-    html += '<span style="color:var(--blue)">C: ' + Math.round(mealC) + 'g</span>';
-    html += '<span style="color:var(--red)">F: ' + Math.round(mealF) + 'g</span>';
-    html += '</div>';
-
-    // Food table header
-    html += '<div style="display:grid;grid-template-columns:1fr 60px 45px 45px 45px 30px;gap:3px;font-size:9px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;color:var(--t3);margin-bottom:3px;padding:0 4px">';
-    html += '<div>Food</div><div>Grams</div><div>P</div><div>C</div><div>F</div><div></div></div>';
-
-    meal.foods.forEach(function(food, fi) {
-      html += '<div style="display:grid;grid-template-columns:1fr 60px 45px 45px 45px 30px;gap:3px;align-items:center;padding:3px 4px;border-radius:6px;background:var(--bg2);margin-bottom:2px;font-size:11px">';
-      html += '<div style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + food.fname + '</div>';
-      html += '<input class="form-inp" type="number" value="' + food.grams + '" onchange="updateTEFoodGrams(\'' + tmplId + '\',' + mi + ',' + fi + ',this.value)" style="font-size:11px;padding:3px 4px;text-align:center">';
-      html += '<div style="color:var(--green);font-size:10px;text-align:center">' + Math.round(food.p*10)/10 + '</div>';
-      html += '<div style="color:var(--blue);font-size:10px;text-align:center">' + Math.round(food.c*10)/10 + '</div>';
-      html += '<div style="color:var(--red);font-size:10px;text-align:center">' + Math.round(food.f*10)/10 + '</div>';
-      html += '<button onclick="removeTEFood(\'' + tmplId + '\',' + mi + ',' + fi + ')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:12px;padding:1px" title="Remove">✕</button>';
-      html += '</div>';
-    });
-
-    // Add food search
-    html += '<div style="margin-top:6px">';
-    html += '<input class="form-inp" placeholder="Search food to add..." oninput="searchTEFood(this.value,' + mi + ',\'' + tmplId + '\')" style="font-size:11px;padding:6px 10px;width:100%">';
-    html += '<div id="te-food-results-' + mi + '" style="max-height:150px;overflow-y:auto"></div>';
-    html += '</div>';
-
-    html += '</div>';
-  });
-
-  // Total macros
-  var totalKcal = 0, totalP = 0, totalC = 0, totalF = 0;
-  tmpl.meals.forEach(function(meal) {
-    meal.foods.forEach(function(f) { totalKcal += f.kcal; totalP += f.p; totalC += f.c; totalF += f.f; });
-  });
-  html += '<div style="display:flex;gap:16px;font-size:12px;font-weight:600;padding:10px 14px;background:var(--s1);border:1px solid var(--border);border-radius:8px;margin-bottom:8px">';
-  html += '<span>Daily Total:</span>';
-  html += '<span style="color:var(--t2)">' + Math.round(totalKcal) + ' kcal</span>';
-  html += '<span style="color:var(--green)">P: ' + Math.round(totalP) + 'g</span>';
-  html += '<span style="color:var(--blue)">C: ' + Math.round(totalC) + 'g</span>';
-  html += '<span style="color:var(--red)">F: ' + Math.round(totalF) + 'g</span>';
-  html += '</div>';
-
-  html += '<button class="btn btn-g" onclick="addTEMeal(\'' + tmplId + '\')" style="width:100%;padding:10px;margin-top:4px;border-style:dashed;font-size:12px">+ Add Meal</button>';
-  return html;
-}
-
-function searchTEFood(query, mealIdx, tmplId) {
-  var results = document.getElementById('te-food-results-' + mealIdx);
-  if (!results) return;
-  if (!query || query.length < 2) { results.innerHTML = ''; return; }
-  var q = query.toLowerCase();
-  var matches = FOOD_DB.filter(function(f) { return f.name.toLowerCase().indexOf(q) !== -1; }).slice(0, 8);
-  results.innerHTML = matches.map(function(f) {
-    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 8px;border-radius:6px;cursor:pointer;font-size:11px;background:var(--bg2);margin-top:3px" onclick="addTEFoodFromDB(\'' + tmplId + '\',' + mealIdx + ',' + f.id + ')">'
-      + '<div>' + f.name + '</div>'
-      + '<div style="display:flex;gap:8px;font-size:10px">'
-      + '<span style="color:var(--t2)">' + f.kcal + '</span>'
-      + '<span style="color:var(--green)">' + f.p + '</span>'
-      + '<span style="color:var(--blue)">' + f.c + '</span>'
-      + '<span style="color:var(--red)">' + f.f + '</span>'
-      + '<span style="color:var(--gold)">+ Add</span>'
-      + '</div></div>';
-  }).join('');
-}
-
-function addTEFoodFromDB(tmplId, mealIdx, foodId) {
-  var tmpl = TEMPLATE_DATA[tmplId];
-  if (!tmpl || !tmpl.meals[mealIdx]) return;
-  var dbFood = FOOD_DB.find(function(f) { return f.id === foodId; });
-  if (!dbFood) return;
-  tmpl.meals[mealIdx].foods.push({
-    fname: dbFood.name, grams: 100, p: dbFood.p, c: dbFood.c, f: dbFood.f, kcal: dbFood.kcal
-  });
-  refreshTEMeals(tmplId);
-}
-
-function updateTEFoodGrams(tmplId, mealIdx, foodIdx, newGrams) {
-  var tmpl = TEMPLATE_DATA[tmplId];
-  if (!tmpl || !tmpl.meals[mealIdx] || !tmpl.meals[mealIdx].foods[foodIdx]) return;
-  var food = tmpl.meals[mealIdx].foods[foodIdx];
-  var ratio = (parseInt(newGrams) || 100) / (food.grams || 100);
-  food.p = Math.round(food.p * ratio * 10) / 10;
-  food.c = Math.round(food.c * ratio * 10) / 10;
-  food.f = Math.round(food.f * ratio * 10) / 10;
-  food.kcal = Math.round(food.kcal * ratio);
-  food.grams = parseInt(newGrams) || 100;
-  refreshTEMeals(tmplId);
-}
-
-function removeTEFood(tmplId, mealIdx, foodIdx) {
-  var tmpl = TEMPLATE_DATA[tmplId];
-  if (!tmpl || !tmpl.meals[mealIdx]) return;
-  tmpl.meals[mealIdx].foods.splice(foodIdx, 1);
-  refreshTEMeals(tmplId);
-}
-
-function removeTEMeal(tmplId, mealIdx) {
-  var tmpl = TEMPLATE_DATA[tmplId];
-  if (!tmpl) return;
-  tmpl.meals.splice(mealIdx, 1);
-  refreshTEMeals(tmplId);
-}
-
-function addTEMeal(tmplId) {
-  var tmpl = TEMPLATE_DATA[tmplId];
-  if (!tmpl) return;
-  tmpl.meals.push({ name: 'Meal ' + (tmpl.meals.length + 1), foods: [] });
-  refreshTEMeals(tmplId);
-}
-
-function refreshTEMeals(tmplId) {
-  var container = document.getElementById('te-meals-section');
-  if (container) container.innerHTML = renderTEMeals(tmplId);
-}
-
-function addTEExercise(tmplId, dayIdx) {
-  var tmpl = TEMPLATE_DATA[tmplId];
-  if (!tmpl || !tmpl.days[dayIdx]) return;
-  tmpl.days[dayIdx].exercises.push({ name: 'New Exercise', sets: 3, reps: '10-12' });
-  refreshTEWorkouts(tmplId);
-}
-
-function removeTEExercise(tmplId, dayIdx, exIdx) {
-  var tmpl = TEMPLATE_DATA[tmplId];
-  if (!tmpl || !tmpl.days[dayIdx]) return;
-  tmpl.days[dayIdx].exercises.splice(exIdx, 1);
-  refreshTEWorkouts(tmplId);
-}
-
-function addTEDay(tmplId) {
-  var tmpl = TEMPLATE_DATA[tmplId];
-  if (!tmpl) return;
-  tmpl.days.push({ name: 'Day ' + (tmpl.days.length + 1), exercises: [] });
-  refreshTEWorkouts(tmplId);
-}
-
-function removeTEDay(tmplId, dayIdx) {
-  var tmpl = TEMPLATE_DATA[tmplId];
-  if (!tmpl) return;
-  tmpl.days.splice(dayIdx, 1);
-  refreshTEWorkouts(tmplId);
-}
-
-function refreshTEWorkouts(tmplId) {
-  var container = document.getElementById('te-workouts-section');
-  if (container) container.innerHTML = renderTEWorkouts(tmplId);
-}
-
-function closeTemplateEditor() {
-  var overlay = document.getElementById('tmpl-editor-overlay');
-  if (overlay) overlay.remove();
-}
-
-function saveFullTemplate(tmplId) {
-  var tmpl = TEMPLATE_DATA[tmplId];
-  if (!tmpl) return;
-
-  // Update name from input
-  var nameInp = document.getElementById('te-name');
-  if (nameInp) tmpl.name = nameInp.value.trim() || tmpl.name;
-
-  // Update the card in the DOM
-  var card = document.querySelector('[data-tmpl-id="' + tmplId + '"]');
-  if (card) {
-    var nameEl = card.querySelector('.tmpl-nm');
-    if (nameEl) nameEl.textContent = tmpl.name;
-
-    // Update meta line
-    var metaEl = card.querySelector('.tmpl-meta');
-    if (metaEl) {
-      var parts = [];
-      if (tmpl.days.length > 0) parts.push(tmpl.days.length + ' days · ' + tmpl.days.reduce(function(s, d) { return s + d.exercises.length; }, 0) + ' exercises');
-      if (tmpl.meals.length > 0) {
-        var totalKcal = 0;
-        tmpl.meals.forEach(function(m) { m.foods.forEach(function(f) { totalKcal += f.kcal; }); });
-        parts.push(tmpl.meals.length + ' meals · ' + Math.round(totalKcal) + ' kcal');
-      }
-      metaEl.textContent = parts.join(' | ') || metaEl.textContent;
-    }
-  }
-
-  closeTemplateEditor();
-  showToast('✓ Template "' + tmpl.name + '" saved');
-}
-
-function saveTemplateEdit(btn) {
-  // Legacy fallback - no longer used but kept for safety
-  var card = btn.closest('.tmpl-card');
-  if (!card) return;
-  var newName = card.querySelector('#tmpl-edit-name') ? card.querySelector('#tmpl-edit-name').value.trim() : '';
-  var newMeta = card.querySelector('#tmpl-edit-meta') ? card.querySelector('#tmpl-edit-meta').value.trim() : '';
-  if (!newName) { showToast('Name cannot be empty'); return; }
-  var nameEl = card.querySelector('.tmpl-nm');
-  var metaEl = card.querySelector('.tmpl-meta');
-  if (nameEl) nameEl.textContent = newName;
-  if (metaEl) metaEl.textContent = newMeta;
-  var form = card.querySelector('.tmpl-edit-form');
-  if (form) form.remove();
-  showToast('✓ Template "' + newName + '" updated');
-}
+/* Old template editor removed — now using editTemplateInBuilder() */
 
 function dupeTemplate(btn) {
   var card = btn.closest('.tmpl-card');
   if (!card) return;
+  var oldId = card.getAttribute('data-tmpl-id');
   var grid = card.parentElement;
   var plusCard = grid.querySelector('[style*="border-style:dashed"]');
 
+  // Deep copy template data with new ID
+  var newTmplId = 'tmpl_' + (tmplNextId++);
+  if (oldId && TEMPLATE_DATA[oldId]) {
+    TEMPLATE_DATA[newTmplId] = JSON.parse(JSON.stringify(TEMPLATE_DATA[oldId]));
+    TEMPLATE_DATA[newTmplId].name = TEMPLATE_DATA[newTmplId].name + ' (Copy)';
+  }
+
   var clone = card.cloneNode(true);
+  clone.setAttribute('data-tmpl-id', newTmplId);
   // Update name
   var nameEl = clone.querySelector('.tmpl-nm');
-  if (nameEl) nameEl.textContent = nameEl.textContent + ' (Copy)';
+  if (nameEl) nameEl.textContent = (TEMPLATE_DATA[newTmplId] || {}).name || 'Copy';
   // Reset star to unstarred
   clone.classList.remove('starred');
   var starEl = clone.querySelector('span');
@@ -9457,11 +11151,6 @@ function dupeTemplate(btn) {
     countEl.style.color = 'var(--t3)';
     countEl.style.marginTop = '8px';
   }
-  // Remove any open edit form or dropdown
-  var ef = clone.querySelector('.tmpl-edit-form');
-  if (ef) ef.remove();
-  var dd = clone.querySelector('.tmpl-assign-dd');
-  if (dd) dd.remove();
 
   if (plusCard) {
     grid.insertBefore(clone, plusCard);
@@ -10235,6 +11924,21 @@ function renderClientMeals() {
   updateClientNutritionTotals();
 }
 
+// Debounced nutrition log save — prevents hammering Supabase on rapid clicks
+var _nutritionSaveTimer = null;
+function debouncedSaveNutritionLog() {
+  if (_nutritionSaveTimer) clearTimeout(_nutritionSaveTimer);
+  _nutritionSaveTimer = setTimeout(function() {
+    if (IS_LIVE && currentUser) {
+      var clientId = (currentUserRole === 'client' && currentUser) ? currentUser.id : (activeCoachClient || 'rick');
+      saveDailyNutritionLog(clientId, clientMeals).then(function(ok) {
+        if (ok) console.log('✓ Nutrition log synced');
+        else console.warn('Nutrition log sync failed');
+      });
+    }
+  }, 1500); // Save 1.5s after last change
+}
+
 function logClientMeal(idx) {
   if (clientMeals[idx].logged) return;
   clientMeals[idx].logged = true;
@@ -10243,6 +11947,7 @@ function logClientMeal(idx) {
   renderClientMeals();
   showToast(clientMeals[idx].name + ' logged!');
   checkMealsStatus();
+  debouncedSaveNutritionLog();
 }
 
 let clientAddingToMeal = 0;
@@ -10263,6 +11968,7 @@ function toggleClientFoodCheck(mi, fi) {
     clientMeals[mi].logged = false;
   }
   renderClientMeals();
+  debouncedSaveNutritionLog();
 }
 
 function toggleClientFoodSearch(mealIdx) {
@@ -10340,6 +12046,7 @@ function addClientFood(foodId) {
   showToast('✓ ' + food.name + ' added to ' + clientMeals[mi].name);
   // Hide search — close all inline panels
   document.querySelectorAll('.client-food-search-inline').forEach(function(el) { el.style.display = 'none'; });
+  debouncedSaveNutritionLog();
 }
 
 function removeClientFood(mi, fi) {
@@ -10353,6 +12060,7 @@ function removeClientFood(mi, fi) {
   }
   renderClientMeals();
   showToast(fname + ' removed');
+  debouncedSaveNutritionLog();
 }
 
 // Live update client food grams — updates data + displayed numbers without re-render
@@ -10399,6 +12107,7 @@ function finalizeClientGrams(mi, fi, val) {
     f.kcal = Math.round(dbMatch.kcal * grams / 100);
   }
   renderClientMeals();
+  debouncedSaveNutritionLog();
 }
 
 function updateClientFoodGrams(mi, fi, val) {
@@ -10612,80 +12321,119 @@ function closeSwap() {
 
 // Activity log: tracks what the client did each day
 // Structure: { clientId: { 'YYYY-MM-DD': { checkin, workout, meals, protein, water, supplements, score } } }
-const CLIENT_ACTIVITY = {
-  rick: {
-    '2026-03-01': { checkin:true, workout:false, meals:2, protein:false, water:true, supplements:true, score:55 },
-    '2026-03-02': { checkin:true, workout:true, meals:3, protein:true, water:true, supplements:true, score:92 },
-    '2026-03-03': { checkin:true, workout:false, meals:3, protein:true, water:false, supplements:true, score:70 },
-    '2026-03-04': { checkin:true, workout:true, meals:3, protein:true, water:true, supplements:true, score:95 },
-    '2026-03-05': { checkin:true, workout:false, meals:2, protein:false, water:true, supplements:false, score:48 },
-    '2026-03-06': { checkin:true, workout:true, meals:2, protein:false, water:true, supplements:true, score:62 },
-    '2026-03-07': { checkin:true, workout:false, meals:3, protein:true, water:true, supplements:true, score:75 },
-    '2026-03-08': { checkin:true, workout:true, meals:3, protein:true, water:false, supplements:true, score:82 },
-    '2026-03-09': { checkin:false, workout:false, meals:1, protein:false, water:false, supplements:false, score:12 },
-    '2026-03-10': { checkin:true, workout:true, meals:3, protein:true, water:true, supplements:true, score:95 },
-    '2026-03-11': { checkin:true, workout:false, meals:2, protein:false, water:true, supplements:true, score:55 },
-    '2026-03-12': { checkin:true, workout:false, meals:3, protein:true, water:true, supplements:true, score:72 },
-    '2026-03-13': { checkin:true, workout:true, meals:3, protein:true, water:true, supplements:true, score:95 },
-    '2026-03-14': { checkin:true, workout:false, meals:2, protein:false, water:false, supplements:true, score:45 },
-    '2026-03-15': { checkin:true, workout:true, meals:3, protein:true, water:true, supplements:true, score:92 },
-    '2026-03-16': { checkin:false, workout:false, meals:0, protein:false, water:false, supplements:false, score:0 },
-    '2026-03-17': { checkin:false, workout:false, meals:1, protein:false, water:false, supplements:false, score:8 },
-    '2026-03-18': { checkin:false, workout:false, meals:0, protein:false, water:false, supplements:false, score:0 },
-    '2026-03-19': { checkin:false, workout:false, meals:1, protein:false, water:false, supplements:false, score:8 },
-    '2026-03-20': { checkin:true, workout:true, meals:2, protein:false, water:true, supplements:true, score:65 },
-    '2026-03-21': { checkin:true, workout:false, meals:3, protein:true, water:true, supplements:true, score:78 },
-    '2026-03-22': { checkin:false, workout:false, meals:1, protein:false, water:false, supplements:false, score:10 }
-  },
-  niels: {
-    '2026-03-06': { checkin:true, workout:true, meals:3, protein:true, water:true, supplements:true, score:100 },
-    '2026-03-07': { checkin:true, workout:true, meals:3, protein:true, water:true, supplements:true, score:100 },
-    '2026-03-08': { checkin:true, workout:true, meals:3, protein:true, water:true, supplements:true, score:100 },
-    '2026-03-09': { checkin:true, workout:false, meals:3, protein:true, water:true, supplements:true, score:85 },
-    '2026-03-10': { checkin:true, workout:true, meals:3, protein:true, water:true, supplements:true, score:100 },
-    '2026-03-11': { checkin:true, workout:true, meals:3, protein:true, water:true, supplements:true, score:100 },
-    '2026-03-12': { checkin:true, workout:true, meals:3, protein:true, water:true, supplements:true, score:100 },
-    '2026-03-13': { checkin:true, workout:true, meals:3, protein:true, water:true, supplements:true, score:100 },
-    '2026-03-14': { checkin:true, workout:false, meals:3, protein:true, water:true, supplements:true, score:85 },
-    '2026-03-15': { checkin:true, workout:true, meals:3, protein:true, water:true, supplements:true, score:100 },
-    '2026-03-16': { checkin:true, workout:false, meals:3, protein:true, water:true, supplements:true, score:85 },
-    '2026-03-17': { checkin:true, workout:true, meals:3, protein:true, water:true, supplements:true, score:100 },
-    '2026-03-18': { checkin:true, workout:true, meals:3, protein:true, water:true, supplements:true, score:100 },
-    '2026-03-19': { checkin:true, workout:true, meals:3, protein:true, water:false, supplements:true, score:88 }
-  },
-  stefan: {
-    '2026-03-06': { checkin:true, workout:true, meals:3, protein:true, water:true, supplements:true, score:100 },
-    '2026-03-07': { checkin:true, workout:true, meals:3, protein:true, water:true, supplements:true, score:100 },
-    '2026-03-08': { checkin:true, workout:true, meals:3, protein:true, water:true, supplements:true, score:100 },
-    '2026-03-09': { checkin:true, workout:true, meals:3, protein:true, water:true, supplements:true, score:100 },
-    '2026-03-10': { checkin:true, workout:true, meals:3, protein:true, water:true, supplements:true, score:100 },
-    '2026-03-11': { checkin:true, workout:true, meals:3, protein:true, water:true, supplements:true, score:100 },
-    '2026-03-12': { checkin:true, workout:true, meals:3, protein:true, water:true, supplements:true, score:100 },
-    '2026-03-13': { checkin:true, workout:true, meals:3, protein:true, water:true, supplements:true, score:100 },
-    '2026-03-14': { checkin:true, workout:false, meals:3, protein:true, water:true, supplements:true, score:85 },
-    '2026-03-15': { checkin:true, workout:true, meals:3, protein:true, water:true, supplements:true, score:100 },
-    '2026-03-16': { checkin:true, workout:true, meals:3, protein:true, water:true, supplements:true, score:100 },
-    '2026-03-17': { checkin:true, workout:true, meals:3, protein:true, water:true, supplements:true, score:100 },
-    '2026-03-18': { checkin:true, workout:true, meals:3, protein:true, water:true, supplements:true, score:100 },
-    '2026-03-19': { checkin:true, workout:true, meals:3, protein:true, water:true, supplements:true, score:100 }
-  },
-  mike: {
-    '2026-03-06': { checkin:true, workout:true, meals:3, protein:true, water:true, supplements:true, score:95 },
-    '2026-03-07': { checkin:true, workout:false, meals:3, protein:true, water:true, supplements:true, score:82 },
-    '2026-03-08': { checkin:true, workout:true, meals:3, protein:true, water:true, supplements:true, score:95 },
-    '2026-03-09': { checkin:true, workout:true, meals:3, protein:true, water:true, supplements:true, score:95 },
-    '2026-03-10': { checkin:true, workout:true, meals:3, protein:true, water:false, supplements:true, score:85 },
-    '2026-03-11': { checkin:true, workout:true, meals:3, protein:true, water:true, supplements:true, score:95 },
-    '2026-03-12': { checkin:true, workout:false, meals:2, protein:false, water:true, supplements:true, score:62 },
-    '2026-03-13': { checkin:true, workout:true, meals:3, protein:true, water:true, supplements:true, score:95 },
-    '2026-03-14': { checkin:true, workout:true, meals:3, protein:true, water:true, supplements:true, score:95 },
-    '2026-03-15': { checkin:true, workout:true, meals:3, protein:true, water:true, supplements:true, score:95 },
-    '2026-03-16': { checkin:true, workout:false, meals:3, protein:true, water:true, supplements:true, score:82 },
-    '2026-03-17': { checkin:true, workout:true, meals:3, protein:true, water:true, supplements:true, score:95 },
-    '2026-03-18': { checkin:true, workout:true, meals:3, protein:true, water:true, supplements:true, score:95 },
-    '2026-03-19': { checkin:true, workout:true, meals:3, protein:true, water:true, supplements:true, score:95 }
+// Now built dynamically from real Supabase data via buildClientActivityFromData()
+var CLIENT_ACTIVITY = {};
+
+// ---- Cache objects populated by loadLiveData for activity building ----
+var _cachedDailyCheckins = {};   // { clientId: [ {date, steps, hydration, ...} ] }
+var _cachedNutritionLogs = {};   // { clientId: [ {date, meals_logged, meals_total, total_protein, ...} ] }
+var _cachedWorkoutDates = {};    // { clientId: Set of 'YYYY-MM-DD' strings where workouts happened }
+
+/**
+ * Build CLIENT_ACTIVITY for a single client from real persisted data.
+ * Sources:
+ *   - daily_checkins → checkin flag, water, supplements proxy
+ *   - daily_nutrition_logs → meals count, protein hit
+ *   - workout_sessions (via WORKOUT_HISTORY) → workout flag
+ * Produces the same shape the dashboard expects:
+ *   { 'YYYY-MM-DD': { checkin, workout, meals, protein, water, supplements, score } }
+ */
+function buildClientActivityFromData(clientId) {
+  var activity = {};
+  var checkins = _cachedDailyCheckins[clientId] || [];
+  var nutritionLogs = _cachedNutritionLogs[clientId] || [];
+  var workoutDates = _cachedWorkoutDates[clientId] || new Set();
+
+  // Index nutrition logs by date for fast lookup
+  var nutByDate = {};
+  nutritionLogs.forEach(function(n) { nutByDate[n.date] = n; });
+
+  // Index checkins by date (from Supabase cache)
+  var ciByDate = {};
+  checkins.forEach(function(c) { ciByDate[c.date] = c; });
+
+  // Also include DAILY_CHECKIN_DATA as fallback (for demo mode or pre-populated data)
+  var demoCheckins = DAILY_CHECKIN_DATA[clientId] || {};
+  Object.keys(demoCheckins).forEach(function(dateKey) {
+    if (!ciByDate[dateKey]) ciByDate[dateKey] = demoCheckins[dateKey];
+  });
+
+  // Collect all unique dates from all sources
+  var allDates = {};
+  Object.keys(ciByDate).forEach(function(d) { allDates[d] = true; });
+  nutritionLogs.forEach(function(n) { allDates[n.date] = true; });
+  workoutDates.forEach(function(d) { allDates[d] = true; });
+
+  // Also build workout dates from WORKOUT_HISTORY if not already cached
+  if (WORKOUT_HISTORY[clientId]) {
+    Object.keys(WORKOUT_HISTORY[clientId]).forEach(function(dayIdx) {
+      var sessions = WORKOUT_HISTORY[clientId][dayIdx];
+      if (sessions) sessions.forEach(function(s) {
+        if (s.date) { allDates[s.date] = true; workoutDates.add(s.date); }
+      });
+    });
   }
-};
+
+  Object.keys(allDates).forEach(function(dateKey) {
+    var ci = ciByDate[dateKey];
+    var nut = nutByDate[dateKey];
+    var didWorkout = workoutDates.has(dateKey);
+
+    // Determine each flag
+    var hasCheckin = !!ci;  // submitted a daily check-in
+    var mealsLogged = nut ? (nut.meals_logged || 0) : 0;
+    var mealsTotal = nut ? (nut.meals_total || 3) : 3;
+    // Protein: prefer nutrition log total, fall back to daily checkin protein field
+    var totalProtein = nut ? Number(nut.total_protein || 0) : (ci && ci.protein ? Number(ci.protein) : 0);
+
+    // Protein hit: logged at least some protein (>80g as reasonable threshold)
+    var proteinHit = totalProtein >= 80;
+
+    // If no nutrition log but checkin has kcal, estimate meals from kcal presence
+    if (!nut && ci && ci.kcal && Number(ci.kcal) > 0) {
+      mealsLogged = Number(ci.kcal) > 1500 ? 3 : Number(ci.kcal) > 800 ? 2 : 1;
+    }
+
+    // Water: from daily_checkins hydration field (>=2L = hit)
+    var waterHit = ci ? (Number(ci.hydration || 0) >= 2) : false;
+
+    // Supplements: proxy from daily checkin existence (if they checked in, assume supplements taken)
+    var supplementsHit = hasCheckin;
+
+    // --- Score calculation (0-100) ---
+    // Weighted: checkin=15, workout=20, meals=25, protein=20, water=10, supplements=10
+    var score = 0;
+    if (hasCheckin) score += 15;
+    if (didWorkout) score += 20;
+    // Meals: proportional to logged/total
+    score += Math.round((mealsLogged / Math.max(1, mealsTotal)) * 25);
+    if (proteinHit) score += 20;
+    if (waterHit) score += 10;
+    if (supplementsHit) score += 10;
+
+    activity[dateKey] = {
+      checkin: hasCheckin,
+      workout: didWorkout,
+      meals: mealsLogged,
+      protein: proteinHit,
+      water: waterHit,
+      supplements: supplementsHit,
+      score: Math.min(100, score)
+    };
+  });
+
+  return activity;
+}
+
+/**
+ * Build CLIENT_ACTIVITY for ALL clients. Call after all data is loaded.
+ */
+function buildAllClientActivity() {
+  Object.keys(CLIENT_META).forEach(function(clientId) {
+    CLIENT_ACTIVITY[clientId] = buildClientActivityFromData(clientId);
+  });
+  console.log('✓ CLIENT_ACTIVITY built from real data for', Object.keys(CLIENT_META).length, 'clients');
+}
 
 // Achievement definitions
 const ACHIEVEMENTS = [
@@ -11329,13 +13077,11 @@ function renderTrainingAlerts() {
   var body = document.getElementById('training-alerts-body');
   if (!body) return;
   var html = '';
-  var clientNames = { rick: 'Rick Linden', niels: 'Niels van Berg', stefan: 'Stefan Wolff', mike: 'Mike Hartman' };
-  var clientColors = { rick: 'var(--red)', niels: 'var(--gold)', stefan: 'var(--orange)', mike: 'var(--blue)' };
-  var clientBgs = { rick: 'var(--red-d)', niels: 'var(--gold-d)', stefan: 'var(--orange-d)', mike: 'var(--blue-d)' };
   var alertCount = 0;
 
   Object.keys(WORKOUT_HISTORY).forEach(function(clientId) {
-    var clientHist = WORKOUT_HISTORY[clientId];
+    var meta = CLIENT_META[clientId];
+    if (!meta) return;
     var exData = ALL_CLIENT_EXERCISES[clientId];
     if (!exData || !exData.days) return;
 
@@ -11344,10 +13090,9 @@ function renderTrainingAlerts() {
         var history = getExerciseHistory(clientId, dayIdx, ex.name);
         if (isStalled(history, 2)) {
           alertCount++;
-          var initials = (clientNames[clientId] || clientId).split(' ').map(function(w){return w[0];}).join('');
           html += '<div style="display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--t2);padding:4px 0">';
-          html += '<div class="cl-av" style="width:22px;height:22px;font-size:8px;background:' + (clientBgs[clientId]||'var(--s3)') + ';color:' + (clientColors[clientId]||'var(--t1)') + '">' + initials + '</div>';
-          html += '<div style="flex:1;min-width:0"><span style="font-weight:500;color:var(--t1)">' + (clientNames[clientId]||clientId) + '</span>';
+          html += '<div class="cl-av" style="width:22px;height:22px;font-size:8px;background:' + (meta.bgColor||'var(--s3)') + ';color:' + (meta.color||'var(--t1)') + '">' + meta.initials + '</div>';
+          html += '<div style="flex:1;min-width:0"><span style="font-weight:500;color:var(--t1)">' + meta.name + '</span>';
           html += '<div style="font-size:10px;color:var(--red)">⚠ ' + ex.name + ' — stalled (' + history.length + ' sessions flat)</div>';
           html += '</div></div>';
         }
@@ -11358,10 +13103,9 @@ function renderTrainingAlerts() {
           var allPrev = history.slice(0, -1).map(function(h) { return h.volume; });
           var maxPrev = Math.max.apply(null, allPrev);
           if (lastVol > maxPrev * 1.05 && lastVol > 0) {
-            var initials2 = (clientNames[clientId] || clientId).split(' ').map(function(w){return w[0];}).join('');
             html += '<div style="display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--t2);padding:4px 0">';
-            html += '<div class="cl-av" style="width:22px;height:22px;font-size:8px;background:' + (clientBgs[clientId]||'var(--s3)') + ';color:' + (clientColors[clientId]||'var(--t1)') + '">' + initials2 + '</div>';
-            html += '<div style="flex:1;min-width:0"><span style="font-weight:500;color:var(--t1)">' + (clientNames[clientId]||clientId) + '</span>';
+            html += '<div class="cl-av" style="width:22px;height:22px;font-size:8px;background:' + (meta.bgColor||'var(--s3)') + ';color:' + (meta.color||'var(--t1)') + '">' + meta.initials + '</div>';
+            html += '<div style="flex:1;min-width:0"><span style="font-weight:500;color:var(--t1)">' + meta.name + '</span>';
             html += '<div style="font-size:10px;color:var(--green)">🏆 New PR on ' + ex.name + '!</div>';
             html += '</div></div>';
           }
@@ -11492,7 +13236,8 @@ function renderWorkout() {
     const prevLabel = isPlank ? 'PREV (sec × sets)' : 'PREVIOUS';
 
     // Progressive overload info
-    const exHistory = getExerciseHistory(activeCoachClient || 'rick', clientWorkoutDay, ex.name);
+    const _wClientId = (currentUserRole === 'client' && currentUser) ? currentUser.id : (activeCoachClient || 'rick');
+    const exHistory = getExerciseHistory(_wClientId, clientWorkoutDay, ex.name);
     const trend = getProgressTrend(exHistory);
     const trendIcon = getProgressIcon(trend);
     let volInfo = '';
@@ -11688,8 +13433,19 @@ function finishWorkout() {
   }
 
   // Save to progressive overload history BEFORE resetting
-  var clientId = activeCoachClient || 'rick';
+  var clientId = (currentUserRole === 'client' && currentUser) ? currentUser.id : (activeCoachClient || 'rick');
   saveWorkoutToHistory(clientId, clientWorkoutDay, clientExercises);
+
+  // Persist to Supabase
+  if (IS_LIVE && currentUser) {
+    var dayData = (ALL_CLIENT_EXERCISES[clientId] || {}).days || [];
+    var dayName = dayData[clientWorkoutDay] ? dayData[clientWorkoutDay].name : 'Day ' + (clientWorkoutDay + 1);
+    var noteText = (clientWorkoutNotes[clientId] && clientWorkoutNotes[clientId][clientWorkoutDay]) || '';
+    saveWorkoutSession(clientId, clientWorkoutDay, dayName, clientExercises, noteText).then(function(ok) {
+      if (ok) console.log('✓ Workout session synced to cloud');
+      else console.warn('Workout session cloud save failed');
+    });
+  }
 
   // Calculate session volume for the toast
   var sessionVol = clientExercises.reduce(function(sum, ex) {
@@ -11780,6 +13536,15 @@ function handlePhotoUpload(input, photoType) {
     }
 
     showToast('✓ ' + photoType.charAt(0).toUpperCase() + photoType.slice(1) + ' photo saved');
+
+    // Persist to Supabase Storage
+    if (IS_LIVE && currentUser) {
+      var saveId = (currentUserRole === 'client') ? currentUser.id : clientId;
+      uploadProgressPhoto(saveId, photoType, dataUrl).then(function(ok) {
+        if (ok) showToast('✓ Photo synced to cloud');
+        else console.warn('Photo cloud upload failed');
+      });
+    }
   };
   reader.readAsDataURL(input.files[0]);
 
@@ -11880,7 +13645,220 @@ function saveMeasurements() {
 
   toggleMeasurementForm();
   showToast('✓ Measurements saved');
+
+  // Persist to Supabase
+  if (IS_LIVE && currentUser) {
+    var saveId = (currentUserRole === 'client') ? currentUser.id : clientId;
+    saveMeasurement(saveId, todayKey, {weight:weight, waist:waist, chest:chest, arms:arms, thighs:thighs}).then(function(ok) {
+      if (ok) console.log('✓ Measurements synced to cloud');
+      else console.warn('Measurements cloud save failed');
+    });
+    // Also persist weight to weight_log
+    saveWeight(todayKey, weight, saveId).then(function(ok) {
+      if (ok) console.log('✓ Weight from measurements synced');
+    });
+  }
 }
+
+/* ============================================================
+   AUTH SCREEN LOGIC
+============================================================ */
+let authMode = 'login'; // 'login' or 'signup'
+
+function authTab(mode) {
+  authMode = mode;
+  document.querySelectorAll('.auth-tab').forEach((t, i) => {
+    t.classList.toggle('active', (i === 0 && mode === 'login') || (i === 1 && mode === 'signup'));
+  });
+  document.getElementById('signup-fields').style.display = mode === 'signup' ? 'block' : 'none';
+  document.getElementById('auth-submit-btn').textContent = mode === 'signup' ? 'CREATE ACCOUNT' : 'SIGN IN';
+  document.getElementById('auth-error').classList.remove('show');
+  document.getElementById('auth-success').classList.remove('show');
+}
+
+function showAuthError(msg) {
+  const el = document.getElementById('auth-error');
+  el.textContent = msg;
+  el.classList.add('show');
+  document.getElementById('auth-success').classList.remove('show');
+}
+
+function showAuthSuccess(msg) {
+  const el = document.getElementById('auth-success');
+  el.textContent = msg;
+  el.classList.add('show');
+  document.getElementById('auth-error').classList.remove('show');
+}
+
+async function handleAuth(e) {
+  e.preventDefault();
+  const btn = document.getElementById('auth-submit-btn');
+  const email = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-password').value;
+
+  if (!email || !password) return showAuthError('Please fill in all fields.');
+  if (password.length < 6) return showAuthError('Password must be at least 6 characters.');
+
+  // Sanity check: is Supabase loaded?
+  if (!IS_LIVE || !sb) {
+    return showAuthError('Supabase is not connected. Please check your internet connection and refresh the page.');
+  }
+
+  btn.disabled = true;
+  btn.textContent = authMode === 'signup' ? 'CREATING...' : 'SIGNING IN...';
+
+  try {
+    if (authMode === 'signup') {
+      const fullName = document.getElementById('auth-name').value.trim();
+      const role = document.getElementById('auth-role').value;
+      if (!fullName) { btn.disabled = false; btn.textContent = 'CREATE ACCOUNT'; return showAuthError('Please enter your name.'); }
+
+      const { data, error } = await signUp(email, password, fullName, role);
+      if (error) { btn.disabled = false; btn.textContent = 'CREATE ACCOUNT'; return showAuthError(error.message || error); }
+
+      // Set user and role directly
+      if (data.user) {
+        currentUser = data.user;
+        currentUserRole = role;
+      }
+      showAuthSuccess('Account created! Logging you in...');
+      await new Promise(r => setTimeout(r, 800));
+      enterApp();
+    } else {
+      console.log('Attempting sign in for:', email);
+      // Wrap signIn in a timeout so it can't hang forever
+      let result;
+      try {
+        const signInPromise = signIn(email, password);
+        const signInTimeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Sign-in timed out. Please check your connection and try again.')), 8000));
+        result = await Promise.race([signInPromise, signInTimeout]);
+      } catch (timeoutErr) {
+        btn.disabled = false; btn.textContent = 'SIGN IN';
+        return showAuthError(timeoutErr.message);
+      }
+      console.log('Sign in result:', result);
+      if (result.error) { btn.disabled = false; btn.textContent = 'SIGN IN'; return showAuthError(result.error.message || String(result.error)); }
+
+      // Set user before entering app
+      const user = result.data ? result.data.user : null;
+      if (user) {
+        currentUser = user;
+        console.log('User authenticated:', user.id);
+        // Fetch role with real timeout using Promise.race
+        try {
+          const profilePromise = sb.from('profiles').select('role, full_name').eq('id', user.id).single();
+          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Profile fetch timeout')), 4000));
+          const { data: profile, error: profErr } = await Promise.race([profilePromise, timeoutPromise]);
+          console.log('Profile result:', profile, profErr);
+          if (profile && profile.role) currentUserRole = profile.role;
+          else currentUserRole = 'coach'; // default
+        } catch(e) {
+          console.log('Profile fetch failed/timed out:', e.message, '— defaulting to coach');
+          currentUserRole = 'coach';
+        }
+      } else {
+        console.log('No user in sign-in response');
+        currentUserRole = 'coach';
+      }
+      console.log('Entering app as:', currentUserRole);
+      enterApp();
+    }
+  } catch (err) {
+    console.error('Auth error:', err);
+    btn.disabled = false;
+    btn.textContent = authMode === 'signup' ? 'CREATE ACCOUNT' : 'SIGN IN';
+    showAuthError('Something went wrong. Please try again.');
+  }
+}
+
+async function enterApp() {
+  document.getElementById('app-auth').classList.remove('visible');
+
+  // Load live data from Supabase
+  const loaded = await loadLiveData();
+
+  // Determine which view to show based on role
+  if (currentUserRole === 'client') {
+    document.getElementById('app-client').classList.add('visible');
+  } else {
+    document.getElementById('app-coach').classList.add('visible');
+    // Refresh coach views with live data
+    if (loaded) {
+      try {
+        if (typeof renderClientList === 'function') renderClientList();
+        if (typeof renderSmartActions === 'function') renderSmartActions();
+        if (typeof updateDashboardKPIs === 'function') updateDashboardKPIs();
+        if (typeof renderLiveActivity === 'function') renderLiveActivity();
+        if (typeof renderClientScoreboard === 'function') renderClientScoreboard();
+        if (typeof updateCoachStreakScores === 'function') updateCoachStreakScores();
+        if (typeof populateWeeklyClientDropdown === 'function') populateWeeklyClientDropdown();
+        if (typeof populateCoachClientDropdowns === 'function') populateCoachClientDropdowns();
+        // Update client badge count
+        const badge = document.querySelector('#ni-c-clients .ni-badge');
+        if (badge) badge.textContent = Object.keys(CLIENT_META).length;
+      } catch(e) { console.log('Render refresh:', e); }
+    }
+  }
+
+  // Update the coach card with logged-in user info
+  if (currentUser) {
+    const nameEl = document.querySelector('#app-coach .u-card .u-name');
+    if (nameEl && currentUser.user_metadata?.full_name) {
+      nameEl.textContent = currentUser.user_metadata.full_name + ' — Head Coach';
+    }
+    const roleEl = document.querySelector('#app-coach .u-card .u-role');
+    if (roleEl) roleEl.textContent = 'Aesthetic Lifestyle';
+  }
+
+  // Update the "Switch to Client" button with the active client's info
+  if (typeof updateSwitchClientButton === 'function') updateSwitchClientButton();
+}
+
+function enterDemoMode() {
+  document.getElementById('app-auth').classList.remove('visible');
+  document.getElementById('app-coach').classList.add('visible');
+  showToast('Demo mode — data is not saved');
+}
+
+function handleLogout() {
+  signOut().then(() => {
+    document.getElementById('app-coach').classList.remove('visible');
+    document.getElementById('app-client').classList.remove('visible');
+    document.getElementById('app-auth').classList.add('visible');
+    // Reset form
+    document.getElementById('auth-email').value = '';
+    document.getElementById('auth-password').value = '';
+    document.getElementById('auth-error').classList.remove('show');
+    document.getElementById('auth-success').classList.remove('show');
+    authTab('login');
+    showToast('Signed out');
+  });
+}
+
+// On page load: check if user is already logged in
+(async function checkExistingSession() {
+  if (!IS_LIVE) return; // Demo mode — auth screen still shows, user can pick demo
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session?.user) {
+      currentUser = session.user;
+      try {
+        const profilePromise = sb.from('profiles').select('role, full_name').eq('id', session.user.id).single();
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000));
+        const { data } = await Promise.race([profilePromise, timeoutPromise]);
+        if (data && data.role) {
+          currentUserRole = data.role;
+          enterApp();
+        }
+      } catch (e) {
+        console.log('Auto-login profile fetch failed:', e.message);
+        // Don't auto-enter — let user click sign in
+      }
+    }
+  } catch (e) {
+    console.log('Session check failed:', e.message);
+  }
+})();
 </script>
 
 <!-- Barcode Scanner Overlay -->
