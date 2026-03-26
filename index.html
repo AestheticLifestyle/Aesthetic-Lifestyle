@@ -5521,6 +5521,7 @@ function getChecklistDateKey() {
 }
 
 function saveChecklistForDate() {
+  if (_loadingDashboard) return; // Don't save during load — DOM isn't fully restored yet
   var clientId = activeViewClient || activeCoachClient;
   if (!clientId) return;
   var dateKey = getChecklistDateKey();
@@ -5640,7 +5641,7 @@ function toggleCI(el) {
     }
   }
 
-  // ── WORKOUT: mark done ──
+  // ── WORKOUT: mark done + persist to DAILY_LOG ──
   if (el.id === 'ci-workout') {
     var ws = document.getElementById('ci-workout-status');
     if (checking) {
@@ -5649,6 +5650,10 @@ function toggleCI(el) {
     } else {
       if (ws) { ws.textContent = '—'; ws.style.color = 'var(--t3)'; }
     }
+    // Persist workout done state to DAILY_LOG
+    var wLog = getDailyLog(cid, dateKey);
+    wLog.workout = checking;
+    saveDailyLogToLS();
   }
 
   // ── EVENING CHECK-IN ──
@@ -6566,7 +6571,7 @@ function checkMealsStatus() {
     ms.textContent = logged + ' / ' + total + ' logged';
     ms.style.color = (total > 0 && logged >= total) ? 'var(--green)' : logged > 0 ? 'var(--orange)' : 'var(--t3)';
   }
-  if (logged >= total) autoCheck('ci-meals');
+  if (total > 0 && logged >= total) autoCheck('ci-meals');
   else autoUncheck('ci-meals');
   // Check protein target based on logged meals
   checkProteinStatus();
@@ -9575,8 +9580,13 @@ function renderClientList() {
     return b.score - a.score;
   });
 
+  // Separate active and pending clients
+  var activeClients = clients.filter(function(c) { return !c.meta.pending; });
+  var pendingClients = clients.filter(function(c) { return c.meta.pending; });
+
   // Update counts
-  document.getElementById('client-list-subtitle').textContent = clientIds.length + ' active clients · ' + atRiskCount + ' at risk';
+  var pendingLabel = pendingClients.length > 0 ? ' · ' + pendingClients.length + ' pending' : '';
+  document.getElementById('client-list-subtitle').textContent = activeClients.length + ' active clients · ' + atRiskCount + ' at risk' + pendingLabel;
   var allCount = document.getElementById('chip-all-count');
   var riskCount = document.getElementById('chip-risk-count');
   if (allCount) allCount.textContent = '(' + clientIds.length + ')';
@@ -9610,6 +9620,21 @@ function renderClientList() {
     html += '<button class="btn btn-p btn-sm" onclick="openFullProfile(\'' + c.id + '\')">Full Profile</button>';
     html += '<button class="btn btn-g btn-sm" onclick="openQuickPanel(\'' + c.id + '\')">Quick</button>';
     html += '<button class="btn btn-g btn-sm" onclick="openChatFor(\'' + c.id + '\')">Chat</button>';
+    html += '</div></td>';
+    html += '</tr>';
+  });
+
+  // ── Pending invite rows ──
+  pendingClients.forEach(function(c) {
+    html += '<tr style="opacity:.65">';
+    html += '<td><div style="display:flex;align-items:center;gap:8px"><div class="cl-av" style="background:var(--s3);color:var(--t3)">' + c.meta.initials + '</div><div><div class="cl-nm">' + c.meta.name + '</div><div class="cl-goal" style="color:var(--orange)">' + (c.meta.email || '') + '</div></div></div></td>';
+    html += '<td><span class="tag t-gy">' + c.meta.goal + '</span></td>';
+    html += '<td><span style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(255,154,60,.15);color:var(--orange)">Pending</span></td>';
+    html += '<td>—</td><td>—</td><td>—</td><td>—</td>';
+    html += '<td><span style="font-size:11px;color:var(--t3)">Invite sent</span></td>';
+    html += '<td onclick="event.stopPropagation()"><div style="display:flex;gap:4px">';
+    html += '<button class="btn btn-g btn-sm" onclick="resendInvite(\'' + (c.meta.email || '') + '\',\'' + c.meta.name + '\')">Resend</button>';
+    html += '<button class="btn btn-g btn-sm" style="color:var(--red)" onclick="cancelInvite(\'' + c.id + '\',\'' + (c.meta.email || '') + '\')">Cancel</button>';
     html += '</div></td>';
     html += '</tr>';
   });
@@ -10332,55 +10357,350 @@ function generateOnboardingPlan() {
 }
 
 // Confirm onboarding — add client to system
-function confirmOnboarding() {
+async function confirmOnboarding() {
   var fname = document.getElementById('onb-fname').value || 'New';
   var lname = document.getElementById('onb-lname').value || 'Client';
-  var email = document.getElementById('onb-email').value || '';
+  var email = (document.getElementById('onb-email').value || '').trim().toLowerCase();
+  var fullName = fname + ' ' + lname;
   var initials = (fname[0] || 'N').toUpperCase() + (lname[0] || 'C').toUpperCase();
-  var clientId = fname.toLowerCase().replace(/\s/g, '');
+
+  if (!email) { showToast('Please enter a valid email address'); return; }
 
   var colors = ['var(--green)', 'var(--purple)', 'var(--blue)', 'var(--orange)', 'var(--gold)', 'var(--red)'];
   var bgColors = ['rgba(59,255,166,.12)', 'rgba(155,89,255,.12)', 'rgba(91,158,255,.12)', 'rgba(255,154,60,.12)', 'rgba(200,169,110,.12)', 'rgba(255,82,82,.12)'];
   var colorIdx = Object.keys(CLIENT_META).length % colors.length;
-
-  // Add to CLIENT_META
   var macros = calcMacroTargets();
-  CLIENT_META[clientId] = {
-    name: fname + ' ' + lname,
+  var goalLabel = onbData.goal === 'fat_loss' ? 'Fat loss' : onbData.goal === 'muscle_gain' ? 'Muscle gain' : onbData.goal === 'recomp' ? 'Recomp' : onbData.goal === 'performance' ? 'Performance' : 'Health';
+  var coachNotes = (document.getElementById('onb-coach-notes') || {}).value || '';
+
+  // Show loading state on button
+  var confirmBtn = document.querySelector('#onb-step-5 .btn-gr');
+  var origText = confirmBtn ? confirmBtn.textContent : '';
+  if (confirmBtn) { confirmBtn.textContent = 'Sending invite...'; confirmBtn.style.pointerEvents = 'none'; }
+
+  // ── STEP 1: Create invitation in Supabase ──
+  var inviteCreated = false;
+  if (IS_LIVE && sb && currentUser) {
+    try {
+      var { data: invData, error: invErr } = await sb.from('invitations').upsert({
+        coach_id: currentUser.id,
+        email: email,
+        full_name: fullName,
+        goal: goalLabel,
+        experience: onbData.experience || 'beginner',
+        training_days: onbData.trainingDays || 3,
+        activity_level: onbData.activityLevel || 'moderate',
+        age: parseInt(document.getElementById('onb-age').value) || null,
+        gender: (document.getElementById('onb-gender') || {}).value || 'male',
+        height_cm: parseFloat(document.getElementById('onb-height').value) || null,
+        weight_kg: parseFloat(document.getElementById('onb-weight').value) || null,
+        target_weight_kg: parseFloat(document.getElementById('onb-target-weight').value) || null,
+        body_fat_pct: parseFloat(document.getElementById('onb-bodyfat').value) || null,
+        injuries: (document.getElementById('onb-injuries') || {}).value || null,
+        macro_kcal: macros.kcal,
+        macro_protein: macros.protein,
+        macro_carbs: macros.carbs,
+        macro_fat: macros.fat,
+        coach_notes: coachNotes || null,
+        status: 'pending'
+      }, { onConflict: 'coach_id,email' }).select();
+
+      if (invErr) {
+        console.error('Invitation insert error:', invErr);
+        showToast('Could not save invitation: ' + invErr.message);
+      } else {
+        inviteCreated = true;
+        console.log('✓ Invitation saved to Supabase for', email);
+      }
+    } catch(e) {
+      console.error('Invitation save failed:', e);
+    }
+  }
+
+  // ── STEP 2: Send Supabase invite email (magic link) ──
+  var emailSent = false;
+  if (IS_LIVE && sb && email) {
+    try {
+      // Use Supabase Auth admin invite — sends a magic link email
+      // Note: This requires the Supabase service_role key or the invite function enabled
+      // If admin invite isn't available, fall back to signUp with auto-confirm disabled
+      var appUrl = window.location.origin + window.location.pathname;
+      var { data: inviteResult, error: inviteErr } = await sb.auth.admin.inviteUserByEmail(email, {
+        data: {
+          full_name: fullName,
+          role: 'client',
+          invited_by: currentUser.id
+        },
+        redirectTo: appUrl + '?invite=accepted'
+      });
+
+      if (inviteErr) {
+        // Admin invite requires service_role — try alternative: generate signup link
+        console.warn('Admin invite not available (expected with anon key):', inviteErr.message);
+        // Store the invite token from our invitations table instead
+        // Coach can share the app link + email combo manually
+        console.log('ℹ️ Client will receive signup instructions via the app link');
+      } else {
+        emailSent = true;
+        // If invite created a profile, link it to coach
+        if (inviteResult && inviteResult.user) {
+          var clientUUID = inviteResult.user.id;
+          // Create coach_clients link
+          await sb.from('coach_clients').upsert({
+            coach_id: currentUser.id,
+            client_id: clientUUID,
+            status: 'active',
+            goal: goalLabel,
+            program_week: 1,
+            total_weeks: 12,
+            step_target: 10000,
+            workout_days: [1,3,5].slice(0, onbData.trainingDays || 3)
+          }, { onConflict: 'coach_id,client_id' });
+          // Update invitation with client_id
+          await sb.from('invitations').update({ client_id: clientUUID })
+            .eq('coach_id', currentUser.id).eq('email', email);
+          console.log('✓ Coach-client link created for', clientUUID);
+        }
+      }
+    } catch(e) {
+      console.warn('Invite email error:', e);
+    }
+  }
+
+  // ── STEP 3: Add to local state (so coach sees client immediately) ──
+  // Use a temporary ID (will be replaced with real UUID when client accepts)
+  var tempClientId = 'pending_' + email.replace(/[^a-z0-9]/g, '_');
+
+  CLIENT_META[tempClientId] = {
+    name: fullName,
     av: initials,
     initials: initials,
     color: colors[colorIdx],
     bg: bgColors[colorIdx],
     bgColor: bgColors[colorIdx],
-    goal: onbData.goal === 'fat_loss' ? 'Fat loss' : onbData.goal === 'muscle_gain' ? 'Muscle gain' : onbData.goal === 'recomp' ? 'Recomp' : 'Health',
+    goal: goalLabel,
     week: 1,
     totalWeeks: 12,
     weight: parseFloat(document.getElementById('onb-weight').value) || 80,
     mood: '😊',
-    workoutDays: [1,3,5].slice(0, onbData.trainingDays)
+    workoutDays: [1,3,5].slice(0, onbData.trainingDays),
+    pending: true,         // flag for pending invite
+    email: email           // store email to match when they sign up
   };
 
-  // Add empty data stores
-  ALL_CLIENT_MEALS[clientId] = [
+  ALL_CLIENT_MEALS[tempClientId] = [
     { name:'Breakfast', time:'08:00', logged:false, foods:[] },
     { name:'Lunch', time:'13:00', logged:false, foods:[] },
     { name:'Dinner', time:'19:30', logged:false, foods:[] }
   ];
-  ALL_CLIENT_SUPPLEMENTS[clientId] = [];
-  CLIENT_ACTIVITY[clientId] = {};
+  ALL_CLIENT_SUPPLEMENTS[tempClientId] = [];
+  CLIENT_ACTIVITY[tempClientId] = {};
+
+  // Store pending invites in localStorage
+  try {
+    var pendingInvites = JSON.parse(localStorage.getItem('ae_pending_invites') || '[]');
+    pendingInvites.push({ email: email, name: fullName, tempId: tempClientId, date: new Date().toISOString() });
+    localStorage.setItem('ae_pending_invites', JSON.stringify(pendingInvites));
+  } catch(e) {}
 
   closeOnboarding();
 
-  // Refresh dashboard
-  renderSmartActions();
-  updateDashboardKPIs();
-  renderTodaysSchedule();
-  renderLiveActivity();
-  renderClientScoreboard();
-  renderScheduleStrip();
-  updateCoachStreakScores();
+  // Restore button
+  if (confirmBtn) { confirmBtn.textContent = origText; confirmBtn.style.pointerEvents = ''; }
 
-  showToast('✓ ' + fname + ' ' + lname + ' added! Macros: ' + macros.kcal + ' kcal · ' + macros.protein + 'g protein. Invite link sent to ' + (email || 'email'));
+  // Refresh dashboard
+  if (typeof renderSmartActions === 'function') renderSmartActions();
+  if (typeof updateDashboardKPIs === 'function') updateDashboardKPIs();
+  if (typeof renderTodaysSchedule === 'function') renderTodaysSchedule();
+  if (typeof renderLiveActivity === 'function') renderLiveActivity();
+  if (typeof renderClientScoreboard === 'function') renderClientScoreboard();
+  if (typeof renderScheduleStrip === 'function') renderScheduleStrip();
+  if (typeof updateCoachStreakScores === 'function') updateCoachStreakScores();
+  if (typeof renderClientList === 'function') renderClientList();
+
+  // Update client count badge
+  var badge = document.querySelector('#ni-c-clients .ni-badge');
+  if (badge) badge.textContent = Object.keys(CLIENT_META).length;
+
+  var msg = '✓ ' + fullName + ' added!';
+  msg += ' Macros: ' + macros.kcal + ' kcal · ' + macros.protein + 'g protein.';
+  if (emailSent) {
+    msg += ' Invite email sent to ' + email;
+  } else if (inviteCreated) {
+    msg += ' Invitation saved — share the app link with ' + email;
+  }
+  showToast(msg);
+}
+
+/* ============================================================
+   INVITATION MANAGEMENT — resend / cancel
+============================================================ */
+async function resendInvite(email, name) {
+  if (!email) return;
+  showToast('Resending invite to ' + email + '...');
+  if (IS_LIVE && sb) {
+    try {
+      var appUrl = window.location.origin + window.location.pathname;
+      var { error } = await sb.auth.admin.inviteUserByEmail(email, {
+        data: { full_name: name, role: 'client', invited_by: currentUser.id },
+        redirectTo: appUrl + '?invite=accepted'
+      });
+      if (error) {
+        console.warn('Resend invite error (admin not available):', error.message);
+        showToast('Share this app link with ' + name + ' to complete signup');
+      } else {
+        showToast('✓ Invite resent to ' + email);
+      }
+    } catch(e) {
+      showToast('Share this app link with ' + name + ' to complete signup');
+    }
+  }
+}
+
+function cancelInvite(tempId, email) {
+  if (!confirm('Cancel invitation for ' + email + '?')) return;
+  // Remove from local state
+  delete CLIENT_META[tempId];
+  delete ALL_CLIENT_MEALS[tempId];
+  delete ALL_CLIENT_SUPPLEMENTS[tempId];
+  delete CLIENT_ACTIVITY[tempId];
+  // Remove from localStorage
+  try {
+    var pending = JSON.parse(localStorage.getItem('ae_pending_invites') || '[]');
+    pending = pending.filter(function(p) { return p.email !== email; });
+    localStorage.setItem('ae_pending_invites', JSON.stringify(pending));
+  } catch(e) {}
+  // Remove from Supabase
+  if (IS_LIVE && sb && currentUser) {
+    sb.from('invitations').delete()
+      .eq('coach_id', currentUser.id).eq('email', email).eq('status', 'pending')
+      .then(function(res) {
+        if (res.error) console.warn('Cancel invite error:', res.error.message);
+        else console.log('✓ Invitation cancelled for', email);
+      });
+  }
+  renderClientList();
+  updateDashboardKPIs();
+  showToast('Invitation cancelled for ' + email);
+}
+
+/* ============================================================
+   CLIENT-SIDE INVITE ACCEPTANCE
+   When a client clicks the invite magic link and lands on the app,
+   check if they have a pending invitation and auto-link them.
+============================================================ */
+async function checkAndAcceptInvitation() {
+  if (!IS_LIVE || !sb || !currentUser) return;
+  if (currentUserRole !== 'client') return;
+
+  try {
+    var userEmail = currentUser.email;
+    if (!userEmail) return;
+
+    // Check for pending invitation matching this email
+    var { data: invite, error } = await sb.from('invitations')
+      .select('*')
+      .eq('email', userEmail)
+      .eq('status', 'pending')
+      .single();
+
+    if (error || !invite) return; // No pending invite
+    console.log('🎉 Found pending invitation from coach:', invite.coach_id);
+
+    // Update invitation status to accepted
+    await sb.from('invitations').update({
+      status: 'accepted',
+      client_id: currentUser.id,
+      accepted_at: new Date().toISOString()
+    }).eq('id', invite.id);
+
+    // Ensure coach_clients link exists
+    await sb.from('coach_clients').upsert({
+      coach_id: invite.coach_id,
+      client_id: currentUser.id,
+      status: 'active',
+      goal: invite.goal || 'Fat loss',
+      program_week: 1,
+      total_weeks: 12,
+      step_target: 10000
+    }, { onConflict: 'coach_id,client_id' });
+
+    // Update profile with coach link and onboarding data
+    await sb.from('profiles').update({
+      full_name: invite.full_name,
+      invited_by: invite.coach_id,
+      onboarding_completed: true
+    }).eq('id', currentUser.id);
+
+    // Store client goals from invitation data
+    if (invite.macro_kcal) {
+      await sb.from('client_goals').upsert({
+        client_id: currentUser.id,
+        goal_type: invite.goal || 'Fat loss',
+        target_weight: invite.target_weight_kg,
+        start_weight: invite.weight_kg,
+        motivation: ''
+      }, { onConflict: 'client_id' });
+    }
+
+    console.log('✓ Invitation accepted, coach-client link established');
+    showToast('Welcome ' + invite.full_name.split(' ')[0] + '! Your coach has everything ready for you.');
+
+  } catch(e) {
+    console.error('Invitation acceptance error:', e);
+  }
+}
+
+/* ============================================================
+   LOAD PENDING INVITES FROM SUPABASE ON COACH LOGIN
+============================================================ */
+async function loadPendingInvites() {
+  if (!IS_LIVE || !sb || !currentUser || currentUserRole !== 'coach') return;
+  try {
+    var { data: invites, error } = await sb.from('invitations')
+      .select('*')
+      .eq('coach_id', currentUser.id)
+      .eq('status', 'pending');
+
+    if (error || !invites || invites.length === 0) return;
+
+    var colors = ['var(--green)', 'var(--purple)', 'var(--blue)', 'var(--orange)', 'var(--gold)', 'var(--red)'];
+    var bgColors = ['rgba(59,255,166,.12)', 'rgba(155,89,255,.12)', 'rgba(91,158,255,.12)', 'rgba(255,154,60,.12)', 'rgba(200,169,110,.12)', 'rgba(255,82,82,.12)'];
+
+    invites.forEach(function(inv) {
+      var tempId = 'pending_' + inv.email.replace(/[^a-z0-9]/g, '_');
+      // Skip if already in CLIENT_META (from localStorage or previous load)
+      if (CLIENT_META[tempId]) return;
+
+      var nameParts = (inv.full_name || 'New Client').split(' ');
+      var initials = (nameParts[0][0] + (nameParts[1] ? nameParts[1][0] : '')).toUpperCase();
+      var colorIdx = Object.keys(CLIENT_META).length % colors.length;
+
+      CLIENT_META[tempId] = {
+        name: inv.full_name,
+        av: initials,
+        initials: initials,
+        color: colors[colorIdx],
+        bg: bgColors[colorIdx],
+        bgColor: bgColors[colorIdx],
+        goal: inv.goal || 'Fat loss',
+        week: 1,
+        totalWeeks: 12,
+        weight: inv.weight_kg || 0,
+        mood: '😊',
+        pending: true,
+        email: inv.email
+      };
+
+      ALL_CLIENT_MEALS[tempId] = ALL_CLIENT_MEALS[tempId] || [];
+      ALL_CLIENT_SUPPLEMENTS[tempId] = ALL_CLIENT_SUPPLEMENTS[tempId] || [];
+      CLIENT_ACTIVITY[tempId] = CLIENT_ACTIVITY[tempId] || {};
+    });
+
+    console.log('✓ Loaded', invites.length, 'pending invitations');
+  } catch(e) {
+    console.error('loadPendingInvites error:', e);
+  }
 }
 
 /* ============================================================
@@ -11218,10 +11538,12 @@ function updateStepUI() {
     dsb.style.background = currentSteps >= stepGoal ? 'var(--green)' : 'var(--orange)';
   }
 
-  // Auto-check cardio when goal reached
+  // Auto-check/uncheck cardio based on actual steps
   if (currentSteps >= stepGoal) {
     autoCheck('ci-cardio');
     if (cardioStatus) { cardioStatus.textContent = 'Goal reached!'; cardioStatus.style.color = 'var(--green)'; }
+  } else {
+    autoUncheck('ci-cardio');
   }
 }
 
@@ -11729,10 +12051,26 @@ function performDailyReset() {
       window.DAILY_LOG[clientId][todayKey].steps = 0;
       window.DAILY_LOG[clientId][todayKey].waterML = 0;
       window.DAILY_LOG[clientId][todayKey].workout = false;
+      window.DAILY_LOG[clientId][todayKey].suppsTaken = {};
     }
   });
   saveDailyLogToLS();
 }
+
+// Auto-reset when user returns to app on a new day (tab was left open overnight)
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'visible') {
+    var todayKey = getTodayKey();
+    var lastDate = null;
+    try { lastDate = localStorage.getItem('ae_last_session_date'); } catch(e) {}
+    if (lastDate && lastDate !== todayKey) {
+      console.log('[RESET] Day changed while tab was open — triggering daily reset');
+      performDailyReset();
+      _dashDate = todayKey;
+      loadDashboardForDate(_dashDate);
+    }
+  }
+});
 
 // Rebuild WEIGHT_LOG from DAILY_LOG entries that have weight data
 // This ensures weight persists even if ae_weight_log gets lost
@@ -11835,9 +12173,11 @@ function resetDashToToday() {
 }
 
 // Main function: loads all dashboard cards for the selected date
+var _loadingDashboard = false; // Flag to prevent premature saves during load
 function loadDashboardForDate(dateKey) {
   var clientId = activeViewClient || activeCoachClient;
   if (!clientId) return;
+  _loadingDashboard = true; // Suppress checklist saves during restore
   var log = getDailyLog(clientId, dateKey);
   var isToday = dateKey === getTodayKey();
 
@@ -11903,29 +12243,36 @@ function loadDashboardForDate(dateKey) {
     });
 
     // Update status text + colors for restored checklist items
-    // Weight
+
+    // Weight — auto-check if weight exists for this date, show value
     var ciWeigh = document.getElementById('ci-weighin');
     if (ciWeigh) {
       var cm2w = ciWeigh.querySelector('.cm2');
-      if (cm2w) {
-        if (ciWeigh.classList.contains('done') && dayWeight) {
-          cm2w.textContent = dayWeight.weight + ' kg'; cm2w.style.color = 'var(--green)';
-        } else if (ciWeigh.classList.contains('done')) {
-          cm2w.textContent = 'Logged'; cm2w.style.color = 'var(--green)';
-        } else {
-          cm2w.textContent = '— kg'; cm2w.style.color = 'var(--t3)';
-        }
+      if (dayWeight) {
+        // Weight was logged for this date — always show it and check the box
+        autoCheck('ci-weighin');
+        if (cm2w) { cm2w.textContent = dayWeight.weight + ' kg'; cm2w.style.color = 'var(--green)'; }
+      } else {
+        autoUncheck('ci-weighin');
+        if (cm2w) { cm2w.textContent = '— kg'; cm2w.style.color = 'var(--t3)'; }
       }
     }
-    // Workout
+
+    // Workout — data-driven: check if DAILY_LOG has workout=true
     var ciWork = document.getElementById('ci-workout');
     if (ciWork) {
       var wsEl = document.getElementById('ci-workout-status');
-      if (wsEl) {
-        wsEl.style.color = ciWork.classList.contains('done') ? 'var(--green)' : 'var(--t3)';
-        if (ciWork.classList.contains('done')) wsEl.textContent = 'Done!';
+      if (log.workout) {
+        autoCheck('ci-workout');
+        if (wsEl) { wsEl.textContent = 'Done!'; wsEl.style.color = 'var(--green)'; }
+      } else if (ciWork.classList.contains('done')) {
+        // Restored from checklist but no workout data — keep it
+        if (wsEl) { wsEl.textContent = 'Done!'; wsEl.style.color = 'var(--green)'; }
+      } else {
+        if (wsEl) { wsEl.textContent = '—'; wsEl.style.color = 'var(--t3)'; }
       }
     }
+
     // Check-in
     var ciCheck = document.getElementById('ci-checkin');
     if (ciCheck) {
@@ -11954,8 +12301,16 @@ function loadDashboardForDate(dateKey) {
   // Update meal status counter on checklist
   if (typeof checkMealsStatus === 'function') checkMealsStatus();
 
+  // Restore supplement taken states from DAILY_LOG before checking status
+  if (typeof restoreSuppsTakenFromLog === 'function') restoreSuppsTakenFromLog(clientId, dateKey);
   // Update supplement status on checklist
   if (typeof updateSuppsChecklist === 'function') updateSuppsChecklist(clientId);
+
+  // Done loading — re-enable checklist saves
+  _loadingDashboard = false;
+
+  // Now do a single save to capture the fully-restored state
+  saveChecklistForDate();
 
   // Reset checklist celebration flag when switching days
   window._checklist100Celebrated = false;
@@ -11986,6 +12341,9 @@ function updateWaterUI() {
     ws.textContent = liters + ' / 3L';
     ws.style.color = pct >= 1 ? 'var(--green)' : waterML > 0 ? 'var(--orange)' : 'var(--t3)';
   }
+  // Auto-check/uncheck water checklist item based on actual intake
+  if (waterML >= 3000) { autoCheck('ci-water'); }
+  else { autoUncheck('ci-water'); }
 }
 
 // Helper: update calories card for a given date
@@ -12220,7 +12578,7 @@ function saveWeightLog() {
     var ci = document.getElementById('ci-weighin');
     if (ci) {
       var cm2 = ci.querySelector('.cm2');
-      if (cm2) cm2.textContent = newWeight + ' kg';
+      if (cm2) { cm2.textContent = newWeight + ' kg'; cm2.style.color = 'var(--green)'; }
       autoCheck('ci-weighin');
     }
   }
@@ -12504,6 +12862,8 @@ function toggleSuppTaken(clientId, idx) {
   taken[idx] = !taken[idx];
   renderClientSupps();
   updateSuppsChecklist(clientId);
+  // Persist supplement taken state to DAILY_LOG
+  saveSuppsTakenToLog(clientId);
 }
 
 function markAllSuppsTaken(clientId) {
@@ -12515,7 +12875,26 @@ function markAllSuppsTaken(clientId) {
   stack.forEach(function(_, i) { taken[i] = !allDone; });
   renderClientSupps();
   updateSuppsChecklist(clientId);
+  saveSuppsTakenToLog(clientId);
   if (!allDone) showToast('All supplements marked as taken ✓');
+}
+
+// Persist supplement taken states into DAILY_LOG for reload persistence
+function saveSuppsTakenToLog(clientId) {
+  if (!clientId) return;
+  var dateKey = (typeof getDashDate === 'function') ? getDashDate() : getTodayKey();
+  var log = getDailyLog(clientId, dateKey);
+  log.suppsTaken = Object.assign({}, getSuppsTaken(clientId));
+  saveDailyLogToLS();
+}
+
+// Restore supplement taken states from DAILY_LOG
+function restoreSuppsTakenFromLog(clientId, dateKey) {
+  if (!clientId) return;
+  var log = getDailyLog(clientId, dateKey);
+  if (log.suppsTaken) {
+    suppsTakenToday[clientId] = Object.assign({}, log.suppsTaken);
+  }
 }
 
 function updateSuppsChecklist(clientId) {
@@ -12568,6 +12947,7 @@ function toggleSuppsFromChecklist(el) {
   renderClientSupps();
   updateChecklistProgress();
   saveActivityFromChecklist();
+  saveSuppsTakenToLog(clientId);
   var dateKey = (typeof getChecklistDateKey === 'function') ? getChecklistDateKey() : new Date().toISOString().slice(0, 10);
   if (typeof syncDailyLogToActivity === 'function') syncDailyLogToActivity(clientId, dateKey);
 }
@@ -16667,10 +17047,14 @@ async function enterApp() {
     }
     // Sync all DAILY_LOG dates to CLIENT_ACTIVITY so coach dashboard has full picture
     if (typeof syncAllDailyLogToActivity === 'function') syncAllDailyLogToActivity();
+    // Check and accept pending invitation (client-side)
+    if (typeof checkAndAcceptInvitation === 'function') checkAndAcceptInvitation();
     // Auto-show weekly recap on Sunday evening or Monday morning
     if (typeof checkAutoShowRecap === 'function') checkAutoShowRecap();
   } else {
     document.getElementById('app-coach').classList.add('visible');
+    // Load pending invitations so they show in client list
+    if (typeof loadPendingInvites === 'function') await loadPendingInvites();
     // Refresh coach views with live data
     if (loaded) {
       try {
