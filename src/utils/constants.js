@@ -25,6 +25,7 @@ export const COACH_NAV = [
   { id: 'checkins', label: 'Check-ins', group: 'Clients', icon: 'clipboard', badge: true },
   { id: 'workout-builder', label: 'Workout Builder', group: 'Builder', icon: 'dumbbell' },
   { id: 'nutrition-editor', label: 'Nutrition Editor', group: 'Builder', icon: 'utensils' },
+  { id: 'supplements', label: 'Supplements', group: 'Builder', icon: 'pill' },
   { id: 'chat', label: 'Coach Chat', group: 'System', icon: 'message', badge: true },
   { id: 'settings', label: 'Settings', group: 'System', icon: 'settings' },
 ];
@@ -33,8 +34,8 @@ export const CLIENT_NAV = [
   { id: 'dashboard', label: 'Dashboard', group: 'Main', icon: 'grid' },
   { id: 'training', label: 'Training', group: 'Main', icon: 'dumbbell' },
   { id: 'nutrition', label: 'Nutrition', group: 'Main', icon: 'utensils' },
+  { id: 'supplements', label: 'Supplements', group: 'Main', icon: 'pill' },
   { id: 'progress', label: 'Progress', group: 'Tracking', icon: 'trending-up' },
-  { id: 'supplements', label: 'Supplements', group: 'Tracking', icon: 'pill' },
   { id: 'journal', label: 'Journal', group: 'Tracking', icon: 'book' },
   { id: 'chat', label: 'Chat', group: 'Connect', icon: 'message' },
   { id: 'settings', label: 'Settings', group: 'Connect', icon: 'settings' },

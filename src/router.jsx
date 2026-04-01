@@ -22,6 +22,7 @@ import NutritionEditorScreen from './screens/coach/NutritionEditorScreen';
 import CoachChatScreen from './screens/coach/CoachChatScreen';
 import ClientProfileScreen from './screens/coach/ClientProfileScreen';
 import CoachSettingsScreen from './screens/coach/CoachSettingsScreen';
+import CoachSupplementsScreen from './screens/coach/SupplementsScreen';
 
 const router = createBrowserRouter([
   // Public
@@ -64,6 +65,7 @@ const router = createBrowserRouter([
       { path: 'checkins', element: <CheckinsScreen /> },
       { path: 'workout-builder', element: <WorkoutBuilderScreen /> },
       { path: 'nutrition-editor', element: <NutritionEditorScreen /> },
+      { path: 'supplements', element: <CoachSupplementsScreen /> },
       { path: 'chat', element: <CoachChatScreen /> },
       { path: 'settings', element: <CoachSettingsScreen /> },
     ],
