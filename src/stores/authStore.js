@@ -19,6 +19,7 @@ async function fetchProfileRole(userId) {
 export const useAuthStore = create((set, get) => ({
   user: null,
   role: null, // 'coach' | 'client'
+  actualRole: null, // the real role from the database (never changes during session)
   roleOverride: false, // true when coach manually switches to client view
   session: null,
   loading: true,
@@ -35,7 +36,7 @@ export const useAuthStore = create((set, get) => ({
       const savedOverride = sessionStorage.getItem('roleOverride') === 'true';
       const role = savedOverride ? 'client' : dbRole;
 
-      set({ user: session.user, role, roleOverride: savedOverride, session, loading: false });
+      set({ user: session.user, role, actualRole: dbRole, roleOverride: savedOverride, session, loading: false });
     } else {
       sessionStorage.removeItem('roleOverride');
       sessionStorage.removeItem('overrideClientId');
@@ -51,12 +52,12 @@ export const useAuthStore = create((set, get) => ({
         } else {
           const profileRole = await fetchProfileRole(session.user.id);
           const role = profileRole || session.user.user_metadata?.role || 'client';
-          set({ user: session.user, role, session });
+          set({ user: session.user, role, actualRole: role, session });
         }
       } else {
         sessionStorage.removeItem('roleOverride');
         sessionStorage.removeItem('overrideClientId');
-        set({ user: null, role: null, session: null, roleOverride: false });
+        set({ user: null, role: null, actualRole: null, session: null, roleOverride: false });
       }
     });
   },
@@ -67,7 +68,7 @@ export const useAuthStore = create((set, get) => ({
       const data = await signIn(email, password);
       const profileRole = await fetchProfileRole(data.user.id);
       const role = profileRole || data.user?.user_metadata?.role || 'client';
-      set({ user: data.user, role, session: data.session, loading: false });
+      set({ user: data.user, role, actualRole: role, session: data.session, loading: false });
       return true;
     } catch (err) {
       set({ error: err.message, loading: false });
@@ -79,7 +80,7 @@ export const useAuthStore = create((set, get) => ({
     set({ error: null, loading: true });
     try {
       const data = await signUp(email, password, fullName, role);
-      set({ user: data.user, role, session: data.session, loading: false });
+      set({ user: data.user, role, actualRole: role, session: data.session, loading: false });
       return true;
     } catch (err) {
       set({ error: err.message, loading: false });
@@ -91,7 +92,7 @@ export const useAuthStore = create((set, get) => ({
     sessionStorage.removeItem('roleOverride');
     sessionStorage.removeItem('overrideClientId');
     await authSignOut();
-    set({ user: null, role: null, session: null, roleOverride: false });
+    set({ user: null, role: null, actualRole: null, session: null, roleOverride: false });
   },
 
   clearError: () => set({ error: null }),

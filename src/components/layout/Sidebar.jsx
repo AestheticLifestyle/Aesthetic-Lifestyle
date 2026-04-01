@@ -6,7 +6,7 @@ import { Icon } from '../../utils/icons';
 import { COACH_NAV, CLIENT_NAV } from '../../utils/constants';
 
 export default function Sidebar() {
-  const { user, role, logout } = useAuthStore();
+  const { user, role, actualRole, logout } = useAuthStore();
   const { sidebarOpen, closeSidebar } = useUIStore();
   const navigate = useNavigate();
   const isCoach = role === 'coach';
@@ -98,15 +98,17 @@ export default function Sidebar() {
           </div>
           <div className="rt-dot" style={{ marginLeft: 'auto' }} title="Live sync active" />
         </div>
-        {/* Role switcher for testing */}
-        <button
-          className="ni"
-          onClick={handleRoleSwitch}
-          style={{ marginTop: 8, opacity: 0.7, fontSize: 12 }}
-        >
-          <Icon name="refresh" />
-          Switch to {isCoach ? 'Client' : 'Coach'} View
-        </button>
+        {/* Role switcher — only for coaches */}
+        {actualRole === 'coach' && (
+          <button
+            className="ni"
+            onClick={handleRoleSwitch}
+            style={{ marginTop: 8, opacity: 0.7, fontSize: 12 }}
+          >
+            <Icon name="refresh" />
+            Switch to {isCoach ? 'Client' : 'Coach'} View
+          </button>
+        )}
         <button
           className="ni"
           onClick={handleLogout}
