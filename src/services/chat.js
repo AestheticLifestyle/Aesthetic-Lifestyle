@@ -29,14 +29,50 @@ export const GOAL_LABELS = {
 };
 
 // Fetch all clients for a coach (with real stats: weight, adherence, streak)
+// Also includes "pending" clients from invite codes with client_setup that haven't been redeemed
 export async function fetchClients(coachId) {
-  // Get coach_clients rows
-  const { data: links, error: linkErr } = await supabase
-    .from('coach_clients')
-    .select('*')
-    .eq('coach_id', coachId);
+  // Get coach_clients rows + pending invite codes in parallel
+  const [linksRes, pendingRes] = await Promise.allSettled([
+    supabase.from('coach_clients').select('*').eq('coach_id', coachId),
+    supabase.from('invite_codes').select('id, code, label, client_setup, used_count, max_uses, created_at')
+      .eq('coach_id', coachId).eq('active', true).not('client_setup', 'is', null),
+  ]);
 
-  if (linkErr || !links?.length) return [];
+  const links = linksRes.status === 'fulfilled' ? (linksRes.value?.data || []) : [];
+  const pendingCodes = pendingRes.status === 'fulfilled' ? (pendingRes.value?.data || []) : [];
+
+  // Build pending client entries from unused invite codes
+  const pendingClients = pendingCodes
+    .filter(c => c.used_count < c.max_uses && c.client_setup)
+    .map(c => {
+      const setup = c.client_setup;
+      return {
+        client_id: `pending-${c.id}`,
+        invite_code_id: c.id,
+        code: c.code,
+        coach_id: coachId,
+        client_name: setup.clientName || c.label || 'New Client',
+        email: '',
+        avatar_url: null,
+        goal: GOAL_LABELS[setup.goal] || setup.goal || '',
+        goalId: setup.goal || '',
+        status: 'pending',
+        isPending: true,
+        start_date: c.created_at?.slice(0, 10) || '',
+        program_week: 1,
+        total_weeks: 12,
+        step_target: setup.stepTarget || 10000,
+        workout_days: [],
+        weight: null,
+        adherence: 0,
+        streak: 0,
+        lastActive: '—',
+        clientSetup: setup,
+      };
+    });
+
+  if (!links.length && !pendingClients.length) return [];
+  if (!links.length) return pendingClients;
 
   const clientIds = links.map(l => l.client_id);
   const today = new Date().toISOString().slice(0, 10);
@@ -57,7 +93,7 @@ export async function fetchClients(coachId) {
   const nutritionLogs = nutritionRes.status === 'fulfilled' ? (nutritionRes.value?.data || []) : [];
   const workoutSessions = workoutsRes.status === 'fulfilled' ? (workoutsRes.value?.data || []) : [];
 
-  return links.map(link => {
+  const activeClients = links.map(link => {
     const cid = link.client_id;
     const profile = profiles.find(p => p.id === cid);
 
@@ -124,6 +160,9 @@ export async function fetchClients(coachId) {
       lastActive,
     };
   });
+
+  // Merge: active clients first, then pending ones
+  return [...activeClients, ...pendingClients];
 }
 
 // Fetch all check-ins for coach review (both daily and weekly)

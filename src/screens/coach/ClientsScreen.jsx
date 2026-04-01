@@ -9,10 +9,12 @@ import { createInviteCode, fetchInviteCodes, deactivateInviteCode } from '../../
 import { fetchTrainingTemplates, fetchNutritionTemplates } from '../../services/chat';
 
 function ClientCard({ client, onClick }) {
+  const isPending = client.isPending;
   const statusMap = {
     'on-track': { label: 'On Track', cls: 't-gr' },
     'attention': { label: 'Attention', cls: 't-or' },
     'at-risk': { label: 'At Risk', cls: 't-rd' },
+    'pending': { label: 'Pending', cls: '' },
   };
   const status = client.status || 'on-track';
   const s = statusMap[status] || statusMap['on-track'];
@@ -21,50 +23,91 @@ function ClientCard({ client, onClick }) {
   return (
     <div
       className="card"
-      style={{ cursor: 'pointer', transition: 'border-color .15s' }}
+      style={{
+        cursor: 'pointer', transition: 'border-color .15s',
+        ...(isPending ? { borderStyle: 'dashed', opacity: 0.85 } : {}),
+      }}
       onClick={onClick}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
         <div style={{
-          width: 40, height: 40, borderRadius: '50%', background: 'var(--gold-d)',
+          width: 40, height: 40, borderRadius: '50%',
+          background: isPending ? 'var(--s3)' : 'var(--gold-d)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: 'var(--gold)', fontFamily: 'var(--fd)', fontSize: 16, fontWeight: 600,
+          color: isPending ? 'var(--t3)' : 'var(--gold)',
+          fontFamily: 'var(--fd)', fontSize: 16, fontWeight: 600,
         }}>
-          {name.charAt(0)}
+          {isPending ? '?' : name.charAt(0)}
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 14, fontWeight: 600 }}>{name}</div>
           <div style={{ fontSize: 11, color: 'var(--t3)' }}>{client.goal || '—'}</div>
         </div>
-        <span className={`tag ${s.cls}`}>{s.label}</span>
+        {isPending ? (
+          <span style={{
+            fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1,
+            color: 'var(--gold)', background: 'var(--gold-d)',
+            padding: '3px 8px', borderRadius: 6,
+          }}>
+            Pending
+          </span>
+        ) : (
+          <span className={`tag ${s.cls}`}>{s.label}</span>
+        )}
       </div>
 
-      <div style={{ display: 'flex', gap: 16 }}>
-        <div>
-          <div className="kl">Adherence</div>
-          <div style={{ fontSize: 16, fontFamily: 'var(--fd)', color: (client.adherence || 0) > 80 ? 'var(--green)' : (client.adherence || 0) > 60 ? 'var(--orange)' : 'var(--red)' }}>
-            {client.adherence || 0}%
+      {isPending ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Icon name="link" size={11} style={{ color: 'var(--t3)' }} />
+            <span style={{ fontSize: 12, color: 'var(--t3)' }}>
+              Code: <span style={{ fontFamily: 'var(--fd)', fontWeight: 600, color: 'var(--gold)', letterSpacing: 1 }}>{client.code}</span>
+            </span>
+          </div>
+          {client.clientSetup?.trainingPlan && (
+            <div style={{ fontSize: 11, color: 'var(--t3)' }}>
+              Training: {client.clientSetup.trainingPlan.name}
+            </div>
+          )}
+          {client.clientSetup?.nutritionPlan && (
+            <div style={{ fontSize: 11, color: 'var(--t3)' }}>
+              Nutrition: {client.clientSetup.nutritionPlan.name}
+            </div>
+          )}
+          <div style={{ fontSize: 10, color: 'var(--t3)', marginTop: 4, fontStyle: 'italic' }}>
+            Waiting for client to connect...
           </div>
         </div>
-        <div>
-          <div className="kl">Weight</div>
-          <div style={{ fontSize: 16, fontFamily: 'var(--fd)' }}>{client.weight ? `${client.weight} kg` : '—'}</div>
-        </div>
-        <div>
-          <div className="kl">Streak</div>
-          <div style={{ fontSize: 16, fontFamily: 'var(--fd)', color: 'var(--gold)' }}>{client.streak || 0}d</div>
-        </div>
-      </div>
+      ) : (
+        <>
+          <div style={{ display: 'flex', gap: 16 }}>
+            <div>
+              <div className="kl">Adherence</div>
+              <div style={{ fontSize: 16, fontFamily: 'var(--fd)', color: (client.adherence || 0) > 80 ? 'var(--green)' : (client.adherence || 0) > 60 ? 'var(--orange)' : 'var(--red)' }}>
+                {client.adherence || 0}%
+              </div>
+            </div>
+            <div>
+              <div className="kl">Weight</div>
+              <div style={{ fontSize: 16, fontFamily: 'var(--fd)' }}>{client.weight ? `${client.weight} kg` : '—'}</div>
+            </div>
+            <div>
+              <div className="kl">Streak</div>
+              <div style={{ fontSize: 16, fontFamily: 'var(--fd)', color: 'var(--gold)' }}>{client.streak || 0}d</div>
+            </div>
+          </div>
 
-      {client.start_date && (
-        <div style={{ fontSize: 10, color: 'var(--t3)', marginTop: 10 }}>
-          Started: {(() => {
-            try {
-              const dt = new Date(client.start_date + 'T00:00:00');
-              return dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-            } catch { return client.start_date; }
-          })()}
-        </div>
+          {client.start_date && (
+            <div style={{ fontSize: 10, color: 'var(--t3)', marginTop: 10 }}>
+              Started: {(() => {
+                try {
+                  const dt = new Date(client.start_date + 'T00:00:00');
+                  return dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+                } catch { return client.start_date; }
+              })()}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -741,6 +784,107 @@ function CodesModal({ onClose }) {
   );
 }
 
+// ── Pending Client Detail Modal ──
+function PendingClientModal({ client, onClose }) {
+  const { showToast } = useUIStore();
+  const [copied, setCopied] = useState(false);
+  const setup = client.clientSetup || {};
+  const goalLabel = GOALS.find(g => g.id === setup.goal)?.label || setup.goal || '—';
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(client.code);
+    setCopied(true);
+    showToast('Code copied!', 'success');
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 1000,
+      background: 'rgba(0,0,0,.6)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: 20,
+    }} onClick={onClose}>
+      <div style={{
+        background: 'var(--s1)', borderRadius: 16, padding: 24, width: '100%', maxWidth: 480,
+        maxHeight: '80vh', overflow: 'auto', border: '1px solid var(--border)',
+      }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>Pending Client</h3>
+          <button className="btn btn-secondary btn-sm" onClick={onClose} style={{ padding: '4px 8px', minWidth: 0 }}>
+            <Icon name="x" size={14} />
+          </button>
+        </div>
+
+        {/* Status banner */}
+        <div style={{
+          padding: '10px 14px', borderRadius: 10, marginBottom: 16,
+          background: 'var(--gold-d)', border: '1px solid rgba(212,175,55,.2)',
+          display: 'flex', alignItems: 'center', gap: 10,
+        }}>
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--gold)', flexShrink: 0 }} />
+          <div style={{ fontSize: 12, color: 'var(--gold)' }}>Waiting for client to sign up and enter their invite code</div>
+        </div>
+
+        {/* Profile info */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ background: 'var(--s2)', borderRadius: 12, padding: 14, border: '1px solid var(--border)' }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Profile</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+              <span style={{ fontSize: 12, color: 'var(--t3)' }}>Name</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)' }}>{setup.clientName || '—'}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+              <span style={{ fontSize: 12, color: 'var(--t3)' }}>Goal</span>
+              <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--gold)' }}>{goalLabel}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 12, color: 'var(--t3)' }}>Step Target</span>
+              <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--t1)' }}>{(setup.stepTarget || 10000).toLocaleString()}</span>
+            </div>
+          </div>
+
+          {setup.trainingPlan && (
+            <div style={{ background: 'var(--s2)', borderRadius: 12, padding: 14, border: '1px solid var(--border)' }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Training Plan</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)', marginBottom: 4 }}>{setup.trainingPlan.name}</div>
+              <div style={{ fontSize: 11, color: 'var(--t3)' }}>
+                {setup.trainingPlan.days?.length || 0} days: {(setup.trainingPlan.days || []).map(d => d.name).join(', ')}
+              </div>
+            </div>
+          )}
+
+          {setup.nutritionPlan && (
+            <div style={{ background: 'var(--s2)', borderRadius: 12, padding: 14, border: '1px solid var(--border)' }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Nutrition Plan</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)', marginBottom: 4 }}>{setup.nutritionPlan.name}</div>
+              <div style={{ fontSize: 11, color: 'var(--t3)' }}>
+                {setup.nutritionPlan.meals?.length || 0} meals
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Invite code */}
+        <div style={{
+          marginTop: 16, textAlign: 'center', padding: 16,
+          background: 'var(--s2)', borderRadius: 12, border: '1px solid var(--border)',
+        }}>
+          <div style={{ fontSize: 11, color: 'var(--t3)', marginBottom: 8 }}>Invite Code</div>
+          <div style={{
+            fontFamily: 'var(--fd)', fontSize: 28, fontWeight: 700, letterSpacing: 6,
+            color: 'var(--gold)', marginBottom: 10,
+          }}>
+            {client.code}
+          </div>
+          <button className="btn btn-primary btn-sm" onClick={handleCopy} style={{ width: '100%' }}>
+            <Icon name="copy" size={12} /> {copied ? 'Copied!' : 'Copy Code'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ClientsScreen() {
   const { clients } = useCoachStore();
   const navigate = useNavigate();
@@ -748,15 +892,22 @@ export default function ClientsScreen() {
   const [filter, setFilter] = useState('all');
   const [showWizard, setShowWizard] = useState(false);
   const [showCodes, setShowCodes] = useState(false);
+  const [pendingClient, setPendingClient] = useState(null);
 
   const filtered = clients.filter(c => {
     const name = (c.client_name || c.name || '').toLowerCase();
     const matchSearch = name.includes(search.toLowerCase());
-    const matchFilter = filter === 'all' || (c.status || 'on-track') === filter;
+    const matchFilter = filter === 'all'
+      || (c.isPending && filter === 'pending')
+      || (!c.isPending && (c.status || 'on-track') === filter);
     return matchSearch && matchFilter;
   });
 
   const handleClientClick = (client) => {
+    if (client.isPending) {
+      setPendingClient(client);
+      return;
+    }
     const id = client.client_id || client.id;
     navigate(`/coach/clients/${id}`);
   };
@@ -765,6 +916,7 @@ export default function ClientsScreen() {
     <div className="screen active">
       {showWizard && <AddClientWizard onClose={() => setShowWizard(false)} />}
       {showCodes && <CodesModal onClose={() => setShowCodes(false)} />}
+      {pendingClient && <PendingClientModal client={pendingClient} onClose={() => setPendingClient(null)} />}
 
       {/* Search & filters + Add Client button */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 18, flexWrap: 'wrap' }}>
@@ -796,6 +948,7 @@ export default function ClientsScreen() {
         <div style={{ display: 'flex', gap: 6 }}>
           {[
             { key: 'all', label: 'All' },
+            { key: 'pending', label: 'Pending' },
             { key: 'on-track', label: 'On Track' },
             { key: 'attention', label: 'Attention' },
             { key: 'at-risk', label: 'At Risk' },
