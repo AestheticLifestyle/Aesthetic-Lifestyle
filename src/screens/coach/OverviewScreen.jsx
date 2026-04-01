@@ -5,7 +5,6 @@ import { useAuthStore } from '../../stores/authStore';
 import { Card, StatCard } from '../../components/ui';
 import { Icon } from '../../utils/icons';
 import { generateClientAlerts } from '../../utils/coachingInsights';
-import { getLevelFromXP } from '../../utils/gamification';
 
 function ClientRow({ client, onClick }) {
   const statusColors = {
@@ -22,9 +21,6 @@ function ClientRow({ client, onClick }) {
   const status = client.status || 'on-track';
   const adherence = client.adherence || 0;
   const name = client.client_name || client.name || 'Unknown';
-  const gam = client.gamification;
-  const clientLevel = gam ? getLevelFromXP(gam.totalXP || 0) : null;
-  const clientStreak = gam?.streak?.current || client.streak || 0;
 
   return (
     <tr onClick={onClick}>
@@ -38,25 +34,9 @@ function ClientRow({ client, onClick }) {
             }}>
               {name.charAt(0)}
             </div>
-            {clientLevel && clientLevel.level > 1 && (
-              <div style={{
-                position: 'absolute', bottom: -3, right: -3,
-                width: 14, height: 14, borderRadius: '50%',
-                background: clientLevel.color, color: '#fff',
-                fontSize: 7, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                border: '1.5px solid var(--s1)',
-              }}>
-                {clientLevel.level}
-              </div>
-            )}
           </div>
           <div>
             <span style={{ fontWeight: 500, color: 'var(--t1)' }}>{name}</span>
-            {clientStreak >= 7 && (
-              <span style={{ fontSize: 10, marginLeft: 6, color: '#ff6b35' }}>
-                🔥{clientStreak}
-              </span>
-            )}
           </div>
         </div>
       </td>

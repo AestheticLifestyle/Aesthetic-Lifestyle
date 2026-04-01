@@ -2,14 +2,11 @@ import { useState, useMemo, useRef, useCallback } from 'react';
 import { useClientStore } from '../../stores/clientStore';
 import { useAuthStore } from '../../stores/authStore';
 import { useUIStore } from '../../stores/uiStore';
-import { useGamificationStore } from '../../stores/gamificationStore';
 import { Card } from '../../components/ui';
 import { Icon } from '../../utils/icons';
 import { getTodayKey, formatShortDate } from '../../utils/constants';
 import { saveWeight } from '../../services/progress';
 import { saveMeasurement, uploadProgressPhoto } from '../../services/progress';
-import { ACHIEVEMENTS, ACHIEVEMENT_CATEGORIES, getLevelFromXP } from '../../utils/gamification';
-import AchievementShareCard from '../../components/gamification/AchievementShareCard';
 
 // ── Helpers ──
 /** Resolve the correct client ID — uses override when coach is in client view */
@@ -581,117 +578,6 @@ function TrainingVolumeSection({ workoutHistory }) {
   );
 }
 
-// ── Achievements Gallery Section ──
-function AchievementsSection() {
-  const { achievements, level, streak } = useGamificationStore();
-  const { user } = useAuthStore();
-  const [shareAch, setShareAch] = useState(null);
-  const [filter, setFilter] = useState('all');
-
-  const unlockedSet = new Set(achievements);
-  const userName = user?.user_metadata?.full_name || 'Athlete';
-
-  const categories = [
-    { id: 'all', label: 'All' },
-    { id: 'streak', label: 'Streak' },
-    { id: 'training', label: 'Training' },
-    { id: 'nutrition', label: 'Nutrition' },
-    { id: 'progress', label: 'Progress' },
-    { id: 'consistency', label: 'Consistency' },
-  ];
-
-  const filtered = filter === 'all' ? ACHIEVEMENTS : ACHIEVEMENTS.filter(a => a.category === filter);
-  const unlockedCount = achievements.length;
-  const totalCount = ACHIEVEMENTS.length;
-
-  return (
-    <>
-      {shareAch && (
-        <AchievementShareCard
-          achievement={shareAch}
-          level={level}
-          streak={streak}
-          userName={userName}
-          onClose={() => setShareAch(null)}
-        />
-      )}
-      <Card title="Achievements" subtitle={`${unlockedCount}/${totalCount} unlocked`}>
-        {/* Category filter */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
-          {categories.map(cat => (
-            <button
-              key={cat.id}
-              className={`btn btn-sm ${filter === cat.id ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ fontSize: 10, padding: '4px 10px' }}
-              onClick={() => setFilter(cat.id)}
-            >
-              {cat.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Achievement grid */}
-        <div style={{
-          display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
-          gap: 10,
-        }}>
-          {filtered.map(ach => {
-            const unlocked = unlockedSet.has(ach.id);
-            return (
-              <div
-                key={ach.id}
-                style={{
-                  background: unlocked
-                    ? 'linear-gradient(135deg, rgba(212,175,55,.08), rgba(212,175,55,.02))'
-                    : 'var(--s2)',
-                  border: unlocked ? '1px solid rgba(212,175,55,.25)' : '1px solid var(--border)',
-                  borderRadius: 12, padding: '14px 10px', textAlign: 'center',
-                  cursor: unlocked ? 'pointer' : 'default',
-                  opacity: unlocked ? 1 : 0.4,
-                  transition: 'all .2s',
-                  position: 'relative',
-                }}
-                onClick={() => unlocked && setShareAch(ach)}
-              >
-                <div style={{ fontSize: 28, marginBottom: 6, filter: unlocked ? 'none' : 'grayscale(1)' }}>
-                  {ach.icon}
-                </div>
-                <div style={{
-                  fontSize: 11, fontWeight: 600,
-                  color: unlocked ? 'var(--gold)' : 'var(--t3)',
-                  marginBottom: 3,
-                }}>
-                  {ach.title}
-                </div>
-                <div style={{ fontSize: 9, color: 'var(--t3)', lineHeight: 1.3 }}>
-                  {ach.description}
-                </div>
-                {unlocked && (
-                  <div style={{
-                    position: 'absolute', top: 6, right: 6,
-                    fontSize: 8, color: 'var(--gold)', background: 'rgba(212,175,55,.12)',
-                    padding: '2px 6px', borderRadius: 8,
-                  }}>
-                    SHARE
-                  </div>
-                )}
-                {!unlocked && (
-                  <div style={{
-                    fontSize: 8, color: 'var(--t3)', marginTop: 6,
-                    textTransform: 'uppercase', letterSpacing: 0.5,
-                  }}>
-                    Locked
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </Card>
-    </>
-  );
-}
-
 export default function ProgressScreen() {
   const { weightLog, measurements, photos, goals, workoutHistory } = useClientStore();
   const today = getTodayKey();
@@ -774,10 +660,6 @@ export default function ProgressScreen() {
         <TrainingVolumeSection workoutHistory={workoutHistory} />
       </div>
 
-      {/* Achievements Gallery */}
-      <div style={{ marginTop: 14 }}>
-        <AchievementsSection />
-      </div>
     </div>
   );
 }

@@ -4,7 +4,6 @@ import { useCoachStore } from '../../stores/coachStore';
 import { Card, ProgressRing } from '../../components/ui';
 import { Icon } from '../../utils/icons';
 import { detectPlateau, analyzeWeightTrend, suggestCalorieAdjustment } from '../../utils/coachingInsights';
-import { getLevelFromXP, ACHIEVEMENTS } from '../../utils/gamification';
 
 // Services — fetch all client data
 import { fetchWeightLog, fetchMeasurements, fetchProgressPhotos } from '../../services/progress';
@@ -656,81 +655,6 @@ function CoachGoalSelector({ clientId, currentGoal, onGoalChange }) {
   );
 }
 
-// ── Section: Client Gamification (Coach View) ──
-function ClientGamificationCard({ gamification }) {
-  if (!gamification) {
-    return (
-      <Card title="Gamification">
-        <div style={{ textAlign: 'center', padding: 14, color: 'var(--t3)', fontSize: 12 }}>
-          No gamification data yet. Client needs to start tracking.
-        </div>
-      </Card>
-    );
-  }
-
-  const level = getLevelFromXP(gamification.totalXP || 0);
-  const streak = gamification.streak || { current: 0, longest: 0 };
-  const unlockedCount = (gamification.achievements || []).length;
-  const pct = Math.round(level.progress * 100);
-
-  return (
-    <Card title="Gamification" subtitle={`Level ${level.level} · ${level.title}`}>
-      {/* Level bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-        <div style={{
-          width: 36, height: 36, borderRadius: 10,
-          background: `linear-gradient(135deg, ${level.color}33, ${level.color}11)`,
-          border: `1.5px solid ${level.color}55`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontFamily: 'var(--fd)', fontSize: 15, fontWeight: 700, color: level.color,
-        }}>
-          {level.level}
-        </div>
-        <div style={{ flex: 1 }}>
-          <div className="pbar" style={{ height: 5, marginBottom: 4 }}>
-            <div className="pfill" style={{
-              width: `${pct}%`,
-              background: level.color,
-            }} />
-          </div>
-          <div style={{ fontSize: 9, color: 'var(--t3)' }}>
-            {level.totalXP.toLocaleString()} XP total
-            {!level.isMaxLevel && ` · ${level.xpForNext - level.xpIntoLevel} to next`}
-          </div>
-        </div>
-      </div>
-
-      {/* Stats */}
-      <div style={{ display: 'flex', gap: 12, textAlign: 'center' }}>
-        <div style={{ flex: 1, background: 'var(--s2)', borderRadius: 8, padding: '8px 4px' }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: '#ff6b35', fontFamily: 'var(--fd)' }}>
-            {streak.current > 0 ? `🔥 ${streak.current}` : '—'}
-          </div>
-          <div style={{ fontSize: 8, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: 1, marginTop: 2 }}>
-            Streak
-          </div>
-        </div>
-        <div style={{ flex: 1, background: 'var(--s2)', borderRadius: 8, padding: '8px 4px' }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--gold)', fontFamily: 'var(--fd)' }}>
-            {streak.longest || 0}
-          </div>
-          <div style={{ fontSize: 8, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: 1, marginTop: 2 }}>
-            Best
-          </div>
-        </div>
-        <div style={{ flex: 1, background: 'var(--s2)', borderRadius: 8, padding: '8px 4px' }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--green)', fontFamily: 'var(--fd)' }}>
-            {unlockedCount}
-          </div>
-          <div style={{ fontSize: 8, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: 1, marginTop: 2 }}>
-            Badges
-          </div>
-        </div>
-      </div>
-    </Card>
-  );
-}
-
 // ── Section: Quick Actions ──
 function QuickActions({ clientId, clientName, navigate }) {
   return (
@@ -843,7 +767,6 @@ export default function ClientProfileScreen() {
           <WeeklyCheckinsSection checkins={data.weeklyCheckins} />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <ClientGamificationCard gamification={client.gamification} />
           <CoachingIntelligence weightLog={data.weightLog} goalId={clientGoal} mealPlan={data.mealPlan} />
           <QuickActions clientId={clientId} clientName={clientName} navigate={navigate} />
           <CoachGoalSelector clientId={clientId} currentGoal={clientGoal} onGoalChange={setClientGoal} />

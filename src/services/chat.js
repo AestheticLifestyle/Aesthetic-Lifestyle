@@ -44,7 +44,7 @@ export async function fetchClients(coachId) {
 
   // Batch-fetch all stats in parallel
   const [profilesRes, weightsRes, checkinsRes, nutritionRes, workoutsRes] = await Promise.allSettled([
-    supabase.from('profiles').select('id, full_name, email, avatar_url, gamification').in('id', clientIds),
+    supabase.from('profiles').select('id, full_name, email, avatar_url').in('id', clientIds),
     supabase.from('weight_log').select('client_id, date, weight').in('client_id', clientIds).order('date', { ascending: false }).limit(50),
     supabase.from('daily_checkins').select('client_id, date').in('client_id', clientIds).gte('date', sevenDaysAgo).order('date', { ascending: false }),
     supabase.from('nutrition_log').select('client_id, date').in('client_id', clientIds).gte('date', sevenDaysAgo),
@@ -122,8 +122,6 @@ export async function fetchClients(coachId) {
       adherence,
       streak,
       lastActive,
-      // Gamification data from profiles
-      gamification: profile?.gamification || null,
     };
   });
 }

@@ -11,10 +11,6 @@ import { saveDailyCheckin } from '../../services/checkins';
 import { saveDailyNutritionLog } from '../../services/nutrition';
 import { supabase } from '../../services/supabase';
 import { analyzeWeightTrend, detectPlateau } from '../../utils/coachingInsights';
-import { useGamificationStore } from '../../stores/gamificationStore';
-import { getLevelFromXP, calculateDailyXP } from '../../utils/gamification';
-import AchievementToast from '../../components/gamification/AchievementToast';
-import AchievementShareCard from '../../components/gamification/AchievementShareCard';
 
 // ---------- helpers ----------
 /** Resolve the correct client ID — uses override when coach is in client view */
@@ -472,89 +468,6 @@ function ProgressInsights({ weightLog, goal }) {
   );
 }
 
-// ---------- XP Bar ----------
-function XPBar({ level, todayXP }) {
-  if (!level) return null;
-  const pct = Math.round(level.progress * 100);
-  return (
-    <Card>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{
-            width: 32, height: 32, borderRadius: 8,
-            background: `linear-gradient(135deg, ${level.color}33, ${level.color}11)`,
-            border: `1.5px solid ${level.color}55`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontFamily: 'var(--fd)', fontSize: 13, fontWeight: 700, color: level.color,
-          }}>
-            {level.level}
-          </div>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: level.color }}>{level.title}</div>
-            <div style={{ fontSize: 10, color: 'var(--t3)' }}>
-              {level.totalXP.toLocaleString()} XP total
-            </div>
-          </div>
-        </div>
-        {todayXP && todayXP.total > 0 && (
-          <div style={{
-            fontSize: 11, padding: '3px 10px', borderRadius: 20,
-            background: 'rgba(212, 175, 55, 0.1)', color: 'var(--gold)',
-            fontWeight: 600, fontFamily: 'var(--fd)',
-          }}>
-            +{todayXP.total} XP today
-          </div>
-        )}
-      </div>
-      {!level.isMaxLevel && (
-        <>
-          <div className="pbar" style={{ height: 6 }}>
-            <div className="pfill" style={{
-              width: `${pct}%`,
-              background: `linear-gradient(90deg, ${level.color}, ${level.nextLevel?.color || level.color})`,
-            }} />
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-            <span style={{ fontSize: 9, color: 'var(--t3)' }}>LV {level.level}</span>
-            <span style={{ fontSize: 9, color: 'var(--t3)' }}>
-              {level.xpIntoLevel}/{level.xpForNext} XP to LV {level.nextLevel?.level}
-            </span>
-          </div>
-        </>
-      )}
-      {level.isMaxLevel && (
-        <div style={{ fontSize: 10, color: level.color, textAlign: 'center', marginTop: 4 }}>
-          MAX LEVEL REACHED
-        </div>
-      )}
-    </Card>
-  );
-}
-
-// ---------- Streak Flame ----------
-function StreakFlame({ streak }) {
-  if (!streak || streak.current === 0) return null;
-  const isHot = streak.current >= 7;
-  const isOnFire = streak.current >= 28;
-  return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 6,
-      padding: '6px 12px', borderRadius: 20,
-      background: isOnFire ? 'rgba(239, 68, 68, 0.12)' : isHot ? 'rgba(255, 107, 53, 0.12)' : 'rgba(212, 175, 55, 0.08)',
-      border: `1px solid ${isOnFire ? 'rgba(239, 68, 68, 0.2)' : isHot ? 'rgba(255, 107, 53, 0.2)' : 'rgba(212, 175, 55, 0.15)'}`,
-    }}>
-      <span style={{ fontSize: 16 }}>{isOnFire ? '🔥' : isHot ? '🔥' : '⚡'}</span>
-      <span style={{
-        fontFamily: 'var(--fd)', fontWeight: 700, fontSize: 14,
-        color: isOnFire ? 'var(--red)' : isHot ? '#ff6b35' : 'var(--gold)',
-      }}>
-        {streak.current}
-      </span>
-      <span style={{ fontSize: 10, color: 'var(--t3)' }}>day streak</span>
-    </div>
-  );
-}
-
 // ---------- main ----------
 export default function DashboardScreen() {
   const { user } = useAuthStore();
@@ -566,13 +479,6 @@ export default function DashboardScreen() {
     dayDataMap, getMealsForDate, _getDayData,
   } = store;
   const { showToast } = useUIStore();
-  const {
-    level, todayXP, streak: gamStreak, recentUnlock, achievements,
-    loadData: loadGamification, updateTodayXP, dismissRecentUnlock,
-  } = useGamificationStore();
-
-  // Share card state
-  const [shareAchievement, setShareAchievement] = useState(null);
 
   // Per-date data
   const dayData = _getDayData(selectedDate);
@@ -619,83 +525,10 @@ export default function DashboardScreen() {
     meals, dayData, stepGoal, macroTargets, weightLog, dailyLog, selectedDate, checkinDone,
   }), [meals, dayData, stepGoal, macroTargets, weightLog, dailyLog, selectedDate, checkinDone]);
 
-  // Load gamification data on mount
-  useEffect(() => {
-    const clientId = getClientId();
-    if (clientId) loadGamification(clientId);
-  }, [user?.id]);
-
-  // Calculate and save XP when checklist changes (debounced)
-  const xpTimerRef = useRef(null);
-  useEffect(() => {
-    if (!isToday) return; // Only calculate XP for today
-    clearTimeout(xpTimerRef.current);
-    xpTimerRef.current = setTimeout(() => {
-      const clientId = getClientId();
-      if (!clientId) return;
-
-      const totalProtein = meals.reduce((sum, m) =>
-        sum + (m.foods || []).reduce((s, f) => s + (f.checked ? (f.p || 0) : 0), 0), 0);
-      const totalCals = meals.reduce((sum, m) =>
-        sum + (m.foods || []).reduce((s, f) => s + (f.checked ? (f.kcal || 0) : 0), 0), 0);
-      const allMealsLogged = meals.length > 0 && meals.filter(m => m.logged).length >= meals.length;
-      const dateWeight = weightLog.find(w => w.date === selectedDate);
-
-      const dayActivities = {
-        loggedWorkout: !!dailyLog[selectedDate]?.workout,
-        loggedAllMeals: allMealsLogged,
-        hitStepTarget: dayData.currentSteps >= stepGoal,
-        hitCalorieTarget: macroTargets.calories > 0 && Math.abs(totalCals - macroTargets.calories) / macroTargets.calories <= 0.1,
-        hitProteinTarget: totalProtein >= (macroTargets.protein || 180),
-        dailyCheckin: checkinDone,
-        loggedWeight: !!dateWeight,
-        loggedWater3L: dayData.waterML >= 3000,
-      };
-
-      // Accumulated stats for achievement checks
-      const stats = {
-        totalWorkouts: Object.values(store.workoutHistory || {}).reduce((s, sessions) => s + (sessions?.length || 0), 0),
-        totalWeighins: weightLog.length,
-        totalCheckins: 0, // Would need full history
-        weightLost: weightLog.length >= 2 ? Math.max(0, weightLog[0].weight - weightLog[weightLog.length - 1].weight) : 0,
-      };
-
-      updateTodayXP(clientId, dayActivities, stats);
-    }, 2000);
-
-    return () => clearTimeout(xpTimerRef.current);
-  }, [checklist, isToday]);
-
   return (
     <div className="screen active">
-      {/* Achievement Toast */}
-      <AchievementToast
-        achievement={recentUnlock}
-        onDismiss={dismissRecentUnlock}
-        onShare={(ach) => { dismissRecentUnlock(); setShareAchievement(ach); }}
-      />
-
-      {/* Share Overlay */}
-      {shareAchievement && (
-        <AchievementShareCard
-          achievement={shareAchievement}
-          level={level}
-          streak={gamStreak}
-          userName={fullName}
-          onClose={() => setShareAchievement(null)}
-        />
-      )}
-
-      {/* XP Bar */}
-      <XPBar level={level} todayXP={todayXP} />
-
       {/* Mission Briefing */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-        <div style={{ flex: 1 }}>
-          <MissionBriefing name={fullName} streak={streak} goal={goal} />
-        </div>
-        <StreakFlame streak={gamStreak} />
-      </div>
+      <MissionBriefing name={fullName} streak={streak} goal={goal} />
 
       {/* Date selector */}
       <DateNavigator />
