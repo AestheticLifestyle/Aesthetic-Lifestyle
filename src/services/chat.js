@@ -245,17 +245,19 @@ export async function fetchPendingCheckins(coachId) {
     .limit(50);
 
   (dailyCheckins || []).forEach(ci => {
-    // Skip empty daily check-ins (no meaningful data filled in)
-    const hasMood = ci.mood != null && ci.mood !== '';
+    // Skip empty daily check-ins — only show ones with actual meaningful data
+    const hasMood = ci.mood != null && ci.mood !== '' && ci.mood !== 'none';
     const hasSleep = ci.sleep != null && ci.sleep > 0;
     const hasEnergy = ci.energy != null && ci.energy > 0;
     const hasStress = ci.stress != null && ci.stress > 0;
     const hasWeight = ci.weight != null && ci.weight > 0;
-    const hasNote = ci.note != null && ci.note.trim() !== '';
+    const hasNote = ci.note != null && String(ci.note).trim() !== '';
     const hasHydration = ci.hydration != null && ci.hydration > 0;
     const hasSteps = ci.steps != null && ci.steps > 0;
 
-    if (!hasMood && !hasSleep && !hasEnergy && !hasStress && !hasWeight && !hasNote && !hasHydration && !hasSteps) return;
+    // Must have at least 2 meaningful fields, or a note — a single default value doesn't count
+    const filledCount = [hasMood, hasSleep, hasEnergy, hasStress, hasWeight, hasHydration, hasSteps].filter(Boolean).length;
+    if (!hasNote && filledCount < 2) return;
 
     allCheckins.push({
       id: ci.id,
