@@ -34,6 +34,7 @@ export const CLIENT_NAV = [
   { id: 'training', label: 'Training', group: 'Main', icon: 'dumbbell' },
   { id: 'nutrition', label: 'Nutrition', group: 'Main', icon: 'utensils' },
   { id: 'progress', label: 'Progress', group: 'Tracking', icon: 'trending-up' },
+  { id: 'supplements', label: 'Supplements', group: 'Tracking', icon: 'pill' },
   { id: 'journal', label: 'Journal', group: 'Tracking', icon: 'book' },
   { id: 'chat', label: 'Chat', group: 'Connect', icon: 'message' },
   { id: 'settings', label: 'Settings', group: 'Connect', icon: 'settings' },

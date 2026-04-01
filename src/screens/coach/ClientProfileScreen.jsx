@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useCoachStore } from '../../stores/coachStore';
+import { useAuthStore } from '../../stores/authStore';
 import { Card, ProgressRing } from '../../components/ui';
 import { Icon } from '../../utils/icons';
 import { detectPlateau, analyzeWeightTrend, suggestCalorieAdjustment } from '../../utils/coachingInsights';
@@ -10,6 +11,7 @@ import { fetchWeightLog, fetchMeasurements, fetchProgressPhotos } from '../../se
 import { fetchDailyCheckins, fetchWeeklyCheckins, saveClientGoal } from '../../services/checkins';
 import { fetchMealPlan, fetchNutritionLogHistory } from '../../services/nutrition';
 import { fetchTrainingPlan, fetchWorkoutHistory } from '../../services/training';
+import SupplementsPanel from '../../components/coach/SupplementsPanel';
 
 // ── Helpers ──
 function formatDate(d) {
@@ -682,6 +684,7 @@ export default function ClientProfileScreen() {
   const { clientId } = useParams();
   const navigate = useNavigate();
   const { clients } = useCoachStore();
+  const { user } = useAuthStore();
 
   const client = clients.find(c => (c.client_id || c.id) === clientId) || {};
   const [clientGoal, setClientGoal] = useState(client.goalId || client.goal || '');
@@ -769,6 +772,7 @@ export default function ClientProfileScreen() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <CoachingIntelligence weightLog={data.weightLog} goalId={clientGoal} mealPlan={data.mealPlan} />
           <QuickActions clientId={clientId} clientName={clientName} navigate={navigate} />
+          <SupplementsPanel clientId={clientId} coachId={user?.id} />
           <CoachGoalSelector clientId={clientId} currentGoal={clientGoal} onGoalChange={setClientGoal} />
           <TrainingSummary trainingPlan={data.trainingPlan} workoutHistory={data.workoutHistory} />
           <MeasurementsSection measurements={data.measurements} />

@@ -11,6 +11,7 @@ import ProgressScreen from './screens/client/ProgressScreen';
 import JournalScreen from './screens/client/JournalScreen';
 import ChatScreen from './screens/client/ChatScreen';
 import SettingsScreen from './screens/client/SettingsScreen';
+import SupplementsScreen from './screens/client/SupplementsScreen';
 
 // Coach screens
 import OverviewScreen from './screens/coach/OverviewScreen';
@@ -40,6 +41,7 @@ const router = createBrowserRouter([
       { path: 'training', element: <TrainingScreen /> },
       { path: 'nutrition', element: <NutritionScreen /> },
       { path: 'progress', element: <ProgressScreen /> },
+      { path: 'supplements', element: <SupplementsScreen /> },
       { path: 'journal', element: <JournalScreen /> },
       { path: 'chat', element: <ChatScreen /> },
       { path: 'settings', element: <SettingsScreen /> },

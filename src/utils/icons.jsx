@@ -36,6 +36,7 @@ export function Icon({ name, size = 15, ...props }) {
     refresh: <path d="M2 8a6 6 0 0111.5-2.3M14 8a6 6 0 01-11.5 2.3M13.5 2v3.7h-3.7M2.5 14v-3.7h3.7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>,
     download: <><path d="M8 2v8M4 8l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/><path d="M2 12v1a1 1 0 001 1h10a1 1 0 001-1v-1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none"/></>,
     image: <><rect x="1" y="2" width="14" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.5" fill="none"/><circle cx="5" cy="6" r="1.5" fill="currentColor"/><path d="M1 12l4-4 2 2 3-3 5 5" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" fill="none"/></>,
+    pill: <><rect x="2" y="5" width="12" height="6" rx="3" stroke="currentColor" strokeWidth="1.5" fill="none"/><line x1="8" y1="5" x2="8" y2="11" stroke="currentColor" strokeWidth="1.5"/></>,
   };
 
   return (
