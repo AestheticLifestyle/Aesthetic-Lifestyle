@@ -245,6 +245,18 @@ export async function fetchPendingCheckins(coachId) {
     .limit(50);
 
   (dailyCheckins || []).forEach(ci => {
+    // Skip empty daily check-ins (no meaningful data filled in)
+    const hasMood = ci.mood != null && ci.mood !== '';
+    const hasSleep = ci.sleep != null && ci.sleep > 0;
+    const hasEnergy = ci.energy != null && ci.energy > 0;
+    const hasStress = ci.stress != null && ci.stress > 0;
+    const hasWeight = ci.weight != null && ci.weight > 0;
+    const hasNote = ci.note != null && ci.note.trim() !== '';
+    const hasHydration = ci.hydration != null && ci.hydration > 0;
+    const hasSteps = ci.steps != null && ci.steps > 0;
+
+    if (!hasMood && !hasSleep && !hasEnergy && !hasStress && !hasWeight && !hasNote && !hasHydration && !hasSteps) return;
+
     allCheckins.push({
       id: ci.id,
       client_id: ci.client_id,
