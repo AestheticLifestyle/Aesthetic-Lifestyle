@@ -12,6 +12,18 @@ import { fetchPendingCheckins } from '../../services/chat';
 function CheckinCard({ checkin, onReview }) {
   const name = checkin.client_name || 'Client';
   const isWeekly = checkin.type === 'weekly';
+  const isDaily = checkin.type === 'daily';
+
+  // Daily check-ins: show "Logged" or "Commented" instead of Pending/Reviewed
+  const getStatusTag = () => {
+    if (isDaily) {
+      if (checkin.coach_feedback) return { cls: 't-gr', label: 'Commented' };
+      return { cls: '', label: 'Logged', style: { background: 'var(--s3)', color: 'var(--t2)' } };
+    }
+    if (checkin.status === 'pending') return { cls: 't-or', label: 'Needs Review' };
+    return { cls: 't-gr', label: 'Reviewed' };
+  };
+  const tag = getStatusTag();
 
   return (
     <Card style={{ cursor: 'pointer' }} onClick={() => onReview(checkin)}>
@@ -31,8 +43,8 @@ function CheckinCard({ checkin, onReview }) {
             </div>
           </div>
         </div>
-        <span className={`tag ${checkin.status === 'pending' ? 't-or' : 't-gr'}`}>
-          {checkin.status === 'pending' ? 'Pending' : 'Reviewed'}
+        <span className={`tag ${tag.cls}`} style={tag.style || {}}>
+          {tag.label}
         </span>
       </div>
 
@@ -141,9 +153,15 @@ function ReviewPanel({ checkin, onClose, onFeedbackSaved }) {
         <h3 style={{ flex: 1, fontSize: 16, fontWeight: 600 }}>
           {name} — {isWeekly ? `Week ${checkin.week_number}` : 'Daily'}
         </h3>
-        <span className={`tag ${checkin.status === 'pending' ? 't-or' : 't-gr'}`} style={{ fontSize: 10 }}>
-          {checkin.status === 'pending' ? 'Pending' : 'Reviewed'}
-        </span>
+        {isWeekly ? (
+          <span className={`tag ${checkin.status === 'pending' ? 't-or' : 't-gr'}`} style={{ fontSize: 10 }}>
+            {checkin.status === 'pending' ? 'Needs Review' : 'Reviewed'}
+          </span>
+        ) : (
+          <span className="tag" style={{ fontSize: 10, background: checkin.coach_feedback ? 'var(--green)' : 'var(--s3)', color: checkin.coach_feedback ? '#fff' : 'var(--t2)' }}>
+            {checkin.coach_feedback ? 'Commented' : 'Daily Log'}
+          </span>
+        )}
         <button className="icon-btn" onClick={onClose}><Icon name="x" size={14} /></button>
       </div>
 
@@ -248,7 +266,10 @@ function ReviewPanel({ checkin, onClose, onFeedbackSaved }) {
 
         {/* Coach feedback input */}
         <div className="kl" style={{ marginBottom: 6 }}>
-          {checkin.coach_feedback ? 'Update Feedback' : 'Your Feedback'}
+          {isWeekly
+            ? (checkin.coach_feedback ? 'Update Feedback' : 'Your Feedback')
+            : (checkin.coach_feedback ? 'Update Comment' : 'Leave a Comment (optional)')
+          }
         </div>
         <textarea
           className="t-area"
@@ -267,7 +288,7 @@ function ReviewPanel({ checkin, onClose, onFeedbackSaved }) {
           disabled={!feedback.trim() || saving}
           onClick={handleSubmit}
         >
-          <Icon name="send" size={12} /> {saving ? 'Saving...' : 'Submit Feedback'}
+          <Icon name="send" size={12} /> {saving ? 'Saving...' : isWeekly ? 'Submit Review' : 'Send Comment'}
         </button>
       </div>
     </div>
@@ -282,7 +303,9 @@ function EmptyState({ filter }) {
         <Icon name="clipboard" size={28} style={{ opacity: 0.2, display: 'block', margin: '0 auto 12px' }} />
         <div style={{ fontSize: 13 }}>
           {filter === 'pending'
-            ? 'All caught up! No pending check-ins.'
+            ? 'All caught up! No weekly check-ins to review.'
+            : filter === 'daily'
+            ? 'No daily check-ins yet.'
             : 'No check-ins found.'
           }
         </div>
@@ -304,14 +327,15 @@ export default function CheckinsScreen() {
 
   const filtered = pendingCheckins.filter(c => {
     if (filter === 'all') return true;
-    if (filter === 'pending') return c.status === 'pending';
-    if (filter === 'reviewed') return c.status === 'reviewed';
+    if (filter === 'pending') return c.type === 'weekly' && c.status === 'pending';
+    if (filter === 'reviewed') return c.type === 'weekly' && c.status === 'reviewed';
     if (filter === 'weekly') return c.type === 'weekly';
     if (filter === 'daily') return c.type === 'daily';
     return true;
   });
 
-  const pendingCount = pendingCheckins.filter(c => c.status === 'pending').length;
+  // Only weekly check-ins count as "pending review"
+  const pendingCount = pendingCheckins.filter(c => c.type === 'weekly' && c.status === 'pending').length;
 
   const handleRefresh = useCallback(async () => {
     if (!user?.id) return;
@@ -336,7 +360,7 @@ export default function CheckinsScreen() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
         <div>
           <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 4 }}>
-            {pendingCount > 0 ? `${pendingCount} check-in${pendingCount > 1 ? 's' : ''} need your review` : 'No pending check-ins'}
+            {pendingCount > 0 ? `${pendingCount} weekly check-in${pendingCount > 1 ? 's' : ''} need${pendingCount === 1 ? 's' : ''} your review` : 'All weekly check-ins reviewed'}
           </div>
         </div>
         <button
