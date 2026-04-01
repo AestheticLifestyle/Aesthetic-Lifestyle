@@ -1,8 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCoachStore } from '../../stores/coachStore';
+import { useAuthStore } from '../../stores/authStore';
+import { useUIStore } from '../../stores/uiStore';
 import { Card } from '../../components/ui';
 import { Icon } from '../../utils/icons';
+import { createInviteCode, fetchInviteCodes, deactivateInviteCode } from '../../services/invites';
 
 function ClientCard({ client, onClick }) {
   const statusMap = {
@@ -78,11 +81,187 @@ function EmptyState() {
   );
 }
 
+// ── Invite Code Modal ──
+function InviteModal({ onClose }) {
+  const { user } = useAuthStore();
+  const { showToast } = useUIStore();
+  const [codes, setCodes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [label, setLabel] = useState('');
+  const [maxUses, setMaxUses] = useState(1);
+  const [copied, setCopied] = useState(null);
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchInviteCodes(user.id).then(data => {
+        setCodes(data);
+        setLoading(false);
+      });
+    }
+  }, [user?.id]);
+
+  const handleCreate = async () => {
+    setCreating(true);
+    try {
+      const newCode = await createInviteCode(user.id, {
+        label: label.trim() || undefined,
+        maxUses: maxUses,
+      });
+      setCodes(prev => [newCode, ...prev]);
+      setLabel('');
+      setMaxUses(1);
+      showToast('Invite code created!', 'success');
+    } catch (err) {
+      showToast('Failed to create code', 'error');
+    }
+    setCreating(false);
+  };
+
+  const handleDeactivate = async (codeId) => {
+    try {
+      await deactivateInviteCode(codeId);
+      setCodes(prev => prev.map(c => c.id === codeId ? { ...c, active: false } : c));
+      showToast('Code deactivated', 'success');
+    } catch {
+      showToast('Failed to deactivate', 'error');
+    }
+  };
+
+  const handleCopy = (code) => {
+    navigator.clipboard.writeText(code);
+    setCopied(code);
+    setTimeout(() => setCopied(null), 2000);
+  };
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 1000,
+      background: 'rgba(0,0,0,.6)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: 20,
+    }} onClick={onClose}>
+      <div style={{
+        background: 'var(--s1)', borderRadius: 16, padding: 24, width: '100%', maxWidth: 480,
+        maxHeight: '80vh', overflow: 'auto', border: '1px solid var(--border)',
+      }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>Invite Clients</h3>
+          <button className="btn btn-secondary btn-sm" onClick={onClose} style={{ padding: '4px 8px', minWidth: 0 }}>
+            <Icon name="x" size={14} />
+          </button>
+        </div>
+
+        {/* Create new code */}
+        <div style={{
+          background: 'var(--s2)', borderRadius: 12, padding: 16, marginBottom: 20,
+          border: '1px solid var(--border)',
+        }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t2)', marginBottom: 10 }}>Generate New Code</div>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+            <input
+              type="text"
+              value={label}
+              onChange={e => setLabel(e.target.value)}
+              placeholder="Label (optional)"
+              style={{ flex: 1, fontSize: 13 }}
+            />
+            <select
+              value={maxUses}
+              onChange={e => setMaxUses(Number(e.target.value))}
+              style={{
+                background: 'var(--s3)', color: 'var(--t1)', border: '1px solid var(--border)',
+                borderRadius: 8, padding: '6px 10px', fontSize: 12,
+              }}
+            >
+              <option value={1}>1 use</option>
+              <option value={5}>5 uses</option>
+              <option value={10}>10 uses</option>
+              <option value={50}>50 uses</option>
+            </select>
+          </div>
+          <button
+            className="btn btn-primary btn-sm"
+            style={{ width: '100%' }}
+            onClick={handleCreate}
+            disabled={creating}
+          >
+            <Icon name="plus" size={12} /> {creating ? 'Creating...' : 'Generate Invite Code'}
+          </button>
+        </div>
+
+        {/* Existing codes */}
+        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t2)', marginBottom: 10 }}>
+          Your Codes {codes.length > 0 && `(${codes.length})`}
+        </div>
+
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: 20, color: 'var(--t3)', fontSize: 12 }}>Loading...</div>
+        ) : codes.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: 20, color: 'var(--t3)', fontSize: 12 }}>
+            No invite codes yet. Create one above!
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {codes.map(c => (
+              <div key={c.id} style={{
+                display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
+                background: 'var(--s2)', borderRadius: 10, border: '1px solid var(--border)',
+                opacity: c.active ? 1 : 0.4,
+              }}>
+                <div style={{
+                  fontFamily: 'var(--fd)', fontSize: 16, fontWeight: 700, letterSpacing: 2,
+                  color: c.active ? 'var(--gold)' : 'var(--t3)', flex: 1,
+                }}>
+                  {c.code}
+                </div>
+                <div style={{ fontSize: 10, color: 'var(--t3)', textAlign: 'right', minWidth: 60 }}>
+                  {c.label && <div>{c.label}</div>}
+                  <div>{c.used_count}/{c.max_uses} used</div>
+                </div>
+                {c.active && (
+                  <>
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      style={{ padding: '4px 8px', minWidth: 0, fontSize: 10 }}
+                      onClick={() => handleCopy(c.code)}
+                    >
+                      {copied === c.code ? 'Copied!' : 'Copy'}
+                    </button>
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      style={{ padding: '4px 8px', minWidth: 0, fontSize: 10, color: 'var(--red)' }}
+                      onClick={() => handleDeactivate(c.id)}
+                    >
+                      <Icon name="x" size={10} />
+                    </button>
+                  </>
+                )}
+                {!c.active && (
+                  <span style={{ fontSize: 9, color: 'var(--t3)', textTransform: 'uppercase' }}>Inactive</span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div style={{
+          marginTop: 16, padding: '10px 12px', background: 'rgba(212,175,55,.06)',
+          borderRadius: 8, border: '1px solid rgba(212,175,55,.15)',
+          fontSize: 11, color: 'var(--t3)', lineHeight: 1.5,
+        }}>
+          Share the invite code with your client. They can enter it during signup or in their Settings to connect with you.
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ClientsScreen() {
   const { clients } = useCoachStore();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
+  const [showInviteModal, setShowInviteModal] = useState(false);
 
   const filtered = clients.filter(c => {
     const name = (c.client_name || c.name || '').toLowerCase();
@@ -98,7 +277,18 @@ export default function ClientsScreen() {
 
   return (
     <div className="screen active">
-      {/* Search & filters */}
+      {showInviteModal && <InviteModal onClose={() => setShowInviteModal(false)} />}
+
+      {/* Search & filters + Add Client button */}
+      <div style={{ display: 'flex', gap: 12, marginBottom: 18, flexWrap: 'wrap' }}>
+        <button
+          className="btn btn-primary btn-sm"
+          onClick={() => setShowInviteModal(true)}
+          style={{ whiteSpace: 'nowrap' }}
+        >
+          <Icon name="plus" size={12} /> Add Client
+        </button>
+      </div>
       <div style={{ display: 'flex', gap: 12, marginBottom: 18, flexWrap: 'wrap' }}>
         <div className="search-bar" style={{ flex: 1, minWidth: 200, marginBottom: 0 }}>
           <Icon name="search" size={14} style={{ color: 'var(--t3)' }} />

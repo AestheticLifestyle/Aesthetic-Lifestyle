@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { useClientStore } from '../../stores/clientStore';
 import { useUIStore } from '../../stores/uiStore';
 import { Card } from '../../components/ui';
 import { Icon } from '../../utils/icons';
 import { saveClientGoal } from '../../services/checkins';
+import { redeemInviteCode, getMyCoachLink, getCoachName, disconnectFromCoach } from '../../services/invites';
 
 // ── Goal config ──
 const GOALS = [
@@ -115,6 +116,123 @@ function GoalSelector() {
   );
 }
 
+// ── Coach Connection Card ──
+function CoachConnection() {
+  const { user } = useAuthStore();
+  const { showToast } = useUIStore();
+  const [coachName, setCoachName] = useState(null);
+  const [linked, setLinked] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [code, setCode] = useState('');
+  const [redeeming, setRedeeming] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!user?.id) return;
+    getMyCoachLink(user.id).then(async (coachId) => {
+      if (coachId) {
+        setLinked(true);
+        const name = await getCoachName(coachId);
+        setCoachName(name);
+      }
+      setLoading(false);
+    });
+  }, [user?.id]);
+
+  const handleRedeem = async () => {
+    if (!code.trim()) return;
+    setRedeeming(true);
+    setError('');
+    const result = await redeemInviteCode(user.id, code.trim());
+    if (result.success) {
+      showToast('Connected to coach!', 'success');
+      const name = await getCoachName(result.coachId);
+      setCoachName(name);
+      setLinked(true);
+      setCode('');
+    } else {
+      setError(result.error);
+    }
+    setRedeeming(false);
+  };
+
+  const handleDisconnect = async () => {
+    try {
+      await disconnectFromCoach(user.id);
+      setLinked(false);
+      setCoachName(null);
+      showToast('Disconnected from coach', 'success');
+    } catch {
+      showToast('Failed to disconnect', 'error');
+    }
+  };
+
+  if (loading) return null;
+
+  return (
+    <Card title="Coach" subtitle={linked ? 'Connected' : 'Not connected'} style={{ marginTop: 14 }}>
+      {linked ? (
+        <div>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
+            background: 'rgba(212,175,55,.06)', borderRadius: 10,
+            border: '1px solid rgba(212,175,55,.15)',
+          }}>
+            <div style={{
+              width: 36, height: 36, borderRadius: '50%', background: 'var(--gold-d)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: 'var(--gold)', fontFamily: 'var(--fd)', fontSize: 14, fontWeight: 600,
+            }}>
+              {coachName?.charAt(0) || 'C'}
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--gold)' }}>{coachName}</div>
+              <div style={{ fontSize: 11, color: 'var(--t3)' }}>Your Coach</div>
+            </div>
+            <button
+              className="btn btn-secondary btn-sm"
+              style={{ fontSize: 10, color: 'var(--red)' }}
+              onClick={handleDisconnect}
+            >
+              Disconnect
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div>
+          <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 10 }}>
+            Enter an invite code from your coach to connect.
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input
+              type="text"
+              value={code}
+              onChange={e => setCode(e.target.value.toUpperCase())}
+              placeholder="ABC123"
+              maxLength={6}
+              style={{
+                flex: 1, letterSpacing: 3, fontFamily: 'var(--fd)',
+                textAlign: 'center', fontSize: 16,
+              }}
+              autoComplete="off"
+            />
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={handleRedeem}
+              disabled={redeeming || !code.trim()}
+            >
+              {redeeming ? '...' : 'Connect'}
+            </button>
+          </div>
+          {error && (
+            <div style={{ fontSize: 11, color: 'var(--red)', marginTop: 6 }}>{error}</div>
+          )}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 export default function SettingsScreen() {
   const { user, logout } = useAuthStore();
   const { stepGoal, macroTargets } = useClientStore();
@@ -153,6 +271,9 @@ export default function SettingsScreen() {
           <Icon name="edit" size={12} /> Edit Profile
         </button>
       </Card>
+
+      {/* Coach Connection */}
+      <CoachConnection />
 
       {/* Training Goal */}
       <GoalSelector />
