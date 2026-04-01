@@ -1,4 +1,6 @@
 import { supabase } from './supabase';
+import { saveTrainingPlan } from './training';
+import { saveMealPlan } from './nutrition';
 
 // ── Generate a short readable invite code ──
 function generateCode() {
@@ -8,22 +10,32 @@ function generateCode() {
   return code;
 }
 
-// ── Coach: Create a new invite code ──
-export async function createInviteCode(coachId, { label = '', maxUses = 1, expiresInDays = null } = {}) {
+// ── Coach: Create a new invite code with optional client setup ──
+export async function createInviteCode(coachId, {
+  label = '', maxUses = 1, expiresInDays = null,
+  clientSetup = null, // { clientName, goal, stepTarget, trainingPlan, nutritionPlan }
+} = {}) {
   const code = generateCode();
   const expires_at = expiresInDays
     ? new Date(Date.now() + expiresInDays * 86400000).toISOString()
     : null;
 
+  const row = {
+    coach_id: coachId,
+    code,
+    label: label || (clientSetup?.clientName ? `For ${clientSetup.clientName}` : ''),
+    max_uses: maxUses,
+    expires_at,
+  };
+
+  // Store client setup as JSONB if provided
+  if (clientSetup) {
+    row.client_setup = clientSetup;
+  }
+
   const { data, error } = await supabase
     .from('invite_codes')
-    .insert({
-      coach_id: coachId,
-      code,
-      label,
-      max_uses: maxUses,
-      expires_at,
-    })
+    .insert(row)
     .select()
     .single();
 
@@ -63,12 +75,10 @@ export async function validateInviteCode(code) {
 
   if (error || !data) return { valid: false, error: 'Invalid invite code' };
 
-  // Check expiry
   if (data.expires_at && new Date(data.expires_at) < new Date()) {
     return { valid: false, error: 'This invite code has expired' };
   }
 
-  // Check usage limit
   if (data.used_count >= data.max_uses) {
     return { valid: false, error: 'This invite code has already been used' };
   }
@@ -76,7 +86,7 @@ export async function validateInviteCode(code) {
   return { valid: true, invite: data };
 }
 
-// ── Client: Redeem an invite code (link to coach) ──
+// ── Client: Redeem an invite code (link to coach + apply setup) ──
 export async function redeemInviteCode(clientId, code) {
   // 1. Validate
   const { valid, invite, error: valError } = await validateInviteCode(code);
@@ -106,17 +116,51 @@ export async function redeemInviteCode(clientId, code) {
     return { success: false, error: 'You are already linked to a coach. Disconnect first to switch coaches.' };
   }
 
-  // 4. Create the link
+  // 4. Get client setup from invite (if coach pre-configured)
+  const setup = invite.client_setup || {};
+
+  // 5. Create the link with setup data
   const { error: insertError } = await supabase
     .from('coach_clients')
     .insert({
       coach_id: invite.coach_id,
       client_id: clientId,
+      goal: setup.goal || 'maintenance',
+      step_target: setup.stepTarget || 10000,
+      start_date: new Date().toISOString().slice(0, 10),
     });
 
   if (insertError) return { success: false, error: insertError.message };
 
-  // 5. Increment used_count
+  // 6. Apply training plan if one was selected
+  if (setup.trainingPlan && setup.trainingPlan.days?.length) {
+    try {
+      await saveTrainingPlan(
+        clientId,
+        invite.coach_id,
+        setup.trainingPlan.name,
+        setup.trainingPlan.days,
+      );
+    } catch (err) {
+      console.warn('[redeemInviteCode] training plan error:', err);
+    }
+  }
+
+  // 7. Apply nutrition plan if one was selected
+  if (setup.nutritionPlan && setup.nutritionPlan.meals?.length) {
+    try {
+      await saveMealPlan(
+        clientId,
+        invite.coach_id,
+        setup.nutritionPlan.meals,
+        setup.nutritionPlan.name,
+      );
+    } catch (err) {
+      console.warn('[redeemInviteCode] nutrition plan error:', err);
+    }
+  }
+
+  // 8. Increment used_count
   await supabase
     .from('invite_codes')
     .update({ used_count: invite.used_count + 1 })

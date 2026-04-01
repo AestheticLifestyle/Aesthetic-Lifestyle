@@ -6,6 +6,7 @@ import { useUIStore } from '../../stores/uiStore';
 import { Card } from '../../components/ui';
 import { Icon } from '../../utils/icons';
 import { createInviteCode, fetchInviteCodes, deactivateInviteCode } from '../../services/invites';
+import { fetchTrainingTemplates, fetchNutritionTemplates } from '../../services/chat';
 
 function ClientCard({ client, onClick }) {
   const statusMap = {
@@ -81,15 +82,559 @@ function EmptyState() {
   );
 }
 
-// ── Invite Code Modal ──
-function InviteModal({ onClose }) {
+// ── Goal options ──
+const GOALS = [
+  { id: 'cut',        label: 'Cut',         icon: '🔥', desc: 'Fat loss focus' },
+  { id: 'lean-bulk',  label: 'Lean Bulk',   icon: '💪', desc: 'Muscle gain — slight surplus' },
+  { id: 'recomp',     label: 'Body Recomp', icon: '⚖️', desc: 'Lose fat + build muscle' },
+  { id: 'maintenance',label: 'Maintenance',  icon: '🛡️', desc: 'Hold current physique' },
+  { id: 'comp-prep',  label: 'Comp Prep',   icon: '🏆', desc: 'Contest / photoshoot prep' },
+];
+
+// ── Step indicator ──
+function StepIndicator({ current, total, labels }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginBottom: 20, padding: '0 4px' }}>
+      {labels.map((label, i) => (
+        <div key={i} style={{ display: 'flex', alignItems: 'center', flex: i < total - 1 ? 1 : 0 }}>
+          <div style={{
+            width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 11, fontWeight: 600,
+            background: i <= current ? 'var(--gold)' : 'var(--s3)',
+            color: i <= current ? '#000' : 'var(--t3)',
+            transition: 'all .2s',
+          }}>
+            {i < current ? '✓' : i + 1}
+          </div>
+          {i < total - 1 && (
+            <div style={{
+              flex: 1, height: 2, margin: '0 6px',
+              background: i < current ? 'var(--gold)' : 'var(--s3)',
+              transition: 'background .2s',
+            }} />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Add Client Wizard (multi-step) ──
+function AddClientWizard({ onClose, onCreated }) {
+  const { user } = useAuthStore();
+  const { showToast } = useUIStore();
+
+  // Wizard step
+  const [step, setStep] = useState(0);
+  const STEPS = ['Profile', 'Training', 'Nutrition', 'Review'];
+
+  // Step 1: Profile
+  const [clientName, setClientName] = useState('');
+  const [goal, setGoal] = useState('maintenance');
+  const [stepTarget, setStepTarget] = useState(10000);
+
+  // Step 2: Training
+  const [trainingTemplates, setTrainingTemplates] = useState([]);
+  const [selectedTraining, setSelectedTraining] = useState(null);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+
+  // Step 3: Nutrition
+  const [nutritionTemplates, setNutritionTemplates] = useState([]);
+  const [selectedNutrition, setSelectedNutrition] = useState(null);
+
+  // Step 4: Result
+  const [creating, setCreating] = useState(false);
+  const [generatedCode, setGeneratedCode] = useState(null);
+  const [copied, setCopied] = useState(false);
+
+  // Load templates when wizard opens
+  useEffect(() => {
+    if (!user?.id) return;
+    setLoadingTemplates(true);
+    Promise.all([
+      fetchTrainingTemplates(user.id),
+      fetchNutritionTemplates(user.id),
+    ]).then(([training, nutrition]) => {
+      setTrainingTemplates(training || []);
+      setNutritionTemplates(nutrition || []);
+      setLoadingTemplates(false);
+    }).catch(() => setLoadingTemplates(false));
+  }, [user?.id]);
+
+  const canNext = () => {
+    if (step === 0) return clientName.trim().length > 0;
+    return true; // training & nutrition are optional
+  };
+
+  const handleGenerate = async () => {
+    setCreating(true);
+    try {
+      const clientSetup = {
+        clientName: clientName.trim(),
+        goal,
+        stepTarget,
+      };
+
+      // Attach training plan if selected
+      if (selectedTraining) {
+        clientSetup.trainingPlan = {
+          name: selectedTraining.name,
+          days: selectedTraining.days.map(d => ({
+            name: d.name,
+            exercises: d.exercises.map(ex => ({
+              name: ex.name,
+              sets: ex.sets,
+              targetReps: ex.reps,
+            })),
+          })),
+        };
+      }
+
+      // Attach nutrition plan if selected
+      if (selectedNutrition) {
+        clientSetup.nutritionPlan = {
+          name: selectedNutrition.name,
+          meals: selectedNutrition.meals,
+        };
+      }
+
+      const result = await createInviteCode(user.id, {
+        label: `For ${clientName.trim()}`,
+        maxUses: 1,
+        clientSetup,
+      });
+
+      setGeneratedCode(result.code);
+      showToast('Client profile & invite code created!', 'success');
+      if (onCreated) onCreated();
+    } catch (err) {
+      showToast('Failed to create invite code', 'error');
+      console.error(err);
+    }
+    setCreating(false);
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(generatedCode);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  // ── Render Steps ──
+  const renderProfile = () => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div>
+        <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--t2)', marginBottom: 6, display: 'block' }}>
+          Client Name *
+        </label>
+        <input
+          type="text"
+          value={clientName}
+          onChange={e => setClientName(e.target.value)}
+          placeholder="Enter client's name"
+          style={{ width: '100%', fontSize: 14 }}
+          autoFocus
+        />
+      </div>
+
+      <div>
+        <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--t2)', marginBottom: 8, display: 'block' }}>
+          Training Goal
+        </label>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {GOALS.map(g => (
+            <button
+              key={g.id}
+              type="button"
+              onClick={() => setGoal(g.id)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
+                borderRadius: 10, cursor: 'pointer', textAlign: 'left',
+                border: goal === g.id ? '1.5px solid var(--gold)' : '1px solid var(--border)',
+                background: goal === g.id ? 'var(--gold-d)' : 'var(--s2)',
+                transition: 'all .15s',
+              }}
+            >
+              <span style={{ fontSize: 18 }}>{g.icon}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: goal === g.id ? 'var(--gold)' : 'var(--t1)' }}>
+                  {g.label}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--t3)' }}>{g.desc}</div>
+              </div>
+              {goal === g.id && (
+                <div style={{
+                  width: 18, height: 18, borderRadius: '50%', background: 'var(--gold)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Icon name="check" size={10} style={{ color: '#000' }} />
+                </div>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--t2)', marginBottom: 6, display: 'block' }}>
+          Daily Step Target
+        </label>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {[8000, 10000, 12000, 15000].map(s => (
+            <button
+              key={s}
+              type="button"
+              className={`chip ${stepTarget === s ? 'active' : ''}`}
+              onClick={() => setStepTarget(s)}
+            >
+              {s.toLocaleString()}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderTraining = () => (
+    <div>
+      <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 12 }}>
+        Select a training plan template to assign, or skip to let the client start without one.
+      </div>
+      {loadingTemplates ? (
+        <div style={{ textAlign: 'center', padding: 30, color: 'var(--t3)', fontSize: 12 }}>Loading templates...</div>
+      ) : trainingTemplates.length === 0 ? (
+        <div style={{
+          textAlign: 'center', padding: 30, background: 'var(--s2)', borderRadius: 12,
+          border: '1px solid var(--border)',
+        }}>
+          <Icon name="dumbbell" size={24} style={{ opacity: 0.2, display: 'block', margin: '0 auto 10px' }} />
+          <div style={{ fontSize: 13, color: 'var(--t2)', fontWeight: 500, marginBottom: 4 }}>No training templates</div>
+          <div style={{ fontSize: 11, color: 'var(--t3)' }}>Create templates in the Training section first.</div>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {/* Skip option */}
+          <button
+            type="button"
+            onClick={() => setSelectedTraining(null)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
+              borderRadius: 10, cursor: 'pointer', textAlign: 'left',
+              border: !selectedTraining ? '1.5px solid var(--gold)' : '1px solid var(--border)',
+              background: !selectedTraining ? 'var(--gold-d)' : 'var(--s2)',
+              transition: 'all .15s',
+            }}
+          >
+            <Icon name="minus" size={14} style={{ color: !selectedTraining ? 'var(--gold)' : 'var(--t3)' }} />
+            <div style={{ fontSize: 13, fontWeight: 500, color: !selectedTraining ? 'var(--gold)' : 'var(--t2)' }}>
+              No training plan (skip)
+            </div>
+          </button>
+
+          {trainingTemplates.map(t => {
+            const isSelected = selectedTraining?.id === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setSelectedTraining(t)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px',
+                  borderRadius: 10, cursor: 'pointer', textAlign: 'left',
+                  border: isSelected ? '1.5px solid var(--gold)' : '1px solid var(--border)',
+                  background: isSelected ? 'var(--gold-d)' : 'var(--s2)',
+                  transition: 'all .15s',
+                }}
+              >
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: isSelected ? 'var(--gold)' : 'var(--t1)' }}>
+                    {t.name}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--t3)', marginTop: 2 }}>
+                    {t.days.length} day{t.days.length !== 1 ? 's' : ''} — {t.days.map(d => d.name).join(', ')}
+                  </div>
+                </div>
+                {isSelected && (
+                  <div style={{
+                    width: 18, height: 18, borderRadius: '50%', background: 'var(--gold)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                  }}>
+                    <Icon name="check" size={10} style={{ color: '#000' }} />
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+
+  const renderNutrition = () => (
+    <div>
+      <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 12 }}>
+        Select a nutrition plan template, or skip to let the client start without one.
+      </div>
+      {loadingTemplates ? (
+        <div style={{ textAlign: 'center', padding: 30, color: 'var(--t3)', fontSize: 12 }}>Loading templates...</div>
+      ) : nutritionTemplates.length === 0 ? (
+        <div style={{
+          textAlign: 'center', padding: 30, background: 'var(--s2)', borderRadius: 12,
+          border: '1px solid var(--border)',
+        }}>
+          <Icon name="utensils" size={24} style={{ opacity: 0.2, display: 'block', margin: '0 auto 10px' }} />
+          <div style={{ fontSize: 13, color: 'var(--t2)', fontWeight: 500, marginBottom: 4 }}>No nutrition templates</div>
+          <div style={{ fontSize: 11, color: 'var(--t3)' }}>Create templates in the Nutrition section first.</div>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {/* Skip option */}
+          <button
+            type="button"
+            onClick={() => setSelectedNutrition(null)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
+              borderRadius: 10, cursor: 'pointer', textAlign: 'left',
+              border: !selectedNutrition ? '1.5px solid var(--gold)' : '1px solid var(--border)',
+              background: !selectedNutrition ? 'var(--gold-d)' : 'var(--s2)',
+              transition: 'all .15s',
+            }}
+          >
+            <Icon name="minus" size={14} style={{ color: !selectedNutrition ? 'var(--gold)' : 'var(--t3)' }} />
+            <div style={{ fontSize: 13, fontWeight: 500, color: !selectedNutrition ? 'var(--gold)' : 'var(--t2)' }}>
+              No nutrition plan (skip)
+            </div>
+          </button>
+
+          {nutritionTemplates.map(n => {
+            const isSelected = selectedNutrition?.id === n.id;
+            const t = n.targets || {};
+            return (
+              <button
+                key={n.id}
+                type="button"
+                onClick={() => setSelectedNutrition(n)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px',
+                  borderRadius: 10, cursor: 'pointer', textAlign: 'left',
+                  border: isSelected ? '1.5px solid var(--gold)' : '1px solid var(--border)',
+                  background: isSelected ? 'var(--gold-d)' : 'var(--s2)',
+                  transition: 'all .15s',
+                }}
+              >
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: isSelected ? 'var(--gold)' : 'var(--t1)' }}>
+                    {n.name}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--t3)', marginTop: 2 }}>
+                    {n.meals.length} meal{n.meals.length !== 1 ? 's' : ''}
+                    {t.calories ? ` — ${Math.round(t.calories)} kcal` : ''}
+                    {t.protein ? ` / ${Math.round(t.protein)}g P` : ''}
+                  </div>
+                </div>
+                {isSelected && (
+                  <div style={{
+                    width: 18, height: 18, borderRadius: '50%', background: 'var(--gold)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                  }}>
+                    <Icon name="check" size={10} style={{ color: '#000' }} />
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+
+  const renderReview = () => {
+    if (generatedCode) {
+      return (
+        <div style={{ textAlign: 'center', padding: '20px 0' }}>
+          <div style={{
+            width: 56, height: 56, borderRadius: '50%', background: 'var(--gold-d)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            margin: '0 auto 16px', color: 'var(--gold)',
+          }}>
+            <Icon name="check" size={28} />
+          </div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--t1)', marginBottom: 4 }}>Client Profile Ready!</div>
+          <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 20 }}>
+            Share this code with {clientName}. When they sign up or enter it in Settings, everything will sync automatically.
+          </div>
+
+          <div style={{
+            fontFamily: 'var(--fd)', fontSize: 32, fontWeight: 700, letterSpacing: 6,
+            color: 'var(--gold)', padding: '16px 0', background: 'var(--s2)',
+            borderRadius: 12, border: '1px solid rgba(212,175,55,.2)', marginBottom: 12,
+          }}>
+            {generatedCode}
+          </div>
+
+          <button className="btn btn-primary" style={{ width: '100%' }} onClick={handleCopy}>
+            <Icon name="copy" size={13} /> {copied ? 'Copied!' : 'Copy Invite Code'}
+          </button>
+        </div>
+      );
+    }
+
+    const goalLabel = GOALS.find(g => g.id === goal)?.label || goal;
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 4 }}>
+          Review the client profile before generating the invite code.
+        </div>
+
+        {/* Profile summary */}
+        <div style={{
+          background: 'var(--s2)', borderRadius: 12, padding: 14,
+          border: '1px solid var(--border)',
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
+            Profile
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+            <span style={{ fontSize: 12, color: 'var(--t3)' }}>Name</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)' }}>{clientName}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+            <span style={{ fontSize: 12, color: 'var(--t3)' }}>Goal</span>
+            <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--gold)' }}>{goalLabel}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 12, color: 'var(--t3)' }}>Step Target</span>
+            <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--t1)' }}>{stepTarget.toLocaleString()}</span>
+          </div>
+        </div>
+
+        {/* Training summary */}
+        <div style={{
+          background: 'var(--s2)', borderRadius: 12, padding: 14,
+          border: '1px solid var(--border)',
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
+            Training Plan
+          </div>
+          {selectedTraining ? (
+            <>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)', marginBottom: 4 }}>{selectedTraining.name}</div>
+              <div style={{ fontSize: 11, color: 'var(--t3)' }}>
+                {selectedTraining.days.length} day{selectedTraining.days.length !== 1 ? 's' : ''}: {selectedTraining.days.map(d => d.name).join(', ')}
+              </div>
+            </>
+          ) : (
+            <div style={{ fontSize: 12, color: 'var(--t3)', fontStyle: 'italic' }}>None — will be assigned later</div>
+          )}
+        </div>
+
+        {/* Nutrition summary */}
+        <div style={{
+          background: 'var(--s2)', borderRadius: 12, padding: 14,
+          border: '1px solid var(--border)',
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
+            Nutrition Plan
+          </div>
+          {selectedNutrition ? (
+            <>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)', marginBottom: 4 }}>{selectedNutrition.name}</div>
+              <div style={{ fontSize: 11, color: 'var(--t3)' }}>
+                {selectedNutrition.meals.length} meals
+                {selectedNutrition.targets?.calories ? ` — ${Math.round(selectedNutrition.targets.calories)} kcal` : ''}
+                {selectedNutrition.targets?.protein ? ` / ${Math.round(selectedNutrition.targets.protein)}g P` : ''}
+              </div>
+            </>
+          ) : (
+            <div style={{ fontSize: 12, color: 'var(--t3)', fontStyle: 'italic' }}>None — will be assigned later</div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 1000,
+      background: 'rgba(0,0,0,.6)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: 20,
+    }} onClick={onClose}>
+      <div style={{
+        background: 'var(--s1)', borderRadius: 16, padding: 24, width: '100%', maxWidth: 520,
+        maxHeight: '85vh', overflow: 'auto', border: '1px solid var(--border)',
+      }} onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>
+            {generatedCode ? 'Invite Code Ready' : 'Add New Client'}
+          </h3>
+          <button className="btn btn-secondary btn-sm" onClick={onClose} style={{ padding: '4px 8px', minWidth: 0 }}>
+            <Icon name="x" size={14} />
+          </button>
+        </div>
+
+        {/* Step indicator */}
+        {!generatedCode && <StepIndicator current={step} total={4} labels={STEPS} />}
+
+        {/* Step content */}
+        {step === 0 && renderProfile()}
+        {step === 1 && renderTraining()}
+        {step === 2 && renderNutrition()}
+        {step === 3 && renderReview()}
+
+        {/* Navigation buttons */}
+        {!generatedCode && (
+          <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+            {step > 0 && (
+              <button
+                className="btn btn-secondary"
+                style={{ flex: 1 }}
+                onClick={() => setStep(step - 1)}
+              >
+                Back
+              </button>
+            )}
+            {step < 3 ? (
+              <button
+                className="btn btn-primary"
+                style={{ flex: 1 }}
+                onClick={() => setStep(step + 1)}
+                disabled={!canNext()}
+              >
+                {step === 0 ? 'Next' : step === 1 ? 'Next' : 'Review'}
+              </button>
+            ) : (
+              <button
+                className="btn btn-primary"
+                style={{ flex: 1 }}
+                onClick={handleGenerate}
+                disabled={creating}
+              >
+                <Icon name="plus" size={12} /> {creating ? 'Creating...' : 'Generate Invite Code'}
+              </button>
+            )}
+          </div>
+        )}
+
+        {generatedCode && (
+          <div style={{ marginTop: 12 }}>
+            <button className="btn btn-secondary" style={{ width: '100%' }} onClick={onClose}>
+              Done
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Existing Codes Modal (view/manage) ──
+function CodesModal({ onClose }) {
   const { user } = useAuthStore();
   const { showToast } = useUIStore();
   const [codes, setCodes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
-  const [label, setLabel] = useState('');
-  const [maxUses, setMaxUses] = useState(1);
   const [copied, setCopied] = useState(null);
 
   useEffect(() => {
@@ -100,23 +645,6 @@ function InviteModal({ onClose }) {
       });
     }
   }, [user?.id]);
-
-  const handleCreate = async () => {
-    setCreating(true);
-    try {
-      const newCode = await createInviteCode(user.id, {
-        label: label.trim() || undefined,
-        maxUses: maxUses,
-      });
-      setCodes(prev => [newCode, ...prev]);
-      setLabel('');
-      setMaxUses(1);
-      showToast('Invite code created!', 'success');
-    } catch (err) {
-      showToast('Failed to create code', 'error');
-    }
-    setCreating(false);
-  };
 
   const handleDeactivate = async (codeId) => {
     try {
@@ -145,60 +673,17 @@ function InviteModal({ onClose }) {
         maxHeight: '80vh', overflow: 'auto', border: '1px solid var(--border)',
       }} onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>Invite Clients</h3>
+          <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>Invite Codes</h3>
           <button className="btn btn-secondary btn-sm" onClick={onClose} style={{ padding: '4px 8px', minWidth: 0 }}>
             <Icon name="x" size={14} />
           </button>
-        </div>
-
-        {/* Create new code */}
-        <div style={{
-          background: 'var(--s2)', borderRadius: 12, padding: 16, marginBottom: 20,
-          border: '1px solid var(--border)',
-        }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t2)', marginBottom: 10 }}>Generate New Code</div>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-            <input
-              type="text"
-              value={label}
-              onChange={e => setLabel(e.target.value)}
-              placeholder="Label (optional)"
-              style={{ flex: 1, fontSize: 13 }}
-            />
-            <select
-              value={maxUses}
-              onChange={e => setMaxUses(Number(e.target.value))}
-              style={{
-                background: 'var(--s3)', color: 'var(--t1)', border: '1px solid var(--border)',
-                borderRadius: 8, padding: '6px 10px', fontSize: 12,
-              }}
-            >
-              <option value={1}>1 use</option>
-              <option value={5}>5 uses</option>
-              <option value={10}>10 uses</option>
-              <option value={50}>50 uses</option>
-            </select>
-          </div>
-          <button
-            className="btn btn-primary btn-sm"
-            style={{ width: '100%' }}
-            onClick={handleCreate}
-            disabled={creating}
-          >
-            <Icon name="plus" size={12} /> {creating ? 'Creating...' : 'Generate Invite Code'}
-          </button>
-        </div>
-
-        {/* Existing codes */}
-        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t2)', marginBottom: 10 }}>
-          Your Codes {codes.length > 0 && `(${codes.length})`}
         </div>
 
         {loading ? (
           <div style={{ textAlign: 'center', padding: 20, color: 'var(--t3)', fontSize: 12 }}>Loading...</div>
         ) : codes.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 20, color: 'var(--t3)', fontSize: 12 }}>
-            No invite codes yet. Create one above!
+            No invite codes yet. Use "Add Client" to create one.
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -261,7 +746,8 @@ export default function ClientsScreen() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
-  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [showWizard, setShowWizard] = useState(false);
+  const [showCodes, setShowCodes] = useState(false);
 
   const filtered = clients.filter(c => {
     const name = (c.client_name || c.name || '').toLowerCase();
@@ -277,16 +763,24 @@ export default function ClientsScreen() {
 
   return (
     <div className="screen active">
-      {showInviteModal && <InviteModal onClose={() => setShowInviteModal(false)} />}
+      {showWizard && <AddClientWizard onClose={() => setShowWizard(false)} />}
+      {showCodes && <CodesModal onClose={() => setShowCodes(false)} />}
 
       {/* Search & filters + Add Client button */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 18, flexWrap: 'wrap' }}>
         <button
           className="btn btn-primary btn-sm"
-          onClick={() => setShowInviteModal(true)}
+          onClick={() => setShowWizard(true)}
           style={{ whiteSpace: 'nowrap' }}
         >
           <Icon name="plus" size={12} /> Add Client
+        </button>
+        <button
+          className="btn btn-secondary btn-sm"
+          onClick={() => setShowCodes(true)}
+          style={{ whiteSpace: 'nowrap' }}
+        >
+          <Icon name="link" size={12} /> Invite Codes
         </button>
       </div>
       <div style={{ display: 'flex', gap: 12, marginBottom: 18, flexWrap: 'wrap' }}>
