@@ -353,12 +353,13 @@ function AddSupplementModal({ supplements, assigned, onAdd, onClose, coachId, on
   );
 }
 
-// ── Main Panel ──
+// ── Main Panel (compact) ──
 export default function SupplementsPanel({ clientId, coachId }) {
   const [supplements, setSupplements] = useState([]);
   const [assigned, setAssigned] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -412,8 +413,8 @@ export default function SupplementsPanel({ clientId, coachId }) {
   if (loading) {
     return (
       <Card title="Supplements">
-        <div style={{ textAlign: 'center', padding: 20, color: 'var(--t3)', fontSize: 12 }}>
-          Loading supplements...
+        <div style={{ textAlign: 'center', padding: 12, color: 'var(--t3)', fontSize: 12 }}>
+          Loading...
         </div>
       </Card>
     );
@@ -423,10 +424,9 @@ export default function SupplementsPanel({ clientId, coachId }) {
     <>
       <Card title="Supplements" subtitle={`${assigned.length} assigned`}>
         {assigned.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 20 }}>
-            <div style={{ fontSize: 28, marginBottom: 8 }}>💊</div>
-            <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 14 }}>
-              No supplements assigned yet. Build this client's supplement protocol.
+          <div style={{ textAlign: 'center', padding: 16 }}>
+            <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 10 }}>
+              No supplements assigned yet.
             </div>
             <button className="btn btn-primary btn-sm" onClick={() => setShowAdd(true)}>
               <Icon name="plus" size={12} /> Add Supplements
@@ -434,37 +434,88 @@ export default function SupplementsPanel({ clientId, coachId }) {
           </div>
         ) : (
           <>
-            {/* Grouped list */}
-            {groupedByTiming.map(([timingKey, items]) => {
-              const opt = TIMING_OPTIONS.find(t => t.value === timingKey) || TIMING_OPTIONS[0];
-              return (
-                <div key={timingKey} style={{ marginBottom: 14 }}>
-                  <div style={{
-                    fontSize: 10, color: 'var(--t3)', textTransform: 'uppercase',
-                    letterSpacing: 1, marginBottom: 4, fontWeight: 600,
-                  }}>
-                    {opt.emoji} {opt.label}
-                  </div>
-                  {items.map(item => (
-                    <AssignedRow
-                      key={item.id}
-                      item={item}
-                      onRemove={handleRemove}
-                      onUpdate={handleUpdate}
-                    />
-                  ))}
-                </div>
-              );
-            })}
+            {/* Compact summary: show supplement names as small tags */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
+              {assigned.slice(0, expanded ? assigned.length : 5).map(s => (
+                <span key={s.id} style={{
+                  fontSize: 10, padding: '3px 8px', borderRadius: 12,
+                  background: 'var(--b2)', color: 'var(--t2)',
+                  whiteSpace: 'nowrap',
+                }}>
+                  {s.name}
+                </span>
+              ))}
+              {!expanded && assigned.length > 5 && (
+                <span style={{
+                  fontSize: 10, padding: '3px 8px', borderRadius: 12,
+                  background: 'var(--gold-d)', color: 'var(--gold)',
+                  whiteSpace: 'nowrap',
+                }}>
+                  +{assigned.length - 5} more
+                </span>
+              )}
+            </div>
 
-            {/* Add more button */}
-            <button
-              className="btn btn-secondary btn-sm"
-              onClick={() => setShowAdd(true)}
-              style={{ width: '100%', marginTop: 10 }}
-            >
-              <Icon name="plus" size={12} /> Add More Supplements
-            </button>
+            {/* Expand / collapse */}
+            {!expanded ? (
+              <button
+                onClick={() => setExpanded(true)}
+                style={{
+                  width: '100%', padding: '6px 0', fontSize: 11, color: 'var(--gold)',
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+                }}
+              >
+                <Icon name="chevron" size={10} style={{ transform: 'rotate(90deg)' }} /> View full protocol
+              </button>
+            ) : (
+              <>
+                {/* Full grouped list */}
+                <div style={{ borderTop: '1px solid var(--b2)', paddingTop: 10, marginTop: 4 }}>
+                  {groupedByTiming.map(([timingKey, items]) => {
+                    const opt = TIMING_OPTIONS.find(t => t.value === timingKey) || TIMING_OPTIONS[0];
+                    return (
+                      <div key={timingKey} style={{ marginBottom: 10 }}>
+                        <div style={{
+                          fontSize: 9, color: 'var(--t3)', textTransform: 'uppercase',
+                          letterSpacing: 1, marginBottom: 3, fontWeight: 600,
+                        }}>
+                          {opt.emoji} {opt.label}
+                        </div>
+                        {items.map(item => (
+                          <AssignedRow
+                            key={item.id}
+                            item={item}
+                            onRemove={handleRemove}
+                            onUpdate={handleUpdate}
+                          />
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => setShowAdd(true)}
+                    style={{ flex: 1 }}
+                  >
+                    <Icon name="plus" size={12} /> Add More
+                  </button>
+                  <button
+                    onClick={() => setExpanded(false)}
+                    style={{
+                      padding: '6px 12px', fontSize: 11, color: 'var(--t3)',
+                      background: 'none', border: '1px solid var(--b3)',
+                      borderRadius: 6, cursor: 'pointer',
+                    }}
+                  >
+                    Collapse
+                  </button>
+                </div>
+              </>
+            )}
           </>
         )}
       </Card>
