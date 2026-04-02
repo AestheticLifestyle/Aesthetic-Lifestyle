@@ -1016,45 +1016,30 @@ function ProgressPhotoComparison({ photos }) {
     return m.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
   })() : '';
   const compareMap = comparePhotos ? comparePhotos[1] : {};
+  const hasCompare = comparePhotos && Object.keys(compareMap).length > 0;
 
-  function PhotoColumn({ label, poseMap, side }) {
+  function PhotoCell({ photo, placeholder }) {
+    if (!photo) return (
+      <div style={{
+        flex: 1, aspectRatio: '3/4', background: 'var(--b2)', borderRadius: 10,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 11, color: 'var(--t3)',
+      }}>
+        {placeholder || 'No photo'}
+      </div>
+    );
     return (
       <div style={{ flex: 1 }}>
-        <div style={{
-          fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, textAlign: 'center',
-          color: side === 'right' ? 'var(--gold)' : 'var(--t3)', fontWeight: side === 'right' ? 600 : 400,
-        }}>
-          {label}
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center' }}>
-          {poses.map(pose => {
-            const p = poseMap[pose];
-            if (!p) return (
-              <div key={pose} style={{
-                width: '100%', maxWidth: 120, height: 160, background: 'var(--b2)', borderRadius: 8,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 10, color: 'var(--t3)', textTransform: 'capitalize',
-              }}>
-                {pose}
-              </div>
-            );
-            return (
-              <div key={pose} style={{ textAlign: 'center', width: '100%', maxWidth: 120 }}>
-                <img
-                  src={p.url} alt={pose}
-                  style={{ width: '100%', height: 160, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--b2)' }}
-                />
-                <div style={{ fontSize: 9, color: 'var(--t3)', marginTop: 2, textTransform: 'capitalize' }}>{pose}</div>
-              </div>
-            );
-          })}
-        </div>
+        <img
+          src={photo.url} alt={photo.pose}
+          style={{ width: '100%', aspectRatio: '3/4', objectFit: 'cover', borderRadius: 10, border: '1px solid var(--b2)', display: 'block' }}
+        />
       </div>
     );
   }
 
   return (
-    <Card title="Progress Comparison" subtitle="Side by side">
+    <Card title="Progress Comparison" subtitle="Before & After">
       {/* Compare mode selector */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 14, flexWrap: 'wrap' }}>
         {compareOptions.map(opt => (
@@ -1069,18 +1054,28 @@ function ProgressPhotoComparison({ photos }) {
         ))}
       </div>
 
-      {/* Side-by-side comparison */}
-      <div style={{ display: 'flex', gap: 12 }}>
-        {comparePhotos ? (
-          <PhotoColumn label={`Before · ${compareLabel}`} poseMap={compareMap} side="left" />
-        ) : (
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--t3)', fontSize: 11 }}>
-            No photos from this period
-          </div>
-        )}
-        <div style={{ width: 1, background: 'var(--b3)', margin: '20px 0' }} />
-        <PhotoColumn label={`Latest · ${latestLabel}`} poseMap={latestPhotos} side="right" />
+      {/* Column headers */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 8 }}>
+        <div style={{ flex: 1, textAlign: 'center', fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--t3)' }}>
+          {hasCompare ? `Before · ${compareLabel}` : 'Before'}
+        </div>
+        <div style={{ flex: 1, textAlign: 'center', fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--gold)', fontWeight: 600 }}>
+          Current · {latestLabel}
+        </div>
       </div>
+
+      {/* Per-pose rows: same angle side by side */}
+      {poses.map(pose => (
+        <div key={pose} style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--t3)', marginBottom: 4, textAlign: 'center' }}>
+            {pose}
+          </div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <PhotoCell photo={hasCompare ? compareMap[pose] : null} placeholder={hasCompare ? pose : 'No photos yet'} />
+            <PhotoCell photo={latestPhotos[pose]} placeholder={pose} />
+          </div>
+        </div>
+      ))}
     </Card>
   );
 }
