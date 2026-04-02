@@ -1336,6 +1336,7 @@ export default function ClientProfileScreen() {
           <WeightTrend weightLog={data.weightLog} />
           <NutritionOverview nutritionHistory={data.nutritionHistory} mealPlan={data.mealPlan} />
           <FullWeeklyCheckins checkins={data.weeklyCheckins} />
+          <ProgressPhotoComparison photos={data.photos} />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <CoachingIntelligence weightLog={data.weightLog} goalId={clientGoal} mealPlan={data.mealPlan} />
@@ -1344,7 +1345,6 @@ export default function ClientProfileScreen() {
           <CoachGoalSelector clientId={clientId} currentGoal={clientGoal} onGoalChange={setClientGoal} />
           <TrainingSummary trainingPlan={data.trainingPlan} workoutHistory={data.workoutHistory} />
           <MeasurementsSection measurements={data.measurements} />
-          <ProgressPhotoComparison photos={data.photos} />
         </div>
       </div>
     </div>
