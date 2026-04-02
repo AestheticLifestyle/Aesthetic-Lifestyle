@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Fragment } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useCoachStore } from '../../stores/coachStore';
 import { useAuthStore } from '../../stores/authStore';
@@ -350,9 +350,260 @@ function TrainingSummary({ trainingPlan, workoutHistory }) {
   );
 }
 
-// ── Section: Weekly Check-ins ──
-function WeeklyCheckinsSection({ checkins }) {
-  const recent = (checkins || []).slice(-4).reverse();
+// ── Section: Weekly Snapshot Card (This Week vs Last Week) ──
+function WeeklySnapshotCard({ dailyCheckins, nutritionHistory, workoutHistory, weightLog }) {
+  const snapshot = useMemo(() => {
+    const today = new Date();
+    const dayOfWeek = today.getDay() || 7; // Mon=1..Sun=7
+    const thisMonday = new Date(today);
+    thisMonday.setDate(today.getDate() - dayOfWeek + 1);
+    const lastMonday = new Date(thisMonday);
+    lastMonday.setDate(thisMonday.getDate() - 7);
+
+    const thisWeekKey = thisMonday.toISOString().slice(0, 10);
+    const lastWeekKey = lastMonday.toISOString().slice(0, 10);
+    const lastWeekEnd = new Date(thisMonday);
+    lastWeekEnd.setDate(lastWeekEnd.getDate() - 1);
+    const lastWeekEndKey = lastWeekEnd.toISOString().slice(0, 10);
+
+    function weekData(checkins, nutri, startKey, endKey) {
+      const dc = checkins.filter(c => c.date >= startKey && c.date <= endKey);
+      const nh = nutri.filter(n => n.date >= startKey && n.date <= endKey);
+      const stepsArr = dc.filter(c => c.steps > 0).map(c => c.steps);
+      const sleepArr = dc.filter(c => c.sleep_hours > 0).map(c => c.sleep_hours);
+      const sleepQArr = dc.filter(c => c.sleep_quality > 0).map(c => c.sleep_quality);
+      const kcalArr = nh.filter(n => n.total_kcal > 0).map(n => n.total_kcal);
+      const proteinArr = nh.filter(n => n.total_protein > 0).map(n => n.total_protein);
+
+      return {
+        avgCalories: kcalArr.length ? Math.round(kcalArr.reduce((s, v) => s + v, 0) / kcalArr.length) : 0,
+        avgProtein: proteinArr.length ? Math.round(proteinArr.reduce((s, v) => s + v, 0) / proteinArr.length) : 0,
+        avgSteps: stepsArr.length ? Math.round(stepsArr.reduce((s, v) => s + v, 0) / stepsArr.length) : 0,
+        avgSleep: sleepQArr.length ? (sleepQArr.reduce((s, v) => s + v, 0) / sleepQArr.length).toFixed(1) : '—',
+        checkinsCount: dc.length,
+      };
+    }
+
+    // Count workouts this/last week
+    function countWorkouts(startKey, endKey) {
+      let count = 0;
+      if (workoutHistory) {
+        Object.values(workoutHistory).forEach(sessions => {
+          sessions.forEach(s => {
+            if (s.date >= startKey && s.date <= endKey) count++;
+          });
+        });
+      }
+      return count;
+    }
+
+    // Weight change
+    function weightChange(startKey, endKey) {
+      const wl = weightLog.filter(w => w.date >= startKey && w.date <= endKey);
+      if (wl.length < 2) return null;
+      return (wl[wl.length - 1].weight - wl[0].weight).toFixed(1);
+    }
+
+    const todayKey = today.toISOString().slice(0, 10);
+    const tw = weekData(dailyCheckins, nutritionHistory, thisWeekKey, todayKey);
+    const lw = weekData(dailyCheckins, nutritionHistory, lastWeekKey, lastWeekEndKey);
+    tw.workouts = countWorkouts(thisWeekKey, todayKey);
+    lw.workouts = countWorkouts(lastWeekKey, lastWeekEndKey);
+    tw.weightDelta = weightChange(thisWeekKey, todayKey);
+    lw.weightDelta = weightChange(lastWeekKey, lastWeekEndKey);
+
+    return { thisWeek: tw, lastWeek: lw };
+  }, [dailyCheckins, nutritionHistory, workoutHistory, weightLog]);
+
+  function CompareRow({ label, thisVal, lastVal, unit, lowerIsBetter }) {
+    const diff = thisVal && lastVal ? thisVal - lastVal : null;
+    const diffColor = diff === null ? 'var(--t3)'
+      : (lowerIsBetter ? diff <= 0 : diff >= 0) ? 'var(--green)' : 'var(--orange)';
+    return (
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid var(--b2)' }}>
+        <span style={{ fontSize: 11, color: 'var(--t3)', width: 90 }}>{label}</span>
+        <span style={{ fontSize: 12, fontFamily: 'var(--fd)', color: 'var(--t2)', width: 70, textAlign: 'center' }}>
+          {lastVal || '—'}{unit && lastVal ? unit : ''}
+        </span>
+        <span style={{ fontSize: 12, fontFamily: 'var(--fd)', fontWeight: 600, width: 70, textAlign: 'center' }}>
+          {thisVal || '—'}{unit && thisVal ? unit : ''}
+        </span>
+        <span style={{ fontSize: 10, fontFamily: 'var(--fd)', color: diffColor, width: 50, textAlign: 'right' }}>
+          {diff !== null ? `${diff > 0 ? '+' : ''}${typeof diff === 'number' ? diff.toLocaleString() : diff}` : '—'}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <Card title="Weekly Snapshot" subtitle="This week vs last week">
+      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0 0 6px', borderBottom: '2px solid var(--b3)', marginBottom: 2 }}>
+        <span style={{ fontSize: 10, color: 'var(--t3)', width: 90 }}></span>
+        <span style={{ fontSize: 9, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: 1, width: 70, textAlign: 'center' }}>Last Wk</span>
+        <span style={{ fontSize: 9, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 1, width: 70, textAlign: 'center' }}>This Wk</span>
+        <span style={{ fontSize: 9, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: 1, width: 50, textAlign: 'right' }}>Δ</span>
+      </div>
+      <CompareRow label="Avg Calories" thisVal={snapshot.thisWeek.avgCalories} lastVal={snapshot.lastWeek.avgCalories} unit="" />
+      <CompareRow label="Avg Protein" thisVal={snapshot.thisWeek.avgProtein} lastVal={snapshot.lastWeek.avgProtein} unit="g" />
+      <CompareRow label="Avg Steps" thisVal={snapshot.thisWeek.avgSteps} lastVal={snapshot.lastWeek.avgSteps} unit="" />
+      <CompareRow label="Sleep Quality" thisVal={snapshot.thisWeek.avgSleep} lastVal={snapshot.lastWeek.avgSleep} unit="/10" />
+      <CompareRow label="Workouts" thisVal={snapshot.thisWeek.workouts} lastVal={snapshot.lastWeek.workouts} unit="" />
+      {(snapshot.thisWeek.weightDelta || snapshot.lastWeek.weightDelta) && (
+        <CompareRow label="Weight Δ" thisVal={snapshot.thisWeek.weightDelta} lastVal={snapshot.lastWeek.weightDelta} unit=" kg" lowerIsBetter />
+      )}
+    </Card>
+  );
+}
+
+// ── Section: Daily Check-in Heatmap (14 days) ──
+function DailyCheckinHeatmap({ checkins }) {
+  const days = useMemo(() => {
+    const result = [];
+    const today = new Date();
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      const checkin = checkins.find(c => c.date === key);
+      const dayLabel = d.toLocaleDateString('en-US', { weekday: 'short' }).charAt(0);
+      const dateLabel = d.getDate();
+      result.push({ key, checkin, dayLabel, dateLabel, isToday: i === 0 });
+    }
+    return result;
+  }, [checkins]);
+
+  function statusColor(c) {
+    if (!c) return 'var(--b2)';
+    // Score completeness: steps + meals + any daily field
+    let score = 0;
+    if (c.steps > 0) score++;
+    if (c.hydration > 0) score++;
+    if (c.sleep_quality > 0) score++;
+    if (c.energy_level > 0) score++;
+    if (c.meals_logged > 0) score++;
+    if (score >= 4) return 'var(--green)';
+    if (score >= 2) return 'var(--gold)';
+    return 'var(--orange)';
+  }
+
+  const completed = days.filter(d => d.checkin).length;
+
+  return (
+    <Card title="Daily Check-ins" subtitle={`${completed}/14 days logged`}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(14, 1fr)', gap: 4, marginBottom: 8 }}>
+        {days.map(d => (
+          <div key={d.key} style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 8, color: 'var(--t3)', marginBottom: 2 }}>{d.dayLabel}</div>
+            <div style={{
+              width: '100%', aspectRatio: '1', borderRadius: 6,
+              background: statusColor(d.checkin),
+              opacity: d.checkin ? 1 : 0.3,
+              border: d.isToday ? '2px solid var(--gold)' : '1px solid transparent',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 8, color: d.checkin ? '#fff' : 'var(--t3)', fontWeight: 600,
+            }}>
+              {d.dateLabel}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: 'flex', gap: 12, justifyContent: 'center', fontSize: 9, color: 'var(--t3)' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+          <span style={{ width: 8, height: 8, borderRadius: 2, background: 'var(--green)', display: 'inline-block' }} /> Complete
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+          <span style={{ width: 8, height: 8, borderRadius: 2, background: 'var(--gold)', display: 'inline-block' }} /> Partial
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+          <span style={{ width: 8, height: 8, borderRadius: 2, background: 'var(--orange)', display: 'inline-block' }} /> Minimal
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+          <span style={{ width: 8, height: 8, borderRadius: 2, background: 'var(--b2)', opacity: 0.3, display: 'inline-block' }} /> Missed
+        </span>
+      </div>
+    </Card>
+  );
+}
+
+// ── Section: Adherence Timeline (14 days) ──
+function AdherenceTimeline({ dailyCheckins, nutritionHistory, workoutHistory }) {
+  const timeline = useMemo(() => {
+    const result = [];
+    const today = new Date();
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      const dayLabel = d.toLocaleDateString('en-US', { weekday: 'short' });
+
+      // Food logged?
+      const nutri = nutritionHistory.find(n => n.date === key);
+      const foodLogged = nutri && nutri.meals_logged > 0;
+
+      // Trained?
+      let trained = false;
+      if (workoutHistory) {
+        Object.values(workoutHistory).forEach(sessions => {
+          if (sessions.some(s => s.date === key)) trained = true;
+        });
+      }
+
+      // Steps on target? (>= 8000 as default target)
+      const checkin = dailyCheckins.find(c => c.date === key);
+      const stepsHit = checkin && checkin.steps >= 8000;
+
+      result.push({ key, dayLabel, foodLogged, trained, stepsHit, isToday: i === 0 });
+    }
+    return result;
+  }, [dailyCheckins, nutritionHistory, workoutHistory]);
+
+  const indicators = [
+    { key: 'foodLogged', label: 'Food', emoji: '🍽️', color: 'var(--green)' },
+    { key: 'trained', label: 'Training', emoji: '💪', color: 'var(--blue)' },
+    { key: 'stepsHit', label: 'Steps', emoji: '🚶', color: 'var(--gold)' },
+  ];
+
+  return (
+    <Card title="Adherence Timeline" subtitle="14-day overview">
+      <div style={{ overflowX: 'auto' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: `60px repeat(14, 1fr)`, gap: 2, minWidth: 400 }}>
+          {/* Header row: dates */}
+          <div />
+          {timeline.map(d => (
+            <div key={d.key} style={{
+              textAlign: 'center', fontSize: 8, color: d.isToday ? 'var(--gold)' : 'var(--t3)',
+              fontWeight: d.isToday ? 700 : 400, paddingBottom: 4,
+            }}>
+              {d.dayLabel.slice(0, 2)}
+            </div>
+          ))}
+
+          {/* Rows per indicator */}
+          {indicators.map(ind => (
+            <Fragment key={ind.key}>
+              <div style={{ fontSize: 10, color: 'var(--t3)', display: 'flex', alignItems: 'center', gap: 3 }}>
+                <span style={{ fontSize: 11 }}>{ind.emoji}</span>{ind.label}
+              </div>
+              {timeline.map(d => (
+                <div key={d.key} style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  height: 20, borderRadius: 4,
+                  background: d[ind.key] ? ind.color : 'var(--b2)',
+                  opacity: d[ind.key] ? 0.85 : 0.2,
+                }} />
+              ))}
+            </Fragment>
+          ))}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+// ── Section: Full Weekly Check-ins (Last 2 Weeks) ──
+function FullWeeklyCheckins({ checkins }) {
+  const [expandedId, setExpandedId] = useState(null);
+  const recent = (checkins || []).slice(-2).reverse();
 
   if (!recent.length) {
     return (
@@ -364,39 +615,152 @@ function WeeklyCheckinsSection({ checkins }) {
     );
   }
 
-  return (
-    <Card title="Weekly Check-ins" subtitle={`${checkins.length} total`}>
-      {recent.map((ci, i) => (
-        <div key={ci.id || i} style={{
-          padding: '10px 0',
-          borderBottom: i < recent.length - 1 ? '1px solid var(--b2)' : 'none',
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-            <span style={{ fontSize: 12, fontWeight: 600 }}>Week {ci.week_number}</span>
-            <span style={{ fontSize: 10, color: ci.coach_feedback ? 'var(--green)' : 'var(--orange)' }}>
-              {ci.coach_feedback ? 'Reviewed' : 'Pending'}
-            </span>
-          </div>
-          {ci.energy_level && (
-            <div style={{ fontSize: 11, color: 'var(--t3)' }}>
-              Energy: {ci.energy_level}/10 · Sleep: {ci.sleep_quality || '—'}/10 · Stress: {ci.stress_level || '—'}/10
-            </div>
-          )}
-          {ci.notes && (
-            <div style={{ fontSize: 11, color: 'var(--t2)', marginTop: 4, lineHeight: 1.4 }}>
-              "{ci.notes.slice(0, 150)}{ci.notes.length > 150 ? '...' : ''}"
-            </div>
-          )}
-          {ci.coach_feedback && (
-            <div style={{
-              fontSize: 11, color: 'var(--gold)', marginTop: 6, padding: '6px 8px',
-              background: 'var(--gold-d)', borderRadius: 6, lineHeight: 1.4,
-            }}>
-              Coach: {ci.coach_feedback.slice(0, 150)}{ci.coach_feedback.length > 150 ? '...' : ''}
-            </div>
-          )}
+  function MetricBar({ label, value, max = 10, color }) {
+    const pct = Math.min(100, (value / max) * 100);
+    return (
+      <div style={{ marginBottom: 8 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+          <span style={{ fontSize: 11, color: 'var(--t3)' }}>{label}</span>
+          <span style={{ fontSize: 11, fontFamily: 'var(--fd)', fontWeight: 600, color }}>{value}/{max}</span>
         </div>
-      ))}
+        <div style={{ height: 6, borderRadius: 3, background: 'var(--b2)', overflow: 'hidden' }}>
+          <div style={{ height: '100%', width: `${pct}%`, borderRadius: 3, background: color, transition: 'width .3s' }} />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <Card title="Weekly Check-ins" subtitle="Last 2 weeks — full detail">
+      {recent.map((ci, i) => {
+        const isExpanded = expandedId === (ci.id || i);
+        return (
+          <div key={ci.id || i} style={{
+            marginBottom: i < recent.length - 1 ? 12 : 0,
+            border: '1px solid var(--b2)', borderRadius: 10,
+            overflow: 'hidden',
+          }}>
+            {/* Header — always visible */}
+            <button
+              onClick={() => setExpandedId(isExpanded ? null : (ci.id || i))}
+              style={{
+                width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                padding: '10px 12px', background: 'var(--b1)', border: 'none', cursor: 'pointer', color: 'inherit',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 13, fontWeight: 600 }}>Week {ci.week_number}</span>
+                <span style={{ fontSize: 10, color: ci.coach_feedback ? 'var(--green)' : 'var(--orange)' }}>
+                  {ci.coach_feedback ? '✓ Reviewed' : '⏳ Pending'}
+                </span>
+              </div>
+              <Icon name={isExpanded ? 'chevron-up' : 'chevron-down'} size={14} style={{ color: 'var(--t3)' }} />
+            </button>
+
+            {/* Expanded content */}
+            {isExpanded && (
+              <div style={{ padding: '12px' }}>
+                {/* Metric bars */}
+                <div style={{ marginBottom: 14 }}>
+                  {ci.energy_level != null && (
+                    <MetricBar label="Energy" value={ci.energy_level} color={ci.energy_level >= 7 ? 'var(--green)' : ci.energy_level >= 4 ? 'var(--gold)' : 'var(--red)'} />
+                  )}
+                  {ci.sleep_quality != null && (
+                    <MetricBar label="Sleep Quality" value={ci.sleep_quality} color={ci.sleep_quality >= 7 ? 'var(--green)' : ci.sleep_quality >= 4 ? 'var(--gold)' : 'var(--red)'} />
+                  )}
+                  {ci.stress_level != null && (
+                    <MetricBar label="Stress" value={ci.stress_level} color={ci.stress_level <= 3 ? 'var(--green)' : ci.stress_level <= 6 ? 'var(--gold)' : 'var(--red)'} />
+                  )}
+                  {ci.hunger_level != null && (
+                    <MetricBar label="Hunger" value={ci.hunger_level} color={ci.hunger_level <= 4 ? 'var(--green)' : ci.hunger_level <= 7 ? 'var(--gold)' : 'var(--red)'} />
+                  )}
+                  {ci.motivation != null && (
+                    <MetricBar label="Motivation" value={ci.motivation} color={ci.motivation >= 7 ? 'var(--green)' : ci.motivation >= 4 ? 'var(--gold)' : 'var(--red)'} />
+                  )}
+                </div>
+
+                {/* Weight */}
+                {ci.weight && (
+                  <div style={{ display: 'flex', gap: 16, marginBottom: 12, padding: '8px 10px', background: 'var(--b1)', borderRadius: 8 }}>
+                    <div>
+                      <div style={{ fontSize: 9, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: 1 }}>Weight</div>
+                      <div style={{ fontSize: 16, fontFamily: 'var(--fd)', fontWeight: 600 }}>{ci.weight} <span style={{ fontSize: 10, color: 'var(--t3)' }}>kg</span></div>
+                    </div>
+                    {ci.body_fat && (
+                      <div>
+                        <div style={{ fontSize: 9, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: 1 }}>Body Fat</div>
+                        <div style={{ fontSize: 16, fontFamily: 'var(--fd)', fontWeight: 600 }}>{ci.body_fat}<span style={{ fontSize: 10, color: 'var(--t3)' }}>%</span></div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Adherence summary */}
+                {(ci.training_adherence != null || ci.nutrition_adherence != null) && (
+                  <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
+                    {ci.training_adherence != null && (
+                      <div style={{ flex: 1, textAlign: 'center', padding: '8px', background: 'var(--b1)', borderRadius: 8 }}>
+                        <div style={{ fontSize: 18, fontFamily: 'var(--fd)', fontWeight: 700, color: ci.training_adherence >= 80 ? 'var(--green)' : 'var(--orange)' }}>
+                          {ci.training_adherence}%
+                        </div>
+                        <div style={{ fontSize: 9, color: 'var(--t3)', textTransform: 'uppercase' }}>Training</div>
+                      </div>
+                    )}
+                    {ci.nutrition_adherence != null && (
+                      <div style={{ flex: 1, textAlign: 'center', padding: '8px', background: 'var(--b1)', borderRadius: 8 }}>
+                        <div style={{ fontSize: 18, fontFamily: 'var(--fd)', fontWeight: 700, color: ci.nutrition_adherence >= 80 ? 'var(--green)' : 'var(--orange)' }}>
+                          {ci.nutrition_adherence}%
+                        </div>
+                        <div style={{ fontSize: 9, color: 'var(--t3)', textTransform: 'uppercase' }}>Nutrition</div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Client notes */}
+                {ci.notes && (
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ fontSize: 10, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Client Notes</div>
+                    <div style={{ fontSize: 12, color: 'var(--t2)', lineHeight: 1.5, padding: '8px 10px', background: 'var(--b1)', borderRadius: 8 }}>
+                      {ci.notes}
+                    </div>
+                  </div>
+                )}
+
+                {/* Wins / struggles */}
+                {ci.wins && (
+                  <div style={{ marginBottom: 8 }}>
+                    <div style={{ fontSize: 10, color: 'var(--green)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 3 }}>Wins</div>
+                    <div style={{ fontSize: 12, color: 'var(--t2)', lineHeight: 1.4 }}>{ci.wins}</div>
+                  </div>
+                )}
+                {ci.struggles && (
+                  <div style={{ marginBottom: 8 }}>
+                    <div style={{ fontSize: 10, color: 'var(--orange)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 3 }}>Struggles</div>
+                    <div style={{ fontSize: 12, color: 'var(--t2)', lineHeight: 1.4 }}>{ci.struggles}</div>
+                  </div>
+                )}
+
+                {/* Coach feedback */}
+                {ci.coach_feedback && (
+                  <div style={{
+                    marginTop: 10, padding: '10px 12px', background: 'var(--gold-d)',
+                    borderRadius: 8, borderLeft: '3px solid var(--gold)',
+                  }}>
+                    <div style={{ fontSize: 10, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Coach Feedback</div>
+                    <div style={{ fontSize: 12, color: 'var(--t1)', lineHeight: 1.5 }}>{ci.coach_feedback}</div>
+                    {ci.coach_responded_at && (
+                      <div style={{ fontSize: 9, color: 'var(--t3)', marginTop: 4 }}>
+                        {formatDate(ci.coach_responded_at.slice(0, 10))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </Card>
   );
 }
@@ -765,9 +1129,21 @@ export default function ClientProfileScreen() {
       {/* Two-column layout */}
       <div className="g7030">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <WeeklySnapshotCard
+            dailyCheckins={data.dailyCheckins}
+            nutritionHistory={data.nutritionHistory}
+            workoutHistory={data.workoutHistory}
+            weightLog={data.weightLog}
+          />
+          <DailyCheckinHeatmap checkins={data.dailyCheckins} />
+          <AdherenceTimeline
+            dailyCheckins={data.dailyCheckins}
+            nutritionHistory={data.nutritionHistory}
+            workoutHistory={data.workoutHistory}
+          />
           <WeightTrend weightLog={data.weightLog} />
           <NutritionOverview nutritionHistory={data.nutritionHistory} mealPlan={data.mealPlan} />
-          <WeeklyCheckinsSection checkins={data.weeklyCheckins} />
+          <FullWeeklyCheckins checkins={data.weeklyCheckins} />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <CoachingIntelligence weightLog={data.weightLog} goalId={clientGoal} mealPlan={data.mealPlan} />

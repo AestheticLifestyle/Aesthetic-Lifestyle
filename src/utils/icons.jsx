@@ -18,6 +18,8 @@ export function Icon({ name, size = 15, ...props }) {
     chevron: <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>,
     'chevron-left': <path d="M10 3l-5 5 5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>,
     'chevron-right': <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>,
+    'chevron-up': <path d="M3 10l5-5 5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>,
+    'chevron-down': <path d="M3 6l5 5 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>,
     camera: <><rect x="1" y="4" width="14" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.5" fill="none"/><circle cx="8" cy="9" r="2.5" stroke="currentColor" strokeWidth="1.5" fill="none"/><path d="M5 4l1-2h4l1 2" stroke="currentColor" strokeWidth="1.5" fill="none"/></>,
     plus: <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none"/>,
     minus: <path d="M3 8h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none"/>,
