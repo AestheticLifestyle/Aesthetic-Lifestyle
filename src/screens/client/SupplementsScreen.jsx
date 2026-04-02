@@ -3,6 +3,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { Card } from '../../components/ui';
 import { Icon } from '../../utils/icons';
 import { fetchClientSupplements } from '../../services/supplements';
+import { supabase } from '../../services/supabase';
 
 const TIMING_ORDER = ['morning', 'with-meal', 'pre-workout', 'intra-workout', 'post-workout', 'before-bed', 'any-time'];
 
@@ -17,7 +18,8 @@ const TIMING_META = {
 };
 
 export default function SupplementsScreen() {
-  const { user } = useAuthStore();
+  const { user, actualRole, role } = useAuthStore();
+  const isCoachPreview = actualRole === 'coach' && role === 'client';
   const [supplements, setSupplements] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -26,7 +28,21 @@ export default function SupplementsScreen() {
     let cancelled = false;
     async function load() {
       setLoading(true);
-      const data = await fetchClientSupplements(user.id);
+      let data;
+      if (isCoachPreview) {
+        // Coach previewing as client — show first client's supplements
+        const { data: rows, error } = await supabase
+          .from('client_supplements')
+          .select('*')
+          .eq('coach_id', user.id)
+          .eq('is_active', true)
+          .order('sort_order')
+          .order('created_at');
+        if (error) console.warn('[SupplementsScreen] coach preview error:', error.message);
+        data = rows || [];
+      } else {
+        data = await fetchClientSupplements(user.id);
+      }
       if (!cancelled) {
         setSupplements(data);
         setLoading(false);
@@ -34,7 +50,7 @@ export default function SupplementsScreen() {
     }
     load();
     return () => { cancelled = true; };
-  }, [user?.id]);
+  }, [user?.id, isCoachPreview]);
 
   const grouped = useMemo(() => {
     const groups = {};
