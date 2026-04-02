@@ -57,19 +57,16 @@ function AddSupplementModal({ supplements, assigned, onAdd, onClose, coachId, on
   const [customName, setCustomName] = useState('');
   const [addingCustom, setAddingCustom] = useState(false);
 
-  const assignedNames = new Set(assigned.map(a => a.name.toLowerCase()));
-
   const grouped = useMemo(() => {
     const groups = {};
     supplements.forEach(s => {
-      if (assignedNames.has(s.name.toLowerCase())) return;
       if (search && !s.name.toLowerCase().includes(search.toLowerCase())) return;
       const cat = s.category || 'general';
       if (!groups[cat]) groups[cat] = [];
       groups[cat].push(s);
     });
     return groups;
-  }, [supplements, search, assignedNames]);
+  }, [supplements, search]);
 
   const selected = supplements.find(s => s.id === selectedId);
 
@@ -249,6 +246,118 @@ function AddSupplementModal({ supplements, assigned, onAdd, onClose, coachId, on
   );
 }
 
+// ── Editable assigned supplement row ──
+function AssignedSupplementRow({ item, onUpdate, onRemove }) {
+  const [editing, setEditing] = useState(false);
+  const [dosage, setDosage] = useState(item.dosage || '');
+  const [timing, setTiming] = useState(item.timing || 'morning');
+  const [notes, setNotes] = useState(item.notes || '');
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    await onUpdate(item.id, { dosage, timing, notes });
+    setSaving(false);
+    setEditing(false);
+  };
+
+  const handleCancel = () => {
+    setDosage(item.dosage || '');
+    setTiming(item.timing || 'morning');
+    setNotes(item.notes || '');
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <div style={{
+        padding: '12px', marginBottom: 4, borderRadius: 10,
+        border: '1px solid var(--gold)', background: 'var(--gold-d)',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+          <div style={{ fontSize: 13, fontWeight: 600 }}>{item.name}</div>
+          <button onClick={handleCancel} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t3)', padding: 2 }}>
+            <Icon name="x" size={14} />
+          </button>
+        </div>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+          <div style={{ flex: 1 }}>
+            <label style={{ fontSize: 10, color: 'var(--t3)', display: 'block', marginBottom: 3 }}>Dosage</label>
+            <input
+              type="text" value={dosage} onChange={e => setDosage(e.target.value)}
+              placeholder="e.g. 5g"
+              style={{ width: '100%', padding: '6px 10px', borderRadius: 6, border: '1px solid var(--b3)', background: 'var(--b1)', fontSize: 12, color: 'var(--t1)' }}
+            />
+          </div>
+          <div style={{ flex: 1 }}>
+            <label style={{ fontSize: 10, color: 'var(--t3)', display: 'block', marginBottom: 3 }}>Timing</label>
+            <select
+              value={timing} onChange={e => setTiming(e.target.value)}
+              style={{ width: '100%', padding: '6px 10px', borderRadius: 6, border: '1px solid var(--b3)', background: 'var(--b1)', fontSize: 12, color: 'var(--t1)' }}
+            >
+              {TIMING_OPTIONS.map(t => <option key={t.value} value={t.value}>{t.emoji} {t.label}</option>)}
+            </select>
+          </div>
+        </div>
+        <div style={{ marginBottom: 10 }}>
+          <label style={{ fontSize: 10, color: 'var(--t3)', display: 'block', marginBottom: 3 }}>Notes</label>
+          <input
+            type="text" value={notes} onChange={e => setNotes(e.target.value)}
+            placeholder="e.g. Take with food"
+            style={{ width: '100%', padding: '6px 10px', borderRadius: 6, border: '1px solid var(--b3)', background: 'var(--b1)', fontSize: 12, color: 'var(--t1)' }}
+          />
+        </div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button className="btn btn-primary btn-sm" style={{ flex: 1 }} onClick={handleSave} disabled={saving}>
+            {saving ? 'Saving...' : 'Save Changes'}
+          </button>
+          <button className="btn btn-secondary btn-sm" onClick={() => onRemove(item.id)} style={{ color: 'var(--red)', borderColor: 'var(--red)' }}>
+            <Icon name="x" size={12} /> Remove
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0',
+      borderBottom: '1px solid var(--b2)',
+    }}>
+      <div style={{
+        width: 32, height: 32, borderRadius: '50%', background: 'var(--gold-d)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+      }}>
+        <Icon name="pill" size={14} style={{ color: 'var(--gold)' }} />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 500 }}>{item.name}</div>
+        <div style={{ fontSize: 11, color: 'var(--t3)' }}>{item.dosage || 'No dosage set'}</div>
+        {item.notes && (
+          <div style={{ fontSize: 10, color: 'var(--t3)', fontStyle: 'italic', marginTop: 2 }}>{item.notes}</div>
+        )}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+        <TimingBadge timing={item.timing} />
+        <button
+          onClick={() => setEditing(true)}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'var(--t3)' }}
+          title="Edit dosage & timing"
+        >
+          <Icon name="settings" size={13} />
+        </button>
+        <button
+          onClick={() => onRemove(item.id)}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'var(--t3)' }}
+          title="Remove"
+        >
+          <Icon name="x" size={12} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Coach Supplements Screen ──
 export default function SupplementsScreen() {
   const { user } = useAuthStore();
@@ -403,34 +512,12 @@ export default function SupplementsScreen() {
                           {opt.emoji} {opt.label}
                         </div>
                         {items.map(item => (
-                          <div key={item.id} style={{
-                            display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0',
-                            borderBottom: '1px solid var(--b2)',
-                          }}>
-                            <div style={{
-                              width: 32, height: 32, borderRadius: '50%', background: 'var(--gold-d)',
-                              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                            }}>
-                              <Icon name="pill" size={14} style={{ color: 'var(--gold)' }} />
-                            </div>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: 13, fontWeight: 500 }}>{item.name}</div>
-                              <div style={{ fontSize: 11, color: 'var(--t3)' }}>{item.dosage || 'No dosage set'}</div>
-                              {item.notes && (
-                                <div style={{ fontSize: 10, color: 'var(--t3)', fontStyle: 'italic', marginTop: 2 }}>{item.notes}</div>
-                              )}
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                              <TimingBadge timing={item.timing} />
-                              <button
-                                onClick={() => handleRemove(item.id)}
-                                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'var(--t3)' }}
-                                title="Remove"
-                              >
-                                <Icon name="x" size={12} />
-                              </button>
-                            </div>
-                          </div>
+                          <AssignedSupplementRow
+                            key={item.id}
+                            item={item}
+                            onUpdate={handleUpdate}
+                            onRemove={handleRemove}
+                          />
                         ))}
                       </div>
                     );
