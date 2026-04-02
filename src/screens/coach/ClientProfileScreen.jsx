@@ -600,7 +600,7 @@ function AdherenceTimeline({ dailyCheckins, nutritionHistory, workoutHistory }) 
   );
 }
 
-// ── Section: Full Weekly Check-ins (Last 2 Weeks) ──
+// ── Section: Full Weekly Check-ins (Last 2 Weeks — ALL fields) ──
 function FullWeeklyCheckins({ checkins }) {
   const [expandedId, setExpandedId] = useState(null);
   const recent = (checkins || []).slice(-2).reverse();
@@ -615,17 +615,39 @@ function FullWeeklyCheckins({ checkins }) {
     );
   }
 
-  function MetricBar({ label, value, max = 10, color }) {
+  const moodColors = {
+    'Great Week': 'var(--green)', 'Good Week': '#66bb6a', 'Average': 'var(--gold)',
+    'Tough Week': 'var(--orange)', 'Terrible Week': 'var(--red)',
+  };
+  const moodEmojis = {
+    'Great Week': '🔥', 'Good Week': '😊', 'Average': '😐',
+    'Tough Week': '😓', 'Terrible Week': '😞',
+  };
+  const stepsLabels = { 'Every Day': { color: 'var(--green)', icon: '✅' }, 'Most Days': { color: 'var(--gold)', icon: '👍' }, 'Some Days': { color: 'var(--orange)', icon: '⚠️' }, 'Rarely': { color: 'var(--red)', icon: '❌' } };
+  const painLabels = { 'no': { text: 'No Pain', color: 'var(--green)' }, 'yes-minor': { text: 'Minor Pain', color: 'var(--orange)' }, 'yes-major': { text: 'Major Pain', color: 'var(--red)' } };
+
+  function MetricBar({ label, value, max = 10, color, invertColor }) {
     const pct = Math.min(100, (value / max) * 100);
+    const barColor = color || (invertColor
+      ? (value <= 3 ? 'var(--green)' : value <= 6 ? 'var(--gold)' : 'var(--red)')
+      : (value >= 7 ? 'var(--green)' : value >= 4 ? 'var(--gold)' : 'var(--red)'));
     return (
       <div style={{ marginBottom: 8 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
           <span style={{ fontSize: 11, color: 'var(--t3)' }}>{label}</span>
-          <span style={{ fontSize: 11, fontFamily: 'var(--fd)', fontWeight: 600, color }}>{value}/{max}</span>
+          <span style={{ fontSize: 11, fontFamily: 'var(--fd)', fontWeight: 600, color: barColor }}>{value}/{max}</span>
         </div>
         <div style={{ height: 6, borderRadius: 3, background: 'var(--b2)', overflow: 'hidden' }}>
-          <div style={{ height: '100%', width: `${pct}%`, borderRadius: 3, background: color, transition: 'width .3s' }} />
+          <div style={{ height: '100%', width: `${pct}%`, borderRadius: 3, background: barColor, transition: 'width .3s' }} />
         </div>
+      </div>
+    );
+  }
+
+  function SectionLabel({ children }) {
+    return (
+      <div style={{ fontSize: 10, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 6, marginTop: 14, borderBottom: '1px solid var(--b2)', paddingBottom: 4 }}>
+        {children}
       </div>
     );
   }
@@ -650,107 +672,210 @@ function FullWeeklyCheckins({ checkins }) {
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ fontSize: 13, fontWeight: 600 }}>Week {ci.week_number}</span>
+                {ci.mood && <span style={{ fontSize: 12 }}>{moodEmojis[ci.mood] || ''}</span>}
                 <span style={{ fontSize: 10, color: ci.coach_feedback ? 'var(--green)' : 'var(--orange)' }}>
                   {ci.coach_feedback ? '✓ Reviewed' : '⏳ Pending'}
                 </span>
               </div>
-              <Icon name={isExpanded ? 'chevron-up' : 'chevron-down'} size={14} style={{ color: 'var(--t3)' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {ci.date && <span style={{ fontSize: 10, color: 'var(--t3)' }}>{formatDate(ci.date)}</span>}
+                <Icon name={isExpanded ? 'chevron-up' : 'chevron-down'} size={14} style={{ color: 'var(--t3)' }} />
+              </div>
             </button>
 
-            {/* Expanded content */}
+            {/* Expanded content — ALL check-in fields */}
             {isExpanded && (
               <div style={{ padding: '12px' }}>
-                {/* Metric bars */}
-                <div style={{ marginBottom: 14 }}>
-                  {ci.energy_level != null && (
-                    <MetricBar label="Energy" value={ci.energy_level} color={ci.energy_level >= 7 ? 'var(--green)' : ci.energy_level >= 4 ? 'var(--gold)' : 'var(--red)'} />
+
+                {/* ── Mood ── */}
+                {ci.mood && (
+                  <div style={{
+                    textAlign: 'center', padding: '10px', marginBottom: 10, borderRadius: 8,
+                    background: 'var(--b1)', border: `1px solid ${moodColors[ci.mood] || 'var(--b2)'}`,
+                  }}>
+                    <span style={{ fontSize: 20 }}>{moodEmojis[ci.mood] || ''}</span>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: moodColors[ci.mood] || 'var(--t1)', marginTop: 2 }}>
+                      {ci.mood}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Body & Recovery ── */}
+                <SectionLabel>Body & Recovery</SectionLabel>
+                <div style={{ marginBottom: 4 }}>
+                  {ci.sleep_quality != null && <MetricBar label="Sleep Quality" value={ci.sleep_quality} />}
+                  {ci.digestion != null && <MetricBar label="Digestion" value={ci.digestion} />}
+                  {ci.energy != null && <MetricBar label="Energy" value={ci.energy} />}
+                  {ci.energy_level != null && !ci.energy && <MetricBar label="Energy" value={ci.energy_level} />}
+                  {ci.motivation != null && <MetricBar label="Motivation" value={ci.motivation} />}
+                </div>
+
+                {/* ── Pain ── */}
+                {ci.pain && (
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: 'var(--b1)', borderRadius: 8 }}>
+                      <span style={{ fontSize: 14 }}>{ci.pain === 'no' ? '✅' : ci.pain === 'yes-minor' ? '⚠️' : '🚨'}</span>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: painLabels[ci.pain]?.color || 'var(--t2)' }}>
+                          {painLabels[ci.pain]?.text || ci.pain}
+                        </div>
+                        {ci.pain_detail && (
+                          <div style={{ fontSize: 11, color: 'var(--t2)', marginTop: 2, lineHeight: 1.4 }}>{ci.pain_detail}</div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Adherence & Activity ── */}
+                <SectionLabel>Adherence & Activity</SectionLabel>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+                  {ci.nutrition_adherence != null && (
+                    <div style={{ flex: '1 1 70px', textAlign: 'center', padding: '10px 6px', background: 'var(--b1)', borderRadius: 8 }}>
+                      <div style={{ fontSize: 20, fontFamily: 'var(--fd)', fontWeight: 700, color: ci.nutrition_adherence >= 7 ? 'var(--green)' : ci.nutrition_adherence >= 4 ? 'var(--gold)' : 'var(--red)' }}>
+                        {ci.nutrition_adherence}/10
+                      </div>
+                      <div style={{ fontSize: 9, color: 'var(--t3)', textTransform: 'uppercase' }}>Nutrition</div>
+                    </div>
                   )}
-                  {ci.sleep_quality != null && (
-                    <MetricBar label="Sleep Quality" value={ci.sleep_quality} color={ci.sleep_quality >= 7 ? 'var(--green)' : ci.sleep_quality >= 4 ? 'var(--gold)' : 'var(--red)'} />
+                  {ci.workouts_completed != null && (
+                    <div style={{ flex: '1 1 70px', textAlign: 'center', padding: '10px 6px', background: 'var(--b1)', borderRadius: 8 }}>
+                      <div style={{ fontSize: 20, fontFamily: 'var(--fd)', fontWeight: 700, color: 'var(--blue)' }}>
+                        {ci.workouts_completed}
+                      </div>
+                      <div style={{ fontSize: 9, color: 'var(--t3)', textTransform: 'uppercase' }}>Workouts</div>
+                    </div>
                   )}
-                  {ci.stress_level != null && (
-                    <MetricBar label="Stress" value={ci.stress_level} color={ci.stress_level <= 3 ? 'var(--green)' : ci.stress_level <= 6 ? 'var(--gold)' : 'var(--red)'} />
-                  )}
-                  {ci.hunger_level != null && (
-                    <MetricBar label="Hunger" value={ci.hunger_level} color={ci.hunger_level <= 4 ? 'var(--green)' : ci.hunger_level <= 7 ? 'var(--gold)' : 'var(--red)'} />
-                  )}
-                  {ci.motivation != null && (
-                    <MetricBar label="Motivation" value={ci.motivation} color={ci.motivation >= 7 ? 'var(--green)' : ci.motivation >= 4 ? 'var(--gold)' : 'var(--red)'} />
+                  {ci.water_avg != null && (
+                    <div style={{ flex: '1 1 70px', textAlign: 'center', padding: '10px 6px', background: 'var(--b1)', borderRadius: 8 }}>
+                      <div style={{ fontSize: 20, fontFamily: 'var(--fd)', fontWeight: 700, color: ci.water_avg >= 2.5 ? 'var(--green)' : 'var(--gold)' }}>
+                        {ci.water_avg}L
+                      </div>
+                      <div style={{ fontSize: 9, color: 'var(--t3)', textTransform: 'uppercase' }}>Water/Day</div>
+                    </div>
                   )}
                 </div>
 
-                {/* Weight */}
-                {ci.weight && (
-                  <div style={{ display: 'flex', gap: 16, marginBottom: 12, padding: '8px 10px', background: 'var(--b1)', borderRadius: 8 }}>
+                {/* Steps goal */}
+                {ci.steps_goal && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: 'var(--b1)', borderRadius: 8, marginBottom: 10 }}>
+                    <span style={{ fontSize: 14 }}>{stepsLabels[ci.steps_goal]?.icon || '🚶'}</span>
                     <div>
-                      <div style={{ fontSize: 9, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: 1 }}>Weight</div>
-                      <div style={{ fontSize: 16, fontFamily: 'var(--fd)', fontWeight: 600 }}>{ci.weight} <span style={{ fontSize: 10, color: 'var(--t3)' }}>kg</span></div>
+                      <div style={{ fontSize: 9, color: 'var(--t3)', textTransform: 'uppercase' }}>Steps Goal</div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: stepsLabels[ci.steps_goal]?.color || 'var(--t2)' }}>{ci.steps_goal}</div>
                     </div>
-                    {ci.body_fat && (
+                  </div>
+                )}
+
+                {/* ── Weight ── */}
+                {ci.weight && (
+                  <>
+                    <SectionLabel>Body Composition</SectionLabel>
+                    <div style={{ display: 'flex', gap: 16, marginBottom: 10, padding: '8px 10px', background: 'var(--b1)', borderRadius: 8 }}>
                       <div>
-                        <div style={{ fontSize: 9, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: 1 }}>Body Fat</div>
-                        <div style={{ fontSize: 16, fontFamily: 'var(--fd)', fontWeight: 600 }}>{ci.body_fat}<span style={{ fontSize: 10, color: 'var(--t3)' }}>%</span></div>
+                        <div style={{ fontSize: 9, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: 1 }}>Weight</div>
+                        <div style={{ fontSize: 18, fontFamily: 'var(--fd)', fontWeight: 600 }}>{ci.weight} <span style={{ fontSize: 10, color: 'var(--t3)' }}>kg</span></div>
                       </div>
-                    )}
-                  </div>
+                      {ci.body_fat && (
+                        <div>
+                          <div style={{ fontSize: 9, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: 1 }}>Body Fat</div>
+                          <div style={{ fontSize: 18, fontFamily: 'var(--fd)', fontWeight: 600 }}>{ci.body_fat}<span style={{ fontSize: 10, color: 'var(--t3)' }}>%</span></div>
+                        </div>
+                      )}
+                    </div>
+                  </>
                 )}
 
-                {/* Adherence summary */}
-                {(ci.training_adherence != null || ci.nutrition_adherence != null) && (
-                  <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
-                    {ci.training_adherence != null && (
-                      <div style={{ flex: 1, textAlign: 'center', padding: '8px', background: 'var(--b1)', borderRadius: 8 }}>
-                        <div style={{ fontSize: 18, fontFamily: 'var(--fd)', fontWeight: 700, color: ci.training_adherence >= 80 ? 'var(--green)' : 'var(--orange)' }}>
-                          {ci.training_adherence}%
-                        </div>
-                        <div style={{ fontSize: 9, color: 'var(--t3)', textTransform: 'uppercase' }}>Training</div>
-                      </div>
-                    )}
-                    {ci.nutrition_adherence != null && (
-                      <div style={{ flex: 1, textAlign: 'center', padding: '8px', background: 'var(--b1)', borderRadius: 8 }}>
-                        <div style={{ fontSize: 18, fontFamily: 'var(--fd)', fontWeight: 700, color: ci.nutrition_adherence >= 80 ? 'var(--green)' : 'var(--orange)' }}>
-                          {ci.nutrition_adherence}%
-                        </div>
-                        <div style={{ fontSize: 9, color: 'var(--t3)', textTransform: 'uppercase' }}>Nutrition</div>
-                      </div>
-                    )}
-                  </div>
+                {/* ── Reflections ── */}
+                {(ci.what_went_well || ci.biggest_struggle || ci.what_to_improve || ci.questions_for_coach || ci.notes || ci.wins || ci.struggles) && (
+                  <SectionLabel>Reflections</SectionLabel>
                 )}
 
-                {/* Client notes */}
-                {ci.notes && (
+                {ci.what_went_well && (
                   <div style={{ marginBottom: 10 }}>
-                    <div style={{ fontSize: 10, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Client Notes</div>
+                    <div style={{ fontSize: 10, color: 'var(--green)', fontWeight: 600, marginBottom: 3, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span>✅</span> What Went Well
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--t2)', lineHeight: 1.5, padding: '8px 10px', background: 'var(--b1)', borderRadius: 8, borderLeft: '3px solid var(--green)' }}>
+                      {ci.what_went_well}
+                    </div>
+                  </div>
+                )}
+                {/* Fallback for old field name */}
+                {!ci.what_went_well && ci.wins && (
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ fontSize: 10, color: 'var(--green)', fontWeight: 600, marginBottom: 3, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span>✅</span> Wins
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--t2)', lineHeight: 1.5, padding: '8px 10px', background: 'var(--b1)', borderRadius: 8, borderLeft: '3px solid var(--green)' }}>
+                      {ci.wins}
+                    </div>
+                  </div>
+                )}
+
+                {ci.biggest_struggle && (
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ fontSize: 10, color: 'var(--orange)', fontWeight: 600, marginBottom: 3, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span>⚡</span> Biggest Struggle
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--t2)', lineHeight: 1.5, padding: '8px 10px', background: 'var(--b1)', borderRadius: 8, borderLeft: '3px solid var(--orange)' }}>
+                      {ci.biggest_struggle}
+                    </div>
+                  </div>
+                )}
+                {!ci.biggest_struggle && ci.struggles && (
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ fontSize: 10, color: 'var(--orange)', fontWeight: 600, marginBottom: 3, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span>⚡</span> Struggles
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--t2)', lineHeight: 1.5, padding: '8px 10px', background: 'var(--b1)', borderRadius: 8, borderLeft: '3px solid var(--orange)' }}>
+                      {ci.struggles}
+                    </div>
+                  </div>
+                )}
+
+                {ci.what_to_improve && (
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ fontSize: 10, color: 'var(--blue)', fontWeight: 600, marginBottom: 3, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span>🎯</span> Focus Next Week
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--t2)', lineHeight: 1.5, padding: '8px 10px', background: 'var(--b1)', borderRadius: 8, borderLeft: '3px solid var(--blue)' }}>
+                      {ci.what_to_improve}
+                    </div>
+                  </div>
+                )}
+
+                {ci.questions_for_coach && (
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ fontSize: 10, color: 'var(--gold)', fontWeight: 600, marginBottom: 3, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span>💬</span> Questions for Coach
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--t2)', lineHeight: 1.5, padding: '8px 10px', background: 'var(--b1)', borderRadius: 8, borderLeft: '3px solid var(--gold)' }}>
+                      {ci.questions_for_coach}
+                    </div>
+                  </div>
+                )}
+
+                {/* General notes fallback */}
+                {ci.notes && !ci.what_went_well && !ci.biggest_struggle && (
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ fontSize: 10, color: 'var(--t3)', fontWeight: 600, marginBottom: 3 }}>Client Notes</div>
                     <div style={{ fontSize: 12, color: 'var(--t2)', lineHeight: 1.5, padding: '8px 10px', background: 'var(--b1)', borderRadius: 8 }}>
                       {ci.notes}
                     </div>
                   </div>
                 )}
 
-                {/* Wins / struggles */}
-                {ci.wins && (
-                  <div style={{ marginBottom: 8 }}>
-                    <div style={{ fontSize: 10, color: 'var(--green)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 3 }}>Wins</div>
-                    <div style={{ fontSize: 12, color: 'var(--t2)', lineHeight: 1.4 }}>{ci.wins}</div>
-                  </div>
-                )}
-                {ci.struggles && (
-                  <div style={{ marginBottom: 8 }}>
-                    <div style={{ fontSize: 10, color: 'var(--orange)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 3 }}>Struggles</div>
-                    <div style={{ fontSize: 12, color: 'var(--t2)', lineHeight: 1.4 }}>{ci.struggles}</div>
-                  </div>
-                )}
-
-                {/* Coach feedback */}
+                {/* ── Coach Feedback ── */}
                 {ci.coach_feedback && (
                   <div style={{
-                    marginTop: 10, padding: '10px 12px', background: 'var(--gold-d)',
-                    borderRadius: 8, borderLeft: '3px solid var(--gold)',
+                    marginTop: 14, padding: '12px 14px', background: 'var(--gold-d)',
+                    borderRadius: 10, borderLeft: '4px solid var(--gold)',
                   }}>
-                    <div style={{ fontSize: 10, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Coach Feedback</div>
-                    <div style={{ fontSize: 12, color: 'var(--t1)', lineHeight: 1.5 }}>{ci.coach_feedback}</div>
+                    <div style={{ fontSize: 10, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 6, fontWeight: 700 }}>Coach Feedback</div>
+                    <div style={{ fontSize: 12, color: 'var(--t1)', lineHeight: 1.6 }}>{ci.coach_feedback}</div>
                     {ci.coach_responded_at && (
-                      <div style={{ fontSize: 9, color: 'var(--t3)', marginTop: 4 }}>
+                      <div style={{ fontSize: 9, color: 'var(--t3)', marginTop: 6 }}>
                         {formatDate(ci.coach_responded_at.slice(0, 10))}
                       </div>
                     )}
@@ -813,22 +938,12 @@ function MeasurementsSection({ measurements }) {
   );
 }
 
-// ── Section: Progress Photos ──
-function ProgressPhotosSection({ photos }) {
-  // photos is now an array: [{ pose, url, date }, ...]
+// ── Section: Progress Photo Comparison ──
+function ProgressPhotoComparison({ photos }) {
   const photoArr = Array.isArray(photos) ? photos : [];
+  const [compareMode, setCompareMode] = useState('4w');
 
-  if (photoArr.length === 0) {
-    return (
-      <Card title="Progress Photos">
-        <div style={{ textAlign: 'center', padding: 20, color: 'var(--t3)', fontSize: 12 }}>
-          No progress photos uploaded yet.
-        </div>
-      </Card>
-    );
-  }
-
-  // Group by week (using monday key)
+  // Group photos by week (Monday key), sorted newest first
   const weekGroups = useMemo(() => {
     const groups = {};
     photoArr.forEach(p => {
@@ -842,53 +957,130 @@ function ProgressPhotosSection({ photos }) {
       if (!groups[key]) groups[key] = {};
       groups[key][p.pose] = p;
     });
-    // Sort weeks newest first
     return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]));
   }, [photoArr]);
 
   const poses = ['front', 'side', 'back'];
 
+  if (photoArr.length === 0) {
+    return (
+      <Card title="Progress Photos">
+        <div style={{ textAlign: 'center', padding: 20, color: 'var(--t3)', fontSize: 12 }}>
+          No progress photos uploaded yet.
+        </div>
+      </Card>
+    );
+  }
+
+  // Latest photos = first week group
+  const latestWeek = weekGroups[0] || null;
+  const latestPhotos = latestWeek ? latestWeek[1] : {};
+  const latestLabel = latestWeek ? (() => {
+    const m = new Date(latestWeek[0] + 'T12:00:00');
+    return m.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  })() : '';
+
+  // Find compare week based on mode
+  const compareOptions = [
+    { id: '4w', label: '4 Weeks Ago', weeks: 4 },
+    { id: '8w', label: '8 Weeks Ago', weeks: 8 },
+    { id: '12w', label: '12 Weeks Ago', weeks: 12 },
+    { id: 'first', label: 'First Photos', weeks: null },
+  ];
+
+  const comparePhotos = useMemo(() => {
+    if (!weekGroups.length) return null;
+    if (compareMode === 'first') {
+      // Last entry = oldest
+      return weekGroups[weekGroups.length - 1];
+    }
+    const opt = compareOptions.find(o => o.id === compareMode);
+    if (!opt || !opt.weeks) return null;
+    const targetDate = new Date();
+    targetDate.setDate(targetDate.getDate() - opt.weeks * 7);
+    const targetKey = targetDate.toISOString().slice(0, 10);
+    // Find closest week group to target
+    let closest = null;
+    let closestDiff = Infinity;
+    weekGroups.forEach(([wk, map]) => {
+      // Skip the latest week
+      if (wk === weekGroups[0][0]) return;
+      const diff = Math.abs(new Date(wk + 'T12:00:00').getTime() - new Date(targetKey + 'T12:00:00').getTime());
+      if (diff < closestDiff) { closestDiff = diff; closest = [wk, map]; }
+    });
+    return closest;
+  }, [weekGroups, compareMode]);
+
+  const compareLabel = comparePhotos ? (() => {
+    const m = new Date(comparePhotos[0] + 'T12:00:00');
+    return m.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  })() : '';
+  const compareMap = comparePhotos ? comparePhotos[1] : {};
+
+  function PhotoColumn({ label, poseMap, side }) {
+    return (
+      <div style={{ flex: 1 }}>
+        <div style={{
+          fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, textAlign: 'center',
+          color: side === 'right' ? 'var(--gold)' : 'var(--t3)', fontWeight: side === 'right' ? 600 : 400,
+        }}>
+          {label}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center' }}>
+          {poses.map(pose => {
+            const p = poseMap[pose];
+            if (!p) return (
+              <div key={pose} style={{
+                width: '100%', maxWidth: 120, height: 160, background: 'var(--b2)', borderRadius: 8,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 10, color: 'var(--t3)', textTransform: 'capitalize',
+              }}>
+                {pose}
+              </div>
+            );
+            return (
+              <div key={pose} style={{ textAlign: 'center', width: '100%', maxWidth: 120 }}>
+                <img
+                  src={p.url} alt={pose}
+                  style={{ width: '100%', height: 160, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--b2)' }}
+                />
+                <div style={{ fontSize: 9, color: 'var(--t3)', marginTop: 2, textTransform: 'capitalize' }}>{pose}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <Card title="Progress Photos" subtitle={`${weekGroups.length} week${weekGroups.length !== 1 ? 's' : ''}`}>
-      {weekGroups.map(([weekKey, poseMap]) => {
-        const monday = new Date(weekKey + 'T12:00:00');
-        const sunday = new Date(monday);
-        sunday.setDate(monday.getDate() + 6);
-        const label = `${monday.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} — ${sunday.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`;
-        return (
-          <div key={weekKey} style={{ marginBottom: 14 }}>
-            <div style={{ fontSize: 10, color: 'var(--t3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 }}>
-              {label}
-            </div>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-              {poses.map(pose => {
-                const p = poseMap[pose];
-                if (!p) return (
-                  <div key={pose} style={{
-                    width: 100, height: 140, background: 'var(--b2)', borderRadius: 8,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 10, color: 'var(--t3)', textTransform: 'capitalize',
-                  }}>
-                    {pose}
-                  </div>
-                );
-                return (
-                  <div key={pose} style={{ textAlign: 'center' }}>
-                    <img
-                      src={p.url}
-                      alt={pose}
-                      style={{ width: 100, height: 140, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--b2)' }}
-                    />
-                    <div style={{ fontSize: 9, color: 'var(--t3)', marginTop: 4, textTransform: 'capitalize' }}>
-                      {pose}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+    <Card title="Progress Comparison" subtitle="Side by side">
+      {/* Compare mode selector */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 14, flexWrap: 'wrap' }}>
+        {compareOptions.map(opt => (
+          <button
+            key={opt.id}
+            className={`chip ${compareMode === opt.id ? 'active' : ''}`}
+            onClick={() => setCompareMode(opt.id)}
+            style={{ fontSize: 10, padding: '4px 10px' }}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Side-by-side comparison */}
+      <div style={{ display: 'flex', gap: 12 }}>
+        {comparePhotos ? (
+          <PhotoColumn label={`Before · ${compareLabel}`} poseMap={compareMap} side="left" />
+        ) : (
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--t3)', fontSize: 11 }}>
+            No photos from this period
           </div>
-        );
-      })}
+        )}
+        <div style={{ width: 1, background: 'var(--b3)', margin: '20px 0' }} />
+        <PhotoColumn label={`Latest · ${latestLabel}`} poseMap={latestPhotos} side="right" />
+      </div>
     </Card>
   );
 }
@@ -1152,7 +1344,7 @@ export default function ClientProfileScreen() {
           <CoachGoalSelector clientId={clientId} currentGoal={clientGoal} onGoalChange={setClientGoal} />
           <TrainingSummary trainingPlan={data.trainingPlan} workoutHistory={data.workoutHistory} />
           <MeasurementsSection measurements={data.measurements} />
-          <ProgressPhotosSection photos={data.photos} />
+          <ProgressPhotoComparison photos={data.photos} />
         </div>
       </div>
     </div>
