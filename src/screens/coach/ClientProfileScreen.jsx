@@ -890,8 +890,10 @@ function FullWeeklyCheckins({ checkins }) {
   );
 }
 
-// ── Section: Measurements ──
+// ── Section: Measurements (with selectable comparison) ──
 function MeasurementsSection({ measurements }) {
+  const [compareIdx, setCompareIdx] = useState(null);
+
   if (!measurements?.length) {
     return (
       <Card title="Measurements">
@@ -903,7 +905,11 @@ function MeasurementsSection({ measurements }) {
   }
 
   const latest = measurements[measurements.length - 1];
-  const prev = measurements.length > 1 ? measurements[measurements.length - 2] : null;
+  // All previous entries (excluding latest), newest first for the selector
+  const prevEntries = measurements.slice(0, -1).reverse();
+  // Default to the most recent previous entry
+  const selectedPrev = compareIdx !== null && prevEntries[compareIdx] ? prevEntries[compareIdx]
+    : prevEntries.length > 0 ? prevEntries[0] : null;
 
   const fields = [
     { label: 'Waist', key: 'waist', unit: 'cm' },
@@ -913,27 +919,72 @@ function MeasurementsSection({ measurements }) {
   ];
 
   return (
-    <Card title="Measurements" subtitle={`Last: ${formatDate(latest.date)}`}>
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-        {fields.map(f => {
-          const val = latest[f.key];
-          const prevVal = prev?.[f.key];
-          const diff = val && prevVal ? (val - prevVal).toFixed(1) : null;
-          return (
-            <div key={f.key} style={{ flex: '1 1 80px', minWidth: 80 }}>
-              <div className="kl">{f.label}</div>
-              <div style={{ fontSize: 16, fontFamily: 'var(--fd)', margin: '2px 0' }}>
-                {val || '—'}<span style={{ fontSize: 10, color: 'var(--t3)' }}>{val ? f.unit : ''}</span>
-              </div>
-              {diff && (
-                <div style={{ fontSize: 10, color: parseFloat(diff) <= 0 ? 'var(--green)' : 'var(--orange)' }}>
-                  {parseFloat(diff) > 0 ? '+' : ''}{diff}
-                </div>
-              )}
-            </div>
-          );
-        })}
+    <Card title="Measurements" subtitle={`Latest: ${formatDate(latest.date)}`}>
+      {/* Compare selector — only show if there are 2+ previous entries */}
+      {prevEntries.length > 1 && (
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 9, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Compare against</div>
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+            {prevEntries.map((entry, idx) => {
+              const isActive = compareIdx === idx || (compareIdx === null && idx === 0);
+              return (
+                <button
+                  key={entry.date || idx}
+                  className={`chip ${isActive ? 'active' : ''}`}
+                  onClick={() => setCompareIdx(idx)}
+                  style={{ fontSize: 10, padding: '3px 8px' }}
+                >
+                  {formatDate(entry.date)}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Comparison table */}
+      <div style={{ borderBottom: '2px solid var(--b3)', marginBottom: 4 }}>
+        <div style={{ display: 'flex', padding: '0 0 6px' }}>
+          <span style={{ width: 60, fontSize: 9, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: 1 }}></span>
+          {selectedPrev && (
+            <span style={{ flex: 1, textAlign: 'center', fontSize: 9, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: 1 }}>
+              {formatDate(selectedPrev.date)}
+            </span>
+          )}
+          <span style={{ flex: 1, textAlign: 'center', fontSize: 9, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 600 }}>
+            Current
+          </span>
+          <span style={{ width: 55, textAlign: 'right', fontSize: 9, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: 1 }}>
+            Change
+          </span>
+        </div>
       </div>
+
+      {fields.map(f => {
+        const val = latest[f.key];
+        const prevVal = selectedPrev?.[f.key];
+        const diff = val && prevVal ? (val - prevVal).toFixed(1) : null;
+        const diffNum = diff ? parseFloat(diff) : null;
+        return (
+          <div key={f.key} style={{ display: 'flex', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--b2)' }}>
+            <span style={{ width: 60, fontSize: 11, color: 'var(--t3)' }}>{f.label}</span>
+            {selectedPrev && (
+              <span style={{ flex: 1, textAlign: 'center', fontSize: 13, fontFamily: 'var(--fd)', color: 'var(--t2)' }}>
+                {prevVal || '—'}<span style={{ fontSize: 9, color: 'var(--t3)' }}>{prevVal ? f.unit : ''}</span>
+              </span>
+            )}
+            <span style={{ flex: 1, textAlign: 'center', fontSize: 14, fontFamily: 'var(--fd)', fontWeight: 600 }}>
+              {val || '—'}<span style={{ fontSize: 9, color: 'var(--t3)' }}>{val ? f.unit : ''}</span>
+            </span>
+            <span style={{
+              width: 55, textAlign: 'right', fontSize: 11, fontFamily: 'var(--fd)', fontWeight: 600,
+              color: diffNum === null ? 'var(--t3)' : diffNum <= 0 ? 'var(--green)' : 'var(--orange)',
+            }}>
+              {diffNum !== null ? `${diffNum > 0 ? '+' : ''}${diff}` : '—'}
+            </span>
+          </div>
+        );
+      })}
     </Card>
   );
 }
