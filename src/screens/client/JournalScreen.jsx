@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card } from '../../components/ui';
 import { Icon } from '../../utils/icons';
 import { useAuthStore } from '../../stores/authStore';
 import { useUIStore } from '../../stores/uiStore';
-import { saveDailyCheckin, saveWeeklyCheckin, fetchWeeklyCheckins } from '../../services/checkins';
+import { saveDailyCheckin, saveWeeklyCheckin, fetchWeeklyCheckins, fetchDailyCheckins } from '../../services/checkins';
 
 // ── Helpers ──
 function getTodayKey() { return new Date().toISOString().slice(0, 10); }
@@ -90,19 +90,74 @@ function getClientId() {
 function DailyCheckin() {
   const { user } = useAuthStore();
   const { showToast } = useUIStore();
+  const [selectedDate, setSelectedDate] = useState(getTodayKey());
   const [mood, setMood] = useState(null);
   const [sleep, setSleep] = useState(7);
   const [energy, setEnergy] = useState(7);
   const [stress, setStress] = useState(3);
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const [loadingDay, setLoadingDay] = useState(false);
+  const [checkinHistory, setCheckinHistory] = useState({}); // { 'YYYY-MM-DD': checkinData }
+
+  const isToday = selectedDate === getTodayKey();
+  const clientId = getClientId();
+
+  // Generate last 14 days
+  const days = useMemo(() => {
+    const result = [];
+    const today = new Date();
+    for (let i = 0; i < 14; i++) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      const dayLabel = d.toLocaleDateString('en-US', { weekday: 'short' });
+      const dateNum = d.getDate();
+      const monthLabel = d.toLocaleDateString('en-US', { month: 'short' });
+      result.push({ key, dayLabel, dateNum, monthLabel, isToday: i === 0 });
+    }
+    return result;
+  }, []);
+
+  // Load last 14 days of check-in history on mount
+  useEffect(() => {
+    if (!clientId) return;
+    fetchDailyCheckins(clientId, 14).then(data => {
+      const map = {};
+      (data || []).forEach(c => {
+        if (c.mood) map[c.date] = c; // Only count as "done" if mood was set
+      });
+      setCheckinHistory(map);
+    });
+  }, [clientId]);
+
+  // Load existing data when date changes
+  useEffect(() => {
+    if (!clientId) return;
+    const existing = checkinHistory[selectedDate];
+    if (existing) {
+      const moodIdx = MOOD_OPTIONS.findIndex(m => m.label === existing.mood);
+      setMood(moodIdx >= 0 ? moodIdx : null);
+      setSleep(existing.sleep || existing.sleep_quality || 7);
+      setEnergy(existing.energy || existing.energy_level || 7);
+      setStress(existing.stress || existing.stress_level || 3);
+      setNotes(existing.note || existing.notes || '');
+    } else {
+      // Reset form for empty day
+      setMood(null);
+      setSleep(7);
+      setEnergy(7);
+      setStress(3);
+      setNotes('');
+    }
+  }, [selectedDate, checkinHistory]);
 
   const handleSave = async () => {
     if (!user?.id) return;
     setSaving(true);
     const ok = await saveDailyCheckin({
-      client_id: getClientId(),
-      date: getTodayKey(),
+      client_id: clientId,
+      date: selectedDate,
       mood: mood !== null ? MOOD_OPTIONS[mood].label : null,
       sleep: sleep,
       energy: energy,
@@ -111,16 +166,84 @@ function DailyCheckin() {
     });
     setSaving(false);
     if (ok) {
-      showToast('Daily check-in saved!', 'success');
+      // Update history so the dot turns green
+      setCheckinHistory(prev => ({
+        ...prev,
+        [selectedDate]: { mood: MOOD_OPTIONS[mood]?.label, sleep, energy, stress, note: notes, date: selectedDate },
+      }));
+      showToast(isToday ? 'Daily check-in saved!' : `Check-in saved for ${formatDateShort(selectedDate)}!`, 'success');
     } else {
       showToast('Failed to save', 'error');
     }
   };
 
+  const hasExisting = !!checkinHistory[selectedDate];
+
   return (
     <>
+      {/* Date Navigator — 14 days */}
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t2)' }}>
+            {isToday ? 'Today' : formatDateShort(selectedDate)}
+          </div>
+          <div style={{ fontSize: 10, color: 'var(--t3)' }}>
+            {Object.keys(checkinHistory).length}/14 days completed
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 4 }}>
+          {days.map(d => {
+            const done = !!checkinHistory[d.key];
+            const isSelected = d.key === selectedDate;
+            return (
+              <button
+                key={d.key}
+                onClick={() => setSelectedDate(d.key)}
+                style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'center',
+                  minWidth: 44, padding: '6px 4px', borderRadius: 10, cursor: 'pointer',
+                  border: isSelected ? '2px solid var(--gold)' : '2px solid transparent',
+                  background: isSelected ? 'var(--gold-d)' : 'var(--b1)',
+                  color: 'inherit', position: 'relative',
+                }}
+              >
+                <span style={{ fontSize: 9, color: d.isToday ? 'var(--gold)' : 'var(--t3)', fontWeight: d.isToday ? 700 : 400 }}>
+                  {d.dayLabel}
+                </span>
+                <span style={{ fontSize: 15, fontFamily: 'var(--fd)', fontWeight: 600, margin: '2px 0' }}>
+                  {d.dateNum}
+                </span>
+                <span style={{ fontSize: 8, color: 'var(--t3)' }}>{d.monthLabel}</span>
+                {/* Completion dot */}
+                <div style={{
+                  width: 6, height: 6, borderRadius: '50%', marginTop: 3,
+                  background: done ? 'var(--green)' : 'var(--b3)',
+                }} />
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Status banner */}
+      {!isToday && (
+        <div style={{
+          padding: '8px 12px', marginBottom: 14, borderRadius: 8,
+          background: hasExisting ? 'rgba(76,175,80,.08)' : 'rgba(255,165,0,.08)',
+          border: `1px solid ${hasExisting ? 'rgba(76,175,80,.15)' : 'rgba(255,165,0,.15)'}`,
+          fontSize: 12, color: hasExisting ? 'var(--green)' : 'var(--orange)',
+          display: 'flex', alignItems: 'center', gap: 8,
+        }}>
+          <span style={{ fontSize: 16 }}>{hasExisting ? '✅' : '⚠️'}</span>
+          {hasExisting
+            ? `You already submitted a check-in for ${formatDateShort(selectedDate)}. You can update it below.`
+            : `No check-in for ${formatDateShort(selectedDate)}. Fill it in below to catch up.`
+          }
+        </div>
+      )}
+
       {/* Mood */}
-      <Card title="How are you feeling today?" style={{ marginBottom: 14 }}>
+      <Card title={isToday ? 'How are you feeling today?' : `How were you feeling on ${formatDateShort(selectedDate)}?`} style={{ marginBottom: 14 }}>
         <div style={{ display: 'flex', gap: 8 }}>
           {MOOD_OPTIONS.map((m, i) => (
             <div
@@ -154,10 +277,15 @@ function DailyCheckin() {
       </Card>
 
       <button className="btn btn-primary" style={{ width: '100%' }} onClick={handleSave} disabled={saving}>
-        {saving ? 'Saving...' : 'Save Daily Check-in'}
+        {saving ? 'Saving...' : hasExisting ? 'Update Check-in' : (isToday ? 'Save Daily Check-in' : `Save Check-in for ${formatDateShort(selectedDate)}`)}
       </button>
     </>
   );
+}
+
+function formatDateShort(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00');
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
 
 // ══════════════════════════════════════
