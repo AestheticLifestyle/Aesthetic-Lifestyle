@@ -61,6 +61,50 @@ export async function saveTrainingPlan(clientId, coachId, planName, days) {
   return true;
 }
 
+// ── Training Templates (client_id = NULL) ──
+
+export async function saveTrainingTemplate(coachId, tmpl) {
+  const isNew = !tmpl.id || String(tmpl.id).startsWith('new-');
+  let planId = tmpl.id;
+
+  if (isNew) {
+    // Create new template
+    const { data: plan, error } = await supabase.from('training_plans').insert({
+      client_id: null, coach_id: coachId, name: tmpl.name || 'Template', is_active: true,
+    }).select('id').single();
+    if (error || !plan) { console.error('[saveTrainingTemplate] insert error:', error?.message); return null; }
+    planId = plan.id;
+  } else {
+    // Update name
+    await supabase.from('training_plans').update({ name: tmpl.name }).eq('id', planId);
+    // Delete old days + exercises (cascade via FK or manually)
+    const { data: oldDays } = await supabase.from('training_plan_days')
+      .select('id').eq('training_plan_id', planId);
+    if (oldDays?.length) {
+      const dayIds = oldDays.map(d => d.id);
+      await supabase.from('training_plan_exercises').delete().in('training_plan_day_id', dayIds);
+      await supabase.from('training_plan_days').delete().eq('training_plan_id', planId);
+    }
+  }
+
+  // Insert days + exercises
+  for (let di = 0; di < (tmpl.days || []).length; di++) {
+    const day = tmpl.days[di];
+    const { data: dayRow } = await supabase.from('training_plan_days').insert({
+      training_plan_id: planId, name: day.name, day_of_week: di, sort_order: di,
+    }).select('id').single();
+    if (!dayRow) continue;
+
+    const exRows = (day.exercises || []).map((ex, ei) => ({
+      training_plan_day_id: dayRow.id, name: ex.name,
+      sets: ex.sets || 3, target_reps: ex.targetReps || ex.reps || '10-12', sort_order: ei,
+    }));
+    if (exRows.length) await supabase.from('training_plan_exercises').insert(exRows);
+  }
+
+  return planId;
+}
+
 // ── Workout Sessions ──
 
 export async function saveWorkoutSession(clientId, dayIndex, dayName, exercises, notes) {

@@ -4,7 +4,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { Card } from '../../components/ui';
 import { Icon } from '../../utils/icons';
 import { useUIStore } from '../../stores/uiStore';
-import { saveTrainingPlan } from '../../services/training';
+import { saveTrainingPlan, saveTrainingTemplate } from '../../services/training';
 
 // ══════════════════════════════════════
 // Exercise Library — pre-tagged with muscle groups
@@ -708,9 +708,16 @@ export default function WorkoutBuilderScreen() {
     setEditingName(false);
   };
 
-  const handleSaveTemplate = () => {
-    setTrainingTemplates(trainingTemplates.map(t => t.id === tmpl.id ? tmpl : t));
-    showToast('Template saved!', 'success');
+  const handleSaveTemplate = async () => {
+    const savedId = await saveTrainingTemplate(user.id, tmpl);
+    if (savedId) {
+      const updated = { ...tmpl, id: savedId };
+      setActiveTemplate(updated);
+      setTrainingTemplates(trainingTemplates.map(t => t.id === tmpl.id ? updated : t));
+      showToast('Template saved!', 'success');
+    } else {
+      showToast('Failed to save template', 'error');
+    }
   };
 
   const handleSyncMuscles = () => {
