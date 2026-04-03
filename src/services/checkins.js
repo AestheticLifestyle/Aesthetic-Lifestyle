@@ -3,8 +3,30 @@ import { supabase } from './supabase';
 // ── Daily Check-ins ──
 
 export async function saveDailyCheckin(data) {
-  const { error } = await supabase.from('daily_checkins')
-    .upsert(data, { onConflict: 'client_id,date' });
+  const { client_id, date, ...fields } = data;
+  if (!client_id || !date) return false;
+
+  // Try update first (preserves other columns)
+  const { data: existing, error: selErr } = await supabase
+    .from('daily_checkins')
+    .select('id')
+    .eq('client_id', client_id)
+    .eq('date', date)
+    .maybeSingle();
+
+  let error;
+  if (existing) {
+    // Row exists — only update the provided fields
+    ({ error } = await supabase.from('daily_checkins')
+      .update(fields)
+      .eq('client_id', client_id)
+      .eq('date', date));
+  } else {
+    // No row yet — insert
+    ({ error } = await supabase.from('daily_checkins')
+      .insert({ client_id, date, ...fields }));
+  }
+
   if (error) console.error('[saveDailyCheckin] error:', error.message, error.details, error.hint);
   return !error;
 }
@@ -47,9 +69,7 @@ export async function saveCoachFeedback(checkinId, feedback, type = 'weekly') {
 // ── Steps & Cardio ──
 
 export async function saveSteps(clientId, date, steps) {
-  const { error } = await supabase.from('daily_checkins')
-    .upsert({ client_id: clientId, date, steps }, { onConflict: 'client_id,date' });
-  return !error;
+  return saveDailyCheckin({ client_id: clientId, date, steps });
 }
 
 export async function saveCardioSession(clientId, session) {
