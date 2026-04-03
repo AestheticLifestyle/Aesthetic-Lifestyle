@@ -12,6 +12,7 @@ import { fetchDailyCheckins, fetchWeeklyCheckins, saveClientGoal } from '../../s
 import { fetchMealPlan, fetchNutritionLogHistory } from '../../services/nutrition';
 import { fetchTrainingPlan, fetchWorkoutHistory } from '../../services/training';
 import SupplementsPanel from '../../components/coach/SupplementsPanel';
+import ReminderSettings from '../../components/coach/ReminderSettings';
 
 // ── Helpers ──
 function formatDate(d) {
@@ -1388,6 +1389,7 @@ export default function ClientProfileScreen() {
           <CoachingIntelligence weightLog={data.weightLog} goalId={clientGoal} mealPlan={data.mealPlan} />
           <QuickActions clientId={clientId} clientName={clientName} navigate={navigate} />
           <SupplementsPanel clientId={clientId} coachId={user?.id} />
+          <ReminderSettings clientId={clientId} coachId={user?.id} />
           <CoachGoalSelector clientId={clientId} currentGoal={clientGoal} onGoalChange={setClientGoal} />
           <TrainingSummary trainingPlan={data.trainingPlan} workoutHistory={data.workoutHistory} />
           <MeasurementsSection measurements={data.measurements} />

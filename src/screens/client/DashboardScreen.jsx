@@ -11,6 +11,9 @@ import { saveDailyCheckin } from '../../services/checkins';
 import { saveDailyNutritionLog } from '../../services/nutrition';
 import { supabase } from '../../services/supabase';
 import { analyzeWeightTrend, detectPlateau } from '../../utils/coachingInsights';
+import { useNotificationStore } from '../../stores/notificationStore';
+import { generateSmartReminders, fetchReminderRules } from '../../services/reminders';
+import ReminderCards from '../../components/client/ReminderCards';
 
 // ---------- helpers ----------
 /** Resolve the correct client ID — uses override when coach is in client view */
@@ -525,10 +528,45 @@ export default function DashboardScreen() {
     meals, dayData, stepGoal, macroTargets, weightLog, dailyLog, selectedDate, checkinDone,
   }), [meals, dayData, stepGoal, macroTargets, weightLog, dailyLog, selectedDate, checkinDone]);
 
+  const navigate = useNavigate();
+  const { setSmartReminders } = useNotificationStore();
+
+  // Generate smart reminders based on today's activity
+  useEffect(() => {
+    if (!isToday || !user?.id) return;
+    const clientId = getClientId();
+
+    // Check today's data to generate reminders
+    const todayWeight = weightLog[selectedDate];
+    const todayNutrition = meals.some(m => m.foods?.some(f => f.logged));
+    const todayWorkout = false; // Could check workout history
+    const waterL = (waterML || 0) / 1000;
+
+    async function loadAndGenerate() {
+      let rules = null;
+      try { rules = await fetchReminderRules(clientId); } catch (e) { /* no rules set */ }
+
+      const reminders = generateSmartReminders({
+        dailyCheckin: checkinDone,
+        nutritionLog: todayNutrition,
+        weightLog: !!todayWeight,
+        workoutDone: todayWorkout,
+        waterIntake: waterL,
+        steps: currentSteps,
+        rules,
+      });
+      setSmartReminders(reminders);
+    }
+    loadAndGenerate();
+  }, [isToday, user?.id, selectedDate, checkinDone, waterML, currentSteps]);
+
   return (
     <div className="screen active">
       {/* Mission Briefing */}
       <MissionBriefing name={fullName} streak={streak} goal={goal} />
+
+      {/* Smart Reminders */}
+      {isToday && <ReminderCards navigate={navigate} />}
 
       {/* Date selector */}
       <DateNavigator />
