@@ -307,7 +307,31 @@ function WeeklyCheckin() {
   const { user } = useAuthStore();
   const { showToast } = useUIStore();
 
-  const weekNum = getWeekNumber(new Date());
+  const currentWeekNum = getWeekNumber(new Date());
+  const [weekOffset, setWeekOffset] = useState(0); // 0 = this week, -1 = last week, etc.
+  const weekNum = currentWeekNum + weekOffset;
+  const isCurrentWeek = weekOffset === 0;
+
+  // Compute the date range for the displayed week
+  const weekRange = useMemo(() => {
+    const now = new Date();
+    const dayOfWeek = now.getDay() || 7; // Mon=1
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - (dayOfWeek - 1) + (weekOffset * 7));
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    const fmt = d => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    return `${fmt(monday)} – ${fmt(sunday)}`;
+  }, [weekOffset]);
+
+  // Date to save for this week (the Monday of that week)
+  const weekDate = useMemo(() => {
+    const now = new Date();
+    const dayOfWeek = now.getDay() || 7;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - (dayOfWeek - 1) + (weekOffset * 7));
+    return monday.toISOString().slice(0, 10);
+  }, [weekOffset]);
 
   // Form state
   const [weeklyMood, setWeeklyMood] = useState(null);
@@ -330,12 +354,24 @@ function WeeklyCheckin() {
   // Load existing check-in for this week
   const [loaded, setLoaded] = useState(false);
   const [existingFeedback, setExistingFeedback] = useState(null);
+  const [hasExisting, setHasExisting] = useState(false);
 
+  // Reset form and reload when week changes
   useEffect(() => {
     if (!user?.id) return;
+    setLoaded(false);
+    setHasExisting(false);
+    setExistingFeedback(null);
+    // Reset form to defaults
+    setWeeklyMood(null); setSleepQuality(7); setDigestion(7); setEnergyLevel(7);
+    setPain('no'); setPainDetail(''); setNutritionAdherence(7); setWorkoutsCompleted(0);
+    setWaterAvg(''); setStepsGoal(null); setBiggestStruggle(''); setWhatWentWell('');
+    setWhatToImprove(''); setMotivation(7); setQuestionsForCoach('');
+
     fetchWeeklyCheckins(getClientId()).then(data => {
       const thisWeek = (data || []).find(c => c.week_number === weekNum);
       if (thisWeek) {
+        setHasExisting(true);
         if (thisWeek.mood) setWeeklyMood(thisWeek.mood);
         if (thisWeek.sleep_quality) setSleepQuality(thisWeek.sleep_quality);
         if (thisWeek.digestion) setDigestion(thisWeek.digestion);
@@ -364,7 +400,7 @@ function WeeklyCheckin() {
     setSaving(true);
     const ok = await saveWeeklyCheckin(getClientId(), {
       week_number: weekNum,
-      date: getTodayKey(),
+      date: weekDate,
       mood: weeklyMood,
       sleep_quality: sleepQuality,
       digestion,
@@ -383,7 +419,8 @@ function WeeklyCheckin() {
     });
     setSaving(false);
     if (ok) {
-      showToast('Weekly check-in saved!', 'success');
+      setHasExisting(true);
+      showToast(isCurrentWeek ? 'Weekly check-in saved!' : `Week ${weekNum} check-in saved!`, 'success');
     } else {
       showToast('Failed to save', 'error');
     }
@@ -399,12 +436,54 @@ function WeeklyCheckin() {
 
   return (
     <>
-      {/* Week indicator */}
-      <Card style={{ marginBottom: 14, textAlign: 'center' }}>
-        <div style={{ fontSize: 11, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: 1 }}>Weekly Check-in</div>
-        <div style={{ fontFamily: 'var(--fd)', fontSize: 24, color: 'var(--gold)', margin: '4px 0' }}>Week {weekNum}</div>
-        <div style={{ fontSize: 11, color: 'var(--t3)' }}>Fill this in at the end of each week for your coach</div>
-      </Card>
+      {/* Week navigator with arrows */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        background: 'var(--s1)', border: '1px solid var(--border)',
+        borderRadius: 10, padding: '10px 12px', marginBottom: 10,
+      }}>
+        <button
+          onClick={() => setWeekOffset(o => o - 1)}
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t3)',
+            padding: '4px 6px', display: 'flex', borderRadius: 6,
+          }}
+        >
+          <Icon name="chevron-left" size={18} />
+        </button>
+        <div style={{ textAlign: 'center', flex: 1 }}>
+          <div style={{ fontFamily: 'var(--fd)', fontSize: 20, color: isCurrentWeek ? 'var(--gold)' : 'var(--t1)', lineHeight: 1.2 }}>
+            {isCurrentWeek ? 'This Week' : `Week ${weekNum}`}
+          </div>
+          <div style={{ fontSize: 10, color: 'var(--t3)', marginTop: 2 }}>{weekRange}</div>
+        </div>
+        <button
+          onClick={() => setWeekOffset(o => Math.min(0, o + 1))}
+          style={{
+            background: 'none', border: 'none', cursor: isCurrentWeek ? 'default' : 'pointer',
+            color: isCurrentWeek ? 'var(--b3)' : 'var(--t3)',
+            padding: '4px 6px', display: 'flex', borderRadius: 6,
+            opacity: isCurrentWeek ? 0.3 : 1,
+          }}
+          disabled={isCurrentWeek}
+        >
+          <Icon name="chevron-right" size={18} />
+        </button>
+      </div>
+
+      {/* Status banner for past weeks */}
+      {!isCurrentWeek && (
+        <div style={{
+          padding: '5px 10px', marginBottom: 8, borderRadius: 6,
+          background: hasExisting ? 'rgba(76,175,80,.08)' : 'rgba(255,165,0,.08)',
+          border: `1px solid ${hasExisting ? 'rgba(76,175,80,.15)' : 'rgba(255,165,0,.15)'}`,
+          fontSize: 11, color: hasExisting ? 'var(--green)' : 'var(--orange)',
+          display: 'flex', alignItems: 'center', gap: 6,
+        }}>
+          <span style={{ fontSize: 11 }}>{hasExisting ? '✅' : '⚠️'}</span>
+          {hasExisting ? 'Check-in exists — update below' : 'No check-in yet — fill it in to catch up'}
+        </div>
+      )}
 
       {/* Coach feedback from previous submission */}
       {existingFeedback && (
@@ -526,7 +605,7 @@ function WeeklyCheckin() {
       </Card>
 
       <button className="btn btn-primary" style={{ width: '100%' }} onClick={handleSave} disabled={saving}>
-        {saving ? 'Saving...' : 'Save Weekly Check-in'}
+        {saving ? 'Saving...' : hasExisting ? 'Update Check-in' : 'Save Weekly Check-in'}
       </button>
     </>
   );
