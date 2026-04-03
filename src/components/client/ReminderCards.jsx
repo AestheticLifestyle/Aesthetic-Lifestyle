@@ -2,11 +2,11 @@ import { useNotificationStore } from '../../stores/notificationStore';
 import { Icon } from '../../utils/icons';
 
 const NAV_MAP = {
-  daily_checkin: '/client/journal',
-  weekly_checkin: '/client/journal',
-  meal_logging: '/client/nutrition',
+  daily_checkin: '/app/journal',
+  weekly_checkin: '/app/journal',
+  meal_logging: '/app/nutrition',
   weight_logging: null, // handled inline on dashboard
-  workout: '/client/training',
+  workout: '/app/training',
   water: null,
   steps: null,
 };

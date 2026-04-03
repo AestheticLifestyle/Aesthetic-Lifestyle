@@ -5,16 +5,19 @@ import { supabase } from './supabase';
 export async function saveDailyCheckin(data) {
   const { error } = await supabase.from('daily_checkins')
     .upsert(data, { onConflict: 'client_id,date' });
+  if (error) console.error('[saveDailyCheckin] error:', error.message, error.details, error.hint);
   return !error;
 }
 
 export async function fetchDailyCheckins(clientId, days = 30) {
   const since = new Date();
   since.setDate(since.getDate() - days);
-  const { data } = await supabase.from('daily_checkins')
+  const { data, error } = await supabase.from('daily_checkins')
     .select('*').eq('client_id', clientId)
     .gte('date', since.toISOString().slice(0, 10))
     .order('date', { ascending: false });
+  if (error) console.error('[fetchDailyCheckins] error:', error.message, error.details);
+  if (data) console.log('[fetchDailyCheckins] got', data.length, 'rows for', clientId);
   return data || [];
 }
 
