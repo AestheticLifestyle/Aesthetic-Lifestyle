@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Card } from '../../components/ui';
 import { Icon } from '../../utils/icons';
 import { useAuthStore } from '../../stores/authStore';
@@ -178,10 +178,11 @@ function DailyCheckin() {
   };
 
   const hasExisting = !!checkinHistory[selectedDate];
+  const scrollRef = useRef(null);
 
   return (
     <>
-      {/* Date Navigator — 14 days */}
+      {/* Date Navigator — 14 days, scrollable on mobile */}
       <div style={{ marginBottom: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t2)' }}>
@@ -191,37 +192,67 @@ function DailyCheckin() {
             {Object.keys(checkinHistory).length}/14 days completed
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 4 }}>
-          {days.map(d => {
-            const done = !!checkinHistory[d.key];
-            const isSelected = d.key === selectedDate;
-            return (
-              <button
-                key={d.key}
-                onClick={() => setSelectedDate(d.key)}
-                style={{
-                  display: 'flex', flexDirection: 'column', alignItems: 'center',
-                  minWidth: 44, padding: '6px 4px', borderRadius: 10, cursor: 'pointer',
-                  border: isSelected ? '2px solid var(--gold)' : '2px solid transparent',
-                  background: isSelected ? 'var(--gold-d)' : 'var(--b1)',
-                  color: 'inherit', position: 'relative',
-                }}
-              >
-                <span style={{ fontSize: 9, color: d.isToday ? 'var(--gold)' : 'var(--t3)', fontWeight: d.isToday ? 700 : 400 }}>
-                  {d.dayLabel}
-                </span>
-                <span style={{ fontSize: 15, fontFamily: 'var(--fd)', fontWeight: 600, margin: '2px 0' }}>
-                  {d.dateNum}
-                </span>
-                <span style={{ fontSize: 8, color: 'var(--t3)' }}>{d.monthLabel}</span>
-                {/* Completion dot */}
-                <div style={{
-                  width: 6, height: 6, borderRadius: '50%', marginTop: 3,
-                  background: done ? 'var(--green)' : 'var(--b3)',
-                }} />
-              </button>
-            );
-          })}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          {/* Scroll left (older days) */}
+          <button
+            onClick={() => scrollRef.current?.scrollBy({ left: -150, behavior: 'smooth' })}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t3)',
+              padding: '4px 2px', flexShrink: 0, display: 'flex',
+            }}
+          >
+            <Icon name="chevron-left" size={14} />
+          </button>
+
+          <div
+            ref={scrollRef}
+            className="date-nav-scroll hide-scrollbar"
+            style={{
+              display: 'flex', gap: 4, overflowX: 'auto', flex: 1,
+              scrollbarWidth: 'none', msOverflowStyle: 'none',
+              scrollSnapType: 'x mandatory',
+            }}
+          >
+            {days.map(d => {
+              const done = !!checkinHistory[d.key];
+              const isSelected = d.key === selectedDate;
+              return (
+                <button
+                  key={d.key}
+                  onClick={() => setSelectedDate(d.key)}
+                  style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'center',
+                    minWidth: 40, flex: '0 0 auto', padding: '5px 3px', borderRadius: 10, cursor: 'pointer',
+                    border: isSelected ? '2px solid var(--gold)' : '2px solid transparent',
+                    background: isSelected ? 'var(--gold-d)' : 'var(--b1)',
+                    color: 'inherit', scrollSnapAlign: 'start',
+                  }}
+                >
+                  <span style={{ fontSize: 9, color: d.isToday ? 'var(--gold)' : 'var(--t3)', fontWeight: d.isToday ? 700 : 400, lineHeight: 1 }}>
+                    {d.dayLabel.slice(0, 3)}
+                  </span>
+                  <span style={{ fontSize: 14, fontFamily: 'var(--fd)', fontWeight: 600, margin: '1px 0', lineHeight: 1.2 }}>
+                    {d.dateNum}
+                  </span>
+                  <div style={{
+                    width: 6, height: 6, borderRadius: '50%', marginTop: 2,
+                    background: done ? 'var(--green)' : 'var(--b3)',
+                  }} />
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Scroll right (newer days) */}
+          <button
+            onClick={() => scrollRef.current?.scrollBy({ left: 150, behavior: 'smooth' })}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t3)',
+              padding: '4px 2px', flexShrink: 0, display: 'flex',
+            }}
+          >
+            <Icon name="chevron-right" size={14} />
+          </button>
         </div>
       </div>
 
@@ -231,25 +262,26 @@ function DailyCheckin() {
           padding: '8px 12px', marginBottom: 14, borderRadius: 8,
           background: hasExisting ? 'rgba(76,175,80,.08)' : 'rgba(255,165,0,.08)',
           border: `1px solid ${hasExisting ? 'rgba(76,175,80,.15)' : 'rgba(255,165,0,.15)'}`,
-          fontSize: 12, color: hasExisting ? 'var(--green)' : 'var(--orange)',
-          display: 'flex', alignItems: 'center', gap: 8,
+          fontSize: 11, color: hasExisting ? 'var(--green)' : 'var(--orange)',
+          display: 'flex', alignItems: 'center', gap: 8, lineHeight: 1.4,
         }}>
-          <span style={{ fontSize: 16 }}>{hasExisting ? '✅' : '⚠️'}</span>
+          <span style={{ fontSize: 14, flexShrink: 0 }}>{hasExisting ? '✅' : '⚠️'}</span>
           {hasExisting
-            ? `You already submitted a check-in for ${formatDateShort(selectedDate)}. You can update it below.`
-            : `No check-in for ${formatDateShort(selectedDate)}. Fill it in below to catch up.`
+            ? `Check-in exists for ${formatDateShort(selectedDate)}. Update below.`
+            : `No check-in for ${formatDateShort(selectedDate)}. Fill it in to catch up.`
           }
         </div>
       )}
 
       {/* Mood */}
-      <Card title={isToday ? 'How are you feeling today?' : `How were you feeling on ${formatDateShort(selectedDate)}?`} style={{ marginBottom: 14 }}>
-        <div style={{ display: 'flex', gap: 8 }}>
+      <Card title={isToday ? 'How are you feeling today?' : `How were you on ${formatDateShort(selectedDate)}?`} style={{ marginBottom: 14 }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {MOOD_OPTIONS.map((m, i) => (
             <div
               key={i}
               className={`mood-btn ${mood === i ? 'sel' : ''}`}
               onClick={() => setMood(i)}
+              style={{ flex: '1 1 55px', minWidth: 55 }}
             >
               <span className="mood-emoji">{m.emoji}</span>
               <span className="mood-label">{m.label}</span>
