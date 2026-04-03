@@ -187,7 +187,7 @@ function DailyCheckin() {
   return (
     <>
       {/* Date Navigator — 14 days, scrollable on mobile */}
-      <div style={{ marginBottom: 12 }}>
+      <div style={{ marginBottom: 10 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
           <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--t2)' }}>
             {isToday ? 'Today' : formatDateShort(selectedDate)}
@@ -275,46 +275,50 @@ function DailyCheckin() {
         </div>
       )}
 
-      {/* Mood */}
-      <Card title={isToday ? 'How are you feeling today?' : `How were you on ${formatDateShort(selectedDate)}?`} style={{ marginBottom: 14 }}>
-        <div style={{ display: 'flex', gap: 6, justifyContent: 'space-between' }}>
+      {/* Mood — always 5 in a row */}
+      <Card style={{ marginBottom: 10, padding: '12px 10px' }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--t2)', marginBottom: 8 }}>
+          {isToday ? 'How are you feeling?' : formatDateShort(selectedDate)}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 5 }}>
           {MOOD_OPTIONS.map((m, i) => (
             <div
               key={i}
               className={`mood-btn ${mood === i ? 'sel' : ''}`}
               onClick={() => setMood(i)}
-              style={{ flex: 1, minWidth: 0, padding: '8px 4px' }}
+              style={{ padding: '6px 2px', textAlign: 'center' }}
             >
-              <span className="mood-emoji">{m.emoji}</span>
-              <span className="mood-label" style={{ fontSize: 9 }}>{m.label}</span>
+              <span style={{ fontSize: 20, display: 'block', marginBottom: 2 }}>{m.emoji}</span>
+              <span style={{ fontSize: 8, color: mood === i ? 'var(--gold)' : 'var(--t3)', lineHeight: 1 }}>{m.label}</span>
             </div>
           ))}
         </div>
       </Card>
 
-      {/* Sliders */}
-      <Card style={{ marginBottom: 14 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* Sliders — compact in one card */}
+      <Card style={{ marginBottom: 10, padding: '12px 14px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <Slider label="Sleep Quality" value={sleep} onChange={setSleep} color="var(--blue)" />
           <Slider label="Energy Level" value={energy} onChange={setEnergy} color="var(--green)" />
           <Slider label="Stress Level" value={stress} onChange={setStress} color="var(--orange)" />
         </div>
       </Card>
 
-      {/* Notes */}
-      <Card title="Notes" style={{ marginBottom: 12 }}>
+      {/* Notes — compact */}
+      <Card style={{ marginBottom: 10, padding: '12px 14px' }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--t2)', marginBottom: 6 }}>Notes</div>
         <textarea
           className="t-area"
           placeholder="Any wins, struggles, or thoughts?"
           value={notes}
           onChange={e => setNotes(e.target.value)}
           rows={2}
-          style={{ minHeight: 60 }}
+          style={{ minHeight: 50, padding: '8px 10px', fontSize: 13 }}
         />
       </Card>
 
-      <button className="btn btn-primary" style={{ width: '100%' }} onClick={handleSave} disabled={saving}>
-        {saving ? 'Saving...' : hasExisting ? 'Update Check-in' : (isToday ? 'Save Check-in' : `Save for ${formatDateShort(selectedDate)}`)}
+      <button className="btn btn-primary" style={{ width: '100%', padding: '12px' }} onClick={handleSave} disabled={saving}>
+        {saving ? 'Saving...' : hasExisting ? 'Update Check-in' : 'Save Check-in'}
       </button>
     </>
   );
