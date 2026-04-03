@@ -31,14 +31,14 @@ const PAIN_OPTIONS = [
   { value: 'yes-major', label: 'Yes — Major' },
 ];
 
-// ── Slider component (compact on mobile) ──
+// ── Slider component (compact) ──
 function Slider({ label, value, onChange, color, min = 1, max = 10 }) {
   return (
-    <div className="checkin-slider">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
         <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--t2)' }}>{label}</span>
-        <span style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--fd)', color, lineHeight: 1 }}>
-          {value}<span style={{ fontSize: 10, color: 'var(--t3)', marginLeft: 2 }}>/{max}</span>
+        <span style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--fd)', color, lineHeight: 1 }}>
+          {value}<span style={{ fontSize: 9, color: 'var(--t3)', marginLeft: 1 }}>/{max}</span>
         </span>
       </div>
       <input
@@ -107,11 +107,11 @@ function DailyCheckin() {
   const isToday = selectedDate === getTodayKey();
   const clientId = getClientId();
 
-  // Generate last 14 days
+  // Generate last 7 days
   const days = useMemo(() => {
     const result = [];
     const today = new Date();
-    for (let i = 0; i < 14; i++) {
+    for (let i = 0; i < 7; i++) {
       const d = new Date(today);
       d.setDate(today.getDate() - i);
       const key = d.toISOString().slice(0, 10);
@@ -126,7 +126,7 @@ function DailyCheckin() {
   // Load last 14 days of check-in history on mount
   useEffect(() => {
     if (!clientId) return;
-    fetchDailyCheckins(clientId, 14).then(data => {
+    fetchDailyCheckins(clientId, 7).then(data => {
       const map = {};
       (data || []).forEach(c => {
         if (c.mood) map[c.date] = c; // Only count as "done" if mood was set
@@ -182,142 +182,113 @@ function DailyCheckin() {
   };
 
   const hasExisting = !!checkinHistory[selectedDate];
-  const scrollRef = useRef(null);
 
   return (
     <>
-      {/* Date Navigator — 14 days, scrollable on mobile */}
-      <div style={{ marginBottom: 10 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--t2)' }}>
-            {isToday ? 'Today' : formatDateShort(selectedDate)}
-          </div>
-          <div style={{ fontSize: 10, color: 'var(--t3)' }}>
-            {Object.keys(checkinHistory).length}/14 days
-          </div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <button
-            onClick={() => scrollRef.current?.scrollBy({ left: -120, behavior: 'smooth' })}
-            style={{
-              background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t3)',
-              padding: '2px 1px', flexShrink: 0, display: 'flex',
-            }}
-          >
-            <Icon name="chevron-left" size={12} />
-          </button>
-
-          <div
-            ref={scrollRef}
-            className="date-nav-scroll hide-scrollbar"
-            style={{
-              display: 'flex', gap: 3, overflowX: 'auto', flex: 1,
-              scrollbarWidth: 'none', msOverflowStyle: 'none',
-              scrollSnapType: 'x mandatory',
-            }}
-          >
-            {days.map(d => {
-              const done = !!checkinHistory[d.key];
-              const isSelected = d.key === selectedDate;
-              return (
-                <button
-                  key={d.key}
-                  onClick={() => setSelectedDate(d.key)}
-                  style={{
-                    display: 'flex', flexDirection: 'column', alignItems: 'center',
-                    minWidth: 36, flex: '0 0 auto', padding: '4px 2px', borderRadius: 8, cursor: 'pointer',
-                    border: isSelected ? '2px solid var(--gold)' : '2px solid transparent',
-                    background: isSelected ? 'var(--gold-d)' : 'var(--b1)',
-                    color: 'inherit', scrollSnapAlign: 'start',
-                  }}
-                >
-                  <span style={{ fontSize: 8, color: d.isToday ? 'var(--gold)' : 'var(--t3)', fontWeight: d.isToday ? 700 : 400, lineHeight: 1 }}>
-                    {d.dayLabel.slice(0, 2)}
-                  </span>
-                  <span style={{ fontSize: 13, fontFamily: 'var(--fd)', fontWeight: 600, margin: '1px 0', lineHeight: 1.1 }}>
-                    {d.dateNum}
-                  </span>
-                  <div style={{
-                    width: 5, height: 5, borderRadius: '50%', marginTop: 1,
-                    background: done ? 'var(--green)' : 'var(--b3)',
-                  }} />
-                </button>
-              );
-            })}
-          </div>
-
-          <button
-            onClick={() => scrollRef.current?.scrollBy({ left: 120, behavior: 'smooth' })}
-            style={{
-              background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t3)',
-              padding: '2px 1px', flexShrink: 0, display: 'flex',
-            }}
-          >
-            <Icon name="chevron-right" size={12} />
-          </button>
-        </div>
+      {/* 7-day strip — no scrolling needed */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 8 }}>
+        {days.map(d => {
+          const done = !!checkinHistory[d.key];
+          const sel = d.key === selectedDate;
+          return (
+            <button
+              key={d.key}
+              onClick={() => setSelectedDate(d.key)}
+              style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center',
+                padding: '4px 0', borderRadius: 8, cursor: 'pointer',
+                border: sel ? '2px solid var(--gold)' : '2px solid transparent',
+                background: sel ? 'var(--gold-d)' : 'var(--b1)',
+                color: 'inherit',
+              }}
+            >
+              <span style={{ fontSize: 9, color: d.isToday ? 'var(--gold)' : 'var(--t3)', fontWeight: d.isToday ? 700 : 400, lineHeight: 1 }}>
+                {d.dayLabel.slice(0, 2)}
+              </span>
+              <span style={{ fontSize: 14, fontFamily: 'var(--fd)', fontWeight: 600, lineHeight: 1.3 }}>
+                {d.dateNum}
+              </span>
+              <div style={{
+                width: 5, height: 5, borderRadius: '50%',
+                background: done ? 'var(--green)' : 'var(--b3)',
+              }} />
+            </button>
+          );
+        })}
       </div>
 
-      {/* Status banner */}
+      {/* Status banner (only for past days) */}
       {!isToday && (
         <div style={{
-          padding: '6px 10px', marginBottom: 10, borderRadius: 8,
+          padding: '5px 10px', marginBottom: 8, borderRadius: 6,
           background: hasExisting ? 'rgba(76,175,80,.08)' : 'rgba(255,165,0,.08)',
           border: `1px solid ${hasExisting ? 'rgba(76,175,80,.15)' : 'rgba(255,165,0,.15)'}`,
           fontSize: 11, color: hasExisting ? 'var(--green)' : 'var(--orange)',
-          display: 'flex', alignItems: 'center', gap: 6, lineHeight: 1.3,
+          display: 'flex', alignItems: 'center', gap: 6,
         }}>
-          <span style={{ fontSize: 12, flexShrink: 0 }}>{hasExisting ? '✅' : '⚠️'}</span>
-          {hasExisting
-            ? `${formatDateShort(selectedDate)} — update below`
-            : `${formatDateShort(selectedDate)} — fill in to catch up`
-          }
+          <span style={{ fontSize: 11 }}>{hasExisting ? '✅' : '⚠️'}</span>
+          {hasExisting ? 'Update below' : 'Fill in to catch up'}
         </div>
       )}
 
-      {/* Mood — always 5 in a row */}
-      <Card style={{ marginBottom: 10, padding: '12px 10px' }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--t2)', marginBottom: 8 }}>
-          {isToday ? 'How are you feeling?' : formatDateShort(selectedDate)}
+      {/* Mood — 5 columns grid, always fits */}
+      <div style={{
+        background: 'var(--s1)', border: '1px solid var(--border)',
+        borderRadius: 10, padding: '10px 8px', marginBottom: 8,
+      }}>
+        <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--t3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 }}>
+          Mood
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 5 }}>
-          {MOOD_OPTIONS.map((m, i) => (
-            <div
-              key={i}
-              className={`mood-btn ${mood === i ? 'sel' : ''}`}
-              onClick={() => setMood(i)}
-              style={{ padding: '6px 2px', textAlign: 'center' }}
-            >
-              <span style={{ fontSize: 20, display: 'block', marginBottom: 2 }}>{m.emoji}</span>
-              <span style={{ fontSize: 8, color: mood === i ? 'var(--gold)' : 'var(--t3)', lineHeight: 1 }}>{m.label}</span>
-            </div>
-          ))}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 4 }}>
+          {MOOD_OPTIONS.map((m, i) => {
+            const sel = mood === i;
+            return (
+              <button
+                key={i}
+                onClick={() => setMood(i)}
+                style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'center',
+                  padding: '6px 0', borderRadius: 8, cursor: 'pointer',
+                  border: sel ? '1.5px solid var(--gold)' : '1.5px solid var(--border)',
+                  background: sel ? 'var(--gold-d)' : 'var(--s2)',
+                  color: 'inherit',
+                }}
+              >
+                <span style={{ fontSize: 18, lineHeight: 1 }}>{m.emoji}</span>
+                <span style={{ fontSize: 8, color: sel ? 'var(--gold)' : 'var(--t3)', marginTop: 2, lineHeight: 1 }}>{m.label}</span>
+              </button>
+            );
+          })}
         </div>
-      </Card>
+      </div>
 
-      {/* Sliders — compact in one card */}
-      <Card style={{ marginBottom: 10, padding: '12px 14px' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <Slider label="Sleep Quality" value={sleep} onChange={setSleep} color="var(--blue)" />
-          <Slider label="Energy Level" value={energy} onChange={setEnergy} color="var(--green)" />
-          <Slider label="Stress Level" value={stress} onChange={setStress} color="var(--orange)" />
-        </div>
-      </Card>
+      {/* Sliders — all in one compact block */}
+      <div style={{
+        background: 'var(--s1)', border: '1px solid var(--border)',
+        borderRadius: 10, padding: '10px 12px', marginBottom: 8,
+        display: 'flex', flexDirection: 'column', gap: 10,
+      }}>
+        <Slider label="Sleep" value={sleep} onChange={setSleep} color="var(--blue)" />
+        <Slider label="Energy" value={energy} onChange={setEnergy} color="var(--green)" />
+        <Slider label="Stress" value={stress} onChange={setStress} color="var(--orange)" />
+      </div>
 
-      {/* Notes — compact */}
-      <Card style={{ marginBottom: 10, padding: '12px 14px' }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--t2)', marginBottom: 6 }}>Notes</div>
+      {/* Notes — minimal */}
+      <div style={{
+        background: 'var(--s1)', border: '1px solid var(--border)',
+        borderRadius: 10, padding: '10px 12px', marginBottom: 8,
+      }}>
         <textarea
           className="t-area"
-          placeholder="Any wins, struggles, or thoughts?"
+          placeholder="Notes (optional)"
           value={notes}
           onChange={e => setNotes(e.target.value)}
           rows={2}
-          style={{ minHeight: 50, padding: '8px 10px', fontSize: 13 }}
+          style={{ minHeight: 44, padding: '8px 10px', fontSize: 13, marginBottom: 0 }}
         />
-      </Card>
+      </div>
 
-      <button className="btn btn-primary" style={{ width: '100%', padding: '12px' }} onClick={handleSave} disabled={saving}>
+      <button className="btn btn-primary" style={{ width: '100%', padding: '11px' }} onClick={handleSave} disabled={saving}>
         {saving ? 'Saving...' : hasExisting ? 'Update Check-in' : 'Save Check-in'}
       </button>
     </>
@@ -570,7 +541,7 @@ export default function JournalScreen() {
   return (
     <div className="screen active">
       {/* Tab switcher */}
-      <div className="modal-tabs" style={{ marginBottom: 18 }}>
+      <div className="modal-tabs" style={{ marginBottom: 10 }}>
         <div className={`mtab ${tab === 'daily' ? 'active' : ''}`} onClick={() => setTab('daily')}>
           Daily Check-in
         </div>
