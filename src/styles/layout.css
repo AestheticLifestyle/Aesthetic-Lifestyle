@@ -232,9 +232,15 @@
   .main, .main-area { margin-left: 0; }
   .hdr, .app-header { padding: 0 16px; }
   .menu-btn { display: flex; }
-  .page, .main-content { padding: 16px; }
-  .g4 { grid-template-columns: repeat(2, 1fr); }
+  .page, .main-content { padding: 12px; }
+  .g4 { grid-template-columns: repeat(2, 1fr); gap: 10px; }
   .g3 { grid-template-columns: 1fr; }
   .g7030 { grid-template-columns: 1fr; }
   .auth-card { padding: 28px 22px; }
+  .card { padding: 14px 14px; }
+  .card-hdr { margin-bottom: 10px; }
+  .card-title { font-size: 14px; }
+  .mood-emoji { font-size: 18px; margin-bottom: 2px; }
+  .mood-label { font-size: 9px; }
+  .modal-tabs { margin-bottom: 12px !important; }
 }

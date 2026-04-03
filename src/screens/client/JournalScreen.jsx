@@ -31,18 +31,22 @@ const PAIN_OPTIONS = [
   { value: 'yes-major', label: 'Yes — Major' },
 ];
 
-// ── Slider component ──
+// ── Slider component (compact on mobile) ──
 function Slider({ label, value, onChange, color, min = 1, max = 10 }) {
   return (
-    <Card>
-      <div className="kl">{label}</div>
-      <div className="kv" style={{ margin: '4px 0 8px', color }}>{value}<span className="ku">/{max}</span></div>
+    <div className="checkin-slider">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--t2)' }}>{label}</span>
+        <span style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--fd)', color, lineHeight: 1 }}>
+          {value}<span style={{ fontSize: 10, color: 'var(--t3)', marginLeft: 2 }}>/{max}</span>
+        </span>
+      </div>
       <input
         type="range" min={min} max={max} value={value}
         onChange={e => onChange(Number(e.target.value))}
         style={{ '--p': `${(value / max) * 100}%` }}
       />
-    </Card>
+    </div>
   );
 }
 
@@ -183,32 +187,31 @@ function DailyCheckin() {
   return (
     <>
       {/* Date Navigator — 14 days, scrollable on mobile */}
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t2)' }}>
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--t2)' }}>
             {isToday ? 'Today' : formatDateShort(selectedDate)}
           </div>
           <div style={{ fontSize: 10, color: 'var(--t3)' }}>
-            {Object.keys(checkinHistory).length}/14 days completed
+            {Object.keys(checkinHistory).length}/14 days
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          {/* Scroll left (older days) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <button
-            onClick={() => scrollRef.current?.scrollBy({ left: -150, behavior: 'smooth' })}
+            onClick={() => scrollRef.current?.scrollBy({ left: -120, behavior: 'smooth' })}
             style={{
               background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t3)',
-              padding: '4px 2px', flexShrink: 0, display: 'flex',
+              padding: '2px 1px', flexShrink: 0, display: 'flex',
             }}
           >
-            <Icon name="chevron-left" size={14} />
+            <Icon name="chevron-left" size={12} />
           </button>
 
           <div
             ref={scrollRef}
             className="date-nav-scroll hide-scrollbar"
             style={{
-              display: 'flex', gap: 4, overflowX: 'auto', flex: 1,
+              display: 'flex', gap: 3, overflowX: 'auto', flex: 1,
               scrollbarWidth: 'none', msOverflowStyle: 'none',
               scrollSnapType: 'x mandatory',
             }}
@@ -222,20 +225,20 @@ function DailyCheckin() {
                   onClick={() => setSelectedDate(d.key)}
                   style={{
                     display: 'flex', flexDirection: 'column', alignItems: 'center',
-                    minWidth: 40, flex: '0 0 auto', padding: '5px 3px', borderRadius: 10, cursor: 'pointer',
+                    minWidth: 36, flex: '0 0 auto', padding: '4px 2px', borderRadius: 8, cursor: 'pointer',
                     border: isSelected ? '2px solid var(--gold)' : '2px solid transparent',
                     background: isSelected ? 'var(--gold-d)' : 'var(--b1)',
                     color: 'inherit', scrollSnapAlign: 'start',
                   }}
                 >
-                  <span style={{ fontSize: 9, color: d.isToday ? 'var(--gold)' : 'var(--t3)', fontWeight: d.isToday ? 700 : 400, lineHeight: 1 }}>
-                    {d.dayLabel.slice(0, 3)}
+                  <span style={{ fontSize: 8, color: d.isToday ? 'var(--gold)' : 'var(--t3)', fontWeight: d.isToday ? 700 : 400, lineHeight: 1 }}>
+                    {d.dayLabel.slice(0, 2)}
                   </span>
-                  <span style={{ fontSize: 14, fontFamily: 'var(--fd)', fontWeight: 600, margin: '1px 0', lineHeight: 1.2 }}>
+                  <span style={{ fontSize: 13, fontFamily: 'var(--fd)', fontWeight: 600, margin: '1px 0', lineHeight: 1.1 }}>
                     {d.dateNum}
                   </span>
                   <div style={{
-                    width: 6, height: 6, borderRadius: '50%', marginTop: 2,
+                    width: 5, height: 5, borderRadius: '50%', marginTop: 1,
                     background: done ? 'var(--green)' : 'var(--b3)',
                   }} />
                 </button>
@@ -243,15 +246,14 @@ function DailyCheckin() {
             })}
           </div>
 
-          {/* Scroll right (newer days) */}
           <button
-            onClick={() => scrollRef.current?.scrollBy({ left: 150, behavior: 'smooth' })}
+            onClick={() => scrollRef.current?.scrollBy({ left: 120, behavior: 'smooth' })}
             style={{
               background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t3)',
-              padding: '4px 2px', flexShrink: 0, display: 'flex',
+              padding: '2px 1px', flexShrink: 0, display: 'flex',
             }}
           >
-            <Icon name="chevron-right" size={14} />
+            <Icon name="chevron-right" size={12} />
           </button>
         </div>
       </div>
@@ -259,57 +261,60 @@ function DailyCheckin() {
       {/* Status banner */}
       {!isToday && (
         <div style={{
-          padding: '8px 12px', marginBottom: 14, borderRadius: 8,
+          padding: '6px 10px', marginBottom: 10, borderRadius: 8,
           background: hasExisting ? 'rgba(76,175,80,.08)' : 'rgba(255,165,0,.08)',
           border: `1px solid ${hasExisting ? 'rgba(76,175,80,.15)' : 'rgba(255,165,0,.15)'}`,
           fontSize: 11, color: hasExisting ? 'var(--green)' : 'var(--orange)',
-          display: 'flex', alignItems: 'center', gap: 8, lineHeight: 1.4,
+          display: 'flex', alignItems: 'center', gap: 6, lineHeight: 1.3,
         }}>
-          <span style={{ fontSize: 14, flexShrink: 0 }}>{hasExisting ? '✅' : '⚠️'}</span>
+          <span style={{ fontSize: 12, flexShrink: 0 }}>{hasExisting ? '✅' : '⚠️'}</span>
           {hasExisting
-            ? `Check-in exists for ${formatDateShort(selectedDate)}. Update below.`
-            : `No check-in for ${formatDateShort(selectedDate)}. Fill it in to catch up.`
+            ? `${formatDateShort(selectedDate)} — update below`
+            : `${formatDateShort(selectedDate)} — fill in to catch up`
           }
         </div>
       )}
 
       {/* Mood */}
       <Card title={isToday ? 'How are you feeling today?' : `How were you on ${formatDateShort(selectedDate)}?`} style={{ marginBottom: 14 }}>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 6, justifyContent: 'space-between' }}>
           {MOOD_OPTIONS.map((m, i) => (
             <div
               key={i}
               className={`mood-btn ${mood === i ? 'sel' : ''}`}
               onClick={() => setMood(i)}
-              style={{ flex: '1 1 55px', minWidth: 55 }}
+              style={{ flex: 1, minWidth: 0, padding: '8px 4px' }}
             >
               <span className="mood-emoji">{m.emoji}</span>
-              <span className="mood-label">{m.label}</span>
+              <span className="mood-label" style={{ fontSize: 9 }}>{m.label}</span>
             </div>
           ))}
         </div>
       </Card>
 
       {/* Sliders */}
-      <div className="g3" style={{ marginBottom: 14 }}>
-        <Slider label="Sleep Quality" value={sleep} onChange={setSleep} color="var(--blue)" />
-        <Slider label="Energy Level" value={energy} onChange={setEnergy} color="var(--green)" />
-        <Slider label="Stress Level" value={stress} onChange={setStress} color="var(--orange)" />
-      </div>
+      <Card style={{ marginBottom: 14 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <Slider label="Sleep Quality" value={sleep} onChange={setSleep} color="var(--blue)" />
+          <Slider label="Energy Level" value={energy} onChange={setEnergy} color="var(--green)" />
+          <Slider label="Stress Level" value={stress} onChange={setStress} color="var(--orange)" />
+        </div>
+      </Card>
 
       {/* Notes */}
-      <Card title="Notes" style={{ marginBottom: 14 }}>
+      <Card title="Notes" style={{ marginBottom: 12 }}>
         <textarea
           className="t-area"
-          placeholder="How was your day? Any wins, struggles, or thoughts?"
+          placeholder="Any wins, struggles, or thoughts?"
           value={notes}
           onChange={e => setNotes(e.target.value)}
-          rows={3}
+          rows={2}
+          style={{ minHeight: 60 }}
         />
       </Card>
 
       <button className="btn btn-primary" style={{ width: '100%' }} onClick={handleSave} disabled={saving}>
-        {saving ? 'Saving...' : hasExisting ? 'Update Check-in' : (isToday ? 'Save Daily Check-in' : `Save Check-in for ${formatDateShort(selectedDate)}`)}
+        {saving ? 'Saving...' : hasExisting ? 'Update Check-in' : (isToday ? 'Save Check-in' : `Save for ${formatDateShort(selectedDate)}`)}
       </button>
     </>
   );
