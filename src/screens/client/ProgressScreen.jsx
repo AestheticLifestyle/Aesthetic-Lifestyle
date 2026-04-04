@@ -578,6 +578,114 @@ function TrainingVolumeSection({ workoutHistory }) {
   );
 }
 
+// ── Photo Comparison (Side by Side) ──
+function PhotoComparison({ allPhotos }) {
+  const positions = ['front', 'side', 'back'];
+  const [activePose, setActivePose] = useState('front');
+
+  // Group photos by week
+  const weekMap = useMemo(() => {
+    const map = {};
+    allPhotos.forEach(p => {
+      if (!p.date) return;
+      const wk = getWeekKey(p.date);
+      if (!map[wk]) map[wk] = {};
+      map[wk][p.pose] = p;
+    });
+    return map;
+  }, [allPhotos]);
+
+  const weeks = Object.keys(weekMap).sort();
+  const [weekA, setWeekA] = useState(weeks[0] || '');
+  const [weekB, setWeekB] = useState(weeks[weeks.length - 1] || '');
+
+  if (weeks.length < 2) return null; // Need at least 2 weeks for comparison
+
+  const photoA = weekMap[weekA]?.[activePose];
+  const photoB = weekMap[weekB]?.[activePose];
+
+  const formatWeekLabel = (wk) => {
+    const d = new Date(wk + 'T12:00:00');
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  };
+
+  return (
+    <Card title="Photo Comparison" subtitle="Compare your progress side by side">
+      {/* Pose selector */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+        {positions.map(pos => (
+          <button
+            key={pos}
+            className={`btn btn-sm ${activePose === pos ? 'btn-primary' : 'btn-secondary'}`}
+            onClick={() => setActivePose(pos)}
+            style={{ flex: 1, textTransform: 'capitalize', fontSize: 11 }}
+          >
+            {pos}
+          </button>
+        ))}
+      </div>
+
+      {/* Week selectors */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
+        <div style={{ flex: 1 }}>
+          <label style={{ fontSize: 10, color: 'var(--t3)', marginBottom: 4, display: 'block' }}>Before</label>
+          <select
+            className="form-inp"
+            value={weekA}
+            onChange={e => setWeekA(e.target.value)}
+            style={{ fontSize: 12, padding: '6px 8px' }}
+          >
+            {weeks.map(wk => <option key={wk} value={wk}>Week of {formatWeekLabel(wk)}</option>)}
+          </select>
+        </div>
+        <div style={{ flex: 1 }}>
+          <label style={{ fontSize: 10, color: 'var(--t3)', marginBottom: 4, display: 'block' }}>After</label>
+          <select
+            className="form-inp"
+            value={weekB}
+            onChange={e => setWeekB(e.target.value)}
+            style={{ fontSize: 12, padding: '6px 8px' }}
+          >
+            {weeks.map(wk => <option key={wk} value={wk}>Week of {formatWeekLabel(wk)}</option>)}
+          </select>
+        </div>
+      </div>
+
+      {/* Side-by-side photos */}
+      <div style={{ display: 'flex', gap: 8 }}>
+        {[{ photo: photoA, label: 'Before', week: weekA }, { photo: photoB, label: 'After', week: weekB }].map(({ photo, label, week }) => (
+          <div key={label} style={{
+            flex: 1, aspectRatio: '3/4', borderRadius: 10, overflow: 'hidden',
+            background: 'var(--s2)', border: '1px solid var(--border)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            position: 'relative',
+          }}>
+            {photo ? (
+              <>
+                <img src={photo.url} alt={`${activePose} ${label}`}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <div style={{
+                  position: 'absolute', bottom: 0, left: 0, right: 0,
+                  background: 'linear-gradient(transparent, rgba(0,0,0,.8))',
+                  padding: '20px 8px 8px', textAlign: 'center',
+                }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#fff' }}>{label}</div>
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,.6)' }}>{formatWeekLabel(week)}</div>
+                </div>
+              </>
+            ) : (
+              <div style={{ textAlign: 'center', color: 'var(--t3)', fontSize: 11 }}>
+                <div style={{ marginBottom: 4 }}>No {activePose} photo</div>
+                <div style={{ fontSize: 10 }}>{formatWeekLabel(week)}</div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 export default function ProgressScreen() {
   const { weightLog, measurements, photos, goals, workoutHistory } = useClientStore();
   const today = getTodayKey();
@@ -648,6 +756,11 @@ export default function ProgressScreen() {
       {/* Photos */}
       <div style={{ marginTop: 14 }}>
         <PhotoSection allPhotos={photos} weekDates={weekDates} weekMonday={weekMonday} />
+      </div>
+
+      {/* Photo Comparison (appears when 2+ weeks have photos) */}
+      <div style={{ marginTop: 14 }}>
+        <PhotoComparison allPhotos={photos} />
       </div>
 
       {/* Measurements */}

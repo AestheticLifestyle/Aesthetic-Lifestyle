@@ -71,7 +71,7 @@ export function useDataLoader() {
           .eq('date', today)
           .single(),
         supabase.from('coach_clients')
-          .select('goal')
+          .select('goal, step_goal, water_goal')
           .eq('client_id', clientId)
           .single(),
       ]);
@@ -92,9 +92,12 @@ export function useDataLoader() {
         setPhotos(photos.value || []);
       }
 
-      // Load goal from coach_clients
-      if (goalRes.status === 'fulfilled' && goalRes.value?.data?.goal) {
-        setGoal(goalRes.value.data.goal);
+      // Load goal + targets from coach_clients
+      if (goalRes.status === 'fulfilled' && goalRes.value?.data) {
+        const cc = goalRes.value.data;
+        if (cc.goal) setGoal(cc.goal);
+        if (cc.step_goal) store.setStepGoal?.(cc.step_goal);
+        if (cc.water_goal) store.setWaterGoal?.(cc.water_goal);
       }
 
       // Load today's water/steps from daily_checkins
@@ -142,8 +145,12 @@ export function useDataLoader() {
       const history = await fetchWorkoutHistory(clientId);
       if (history) setWorkoutHistory(history);
 
+      // Mark data as loaded so screens can stop showing skeletons
+      store.setDataLoaded(true);
+
     } catch (err) {
       console.error('[DataLoader] Client data error:', err);
+      store.setDataLoaded(true); // still mark loaded so screens don't hang
     }
   }
 

@@ -140,6 +140,19 @@ export default function ChatScreen({ otherUserId: propOtherUserId, otherUserName
 
   const displayName = otherUserName || (isCoach ? 'Client' : 'Your Coach');
 
+  // No coach assigned — show helpful empty state
+  if (!isCoach && !otherUserId && !loading) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 'calc(100vh - var(--hdr) - 44px)', color: 'var(--t3)', textAlign: 'center', padding: 40 }}>
+        <Icon name="message" size={40} style={{ opacity: 0.15, marginBottom: 16 }} />
+        <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--t2)', marginBottom: 6 }}>No Coach Connected</div>
+        <div style={{ fontSize: 13, lineHeight: 1.5, maxWidth: 280 }}>
+          You don't have a coach assigned yet. Ask your coach for an invite code to get connected.
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - var(--hdr) - 44px)' }}>
       {/* Chat header */}

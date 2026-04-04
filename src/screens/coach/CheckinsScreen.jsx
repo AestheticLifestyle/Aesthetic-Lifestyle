@@ -124,7 +124,7 @@ function StatRow({ label, value, color, suffix }) {
 }
 
 // ── Review panel (slide-in) ──
-function ReviewPanel({ checkin, onClose, onFeedbackSaved }) {
+function ReviewPanel({ checkin, onClose, onFeedbackSaved, queueInfo }) {
   const [feedback, setFeedback] = useState(checkin?.coach_feedback || '');
   const [saving, setSaving] = useState(false);
   const { showToast } = useUIStore();
@@ -152,6 +152,7 @@ function ReviewPanel({ checkin, onClose, onFeedbackSaved }) {
       <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10 }}>
         <h3 style={{ flex: 1, fontSize: 16, fontWeight: 600 }}>
           {name} — {isWeekly ? `Week ${checkin.week_number}` : 'Daily'}
+          {queueInfo && <span style={{ fontSize: 11, color: 'var(--gold)', fontWeight: 400, marginLeft: 8 }}>{queueInfo.current}/{queueInfo.total}</span>}
         </h3>
         {isWeekly ? (
           <span className={`tag ${checkin.status === 'pending' ? 't-or' : 't-gr'}`} style={{ fontSize: 10 }}>
@@ -288,8 +289,13 @@ function ReviewPanel({ checkin, onClose, onFeedbackSaved }) {
           disabled={!feedback.trim() || saving}
           onClick={handleSubmit}
         >
-          <Icon name="send" size={12} /> {saving ? 'Saving...' : isWeekly ? 'Submit Review' : 'Send Comment'}
+          <Icon name="send" size={12} /> {saving ? 'Saving...' : queueInfo ? 'Submit & Next' : isWeekly ? 'Submit Review' : 'Send Comment'}
         </button>
+        {queueInfo && (
+          <button className="btn btn-ghost" onClick={onClose} style={{ fontSize: 12 }}>
+            Exit Queue
+          </button>
+        )}
       </div>
     </div>
   );
@@ -324,6 +330,7 @@ export default function CheckinsScreen() {
   const [filter, setFilter] = useState('pending');
   const [reviewCheckin, setReviewCheckin] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [queueMode, setQueueMode] = useState(false);
 
   const filtered = pendingCheckins.filter(c => {
     if (filter === 'all') return true;
@@ -398,14 +405,46 @@ export default function CheckinsScreen() {
         </div>
       )}
 
+      {/* Start Review Queue button */}
+      {pendingCount > 0 && !reviewCheckin && !queueMode && (
+        <button
+          className="btn btn-primary"
+          style={{ position: 'fixed', bottom: 80, right: 20, zIndex: 200, padding: '12px 20px', borderRadius: 28, boxShadow: '0 4px 20px rgba(212,175,55,0.3)' }}
+          onClick={() => {
+            setQueueMode(true);
+            const first = pendingCheckins.find(c => c.type === 'weekly' && c.status === 'pending');
+            if (first) setReviewCheckin(first);
+          }}
+        >
+          <Icon name="zap" size={14} /> Review Queue ({pendingCount})
+        </button>
+      )}
+
       {/* Review slide-in panel */}
       {reviewCheckin && (
         <>
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', zIndex: 299 }} onClick={() => setReviewCheckin(null)} />
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', zIndex: 299 }} onClick={() => { setReviewCheckin(null); setQueueMode(false); }} />
           <ReviewPanel
             checkin={reviewCheckin}
-            onClose={() => setReviewCheckin(null)}
-            onFeedbackSaved={handleFeedbackSaved}
+            onClose={() => { setReviewCheckin(null); setQueueMode(false); }}
+            onFeedbackSaved={(id, fb) => {
+              handleFeedbackSaved(id, fb);
+              if (queueMode) {
+                // Auto-advance to next pending
+                const remaining = pendingCheckins.filter(c => c.type === 'weekly' && c.status === 'pending' && c.id !== id);
+                if (remaining.length > 0) {
+                  setTimeout(() => setReviewCheckin(remaining[0]), 300);
+                } else {
+                  setReviewCheckin(null);
+                  setQueueMode(false);
+                  showToast('All check-ins reviewed!', 'success');
+                }
+              }
+            }}
+            queueInfo={queueMode ? {
+              current: pendingCheckins.filter(c => c.type === 'weekly' && c.status === 'pending').findIndex(c => c.id === reviewCheckin.id) + 1,
+              total: pendingCount,
+            } : null}
           />
         </>
       )}

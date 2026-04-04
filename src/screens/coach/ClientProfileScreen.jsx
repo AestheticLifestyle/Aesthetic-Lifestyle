@@ -4,13 +4,15 @@ import { useCoachStore } from '../../stores/coachStore';
 import { useAuthStore } from '../../stores/authStore';
 import { Card, ProgressRing } from '../../components/ui';
 import { Icon } from '../../utils/icons';
+import { useUIStore } from '../../stores/uiStore';
 import { detectPlateau, analyzeWeightTrend, suggestCalorieAdjustment } from '../../utils/coachingInsights';
 
 // Services — fetch all client data
 import { fetchWeightLog, fetchMeasurements, fetchProgressPhotos } from '../../services/progress';
 import { fetchDailyCheckins, fetchWeeklyCheckins, saveClientGoal } from '../../services/checkins';
-import { fetchMealPlan, fetchNutritionLogHistory } from '../../services/nutrition';
+import { fetchMealPlan, fetchNutritionLogHistory, updateClientMacroTargets } from '../../services/nutrition';
 import { fetchTrainingPlan, fetchWorkoutHistory } from '../../services/training';
+import { supabase } from '../../services/supabase';
 import SupplementsPanel from '../../components/coach/SupplementsPanel';
 import ReminderSettings from '../../components/coach/ReminderSettings';
 
@@ -215,8 +217,13 @@ function WeightTrend({ weightLog }) {
   );
 }
 
-// ── Section: Nutrition Overview ──
-function NutritionOverview({ nutritionHistory, mealPlan }) {
+// ── Section: Nutrition Overview with Macro Adjust ──
+function NutritionOverview({ nutritionHistory, mealPlan, clientId, coachId }) {
+  const [adjusting, setAdjusting] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({ calories: '', protein: '', carbs: '', fat: '' });
+  const { showToast } = useUIStore();
+
   const macroTargets = useMemo(() => {
     if (!mealPlan?.length) return { calories: 0, protein: 0, carbs: 0, fat: 0 };
     let kcal = 0, p = 0, c = 0, f = 0;
@@ -238,12 +245,52 @@ function NutritionOverview({ nutritionHistory, mealPlan }) {
     };
   }, [nutritionHistory]);
 
+  const handleOpenAdjust = () => {
+    setForm({
+      calories: String(macroTargets.calories || 2400),
+      protein: String(macroTargets.protein || 180),
+      carbs: String(macroTargets.carbs || 260),
+      fat: String(macroTargets.fat || 70),
+    });
+    setAdjusting(true);
+  };
+
+  const handleSaveMacros = async () => {
+    const targets = {
+      calories: parseInt(form.calories) || 0,
+      protein: parseInt(form.protein) || 0,
+      carbs: parseInt(form.carbs) || 0,
+      fat: parseInt(form.fat) || 0,
+    };
+    if (targets.calories < 800 || targets.protein < 20) {
+      showToast('Please enter realistic targets', 'error');
+      return;
+    }
+    setSaving(true);
+    const ok = await updateClientMacroTargets(clientId, coachId, targets);
+    setSaving(false);
+    if (ok) {
+      showToast('Macro targets updated — client will see new targets', 'success');
+      setAdjusting(false);
+    } else {
+      showToast('Failed to update targets', 'error');
+    }
+  };
+
   if (!mealPlan?.length && !nutritionHistory.length) {
     return (
       <Card title="Nutrition">
         <div style={{ textAlign: 'center', padding: 20, color: 'var(--t3)', fontSize: 12 }}>
           No meal plan or nutrition data yet.
         </div>
+        {clientId && (
+          <button className="btn btn-primary btn-sm" style={{ width: '100%', marginTop: 8 }} onClick={handleOpenAdjust}>
+            <Icon name="edit" size={10} /> Set Macro Targets
+          </button>
+        )}
+        {adjusting && (
+          <MacroAdjustForm form={form} setForm={setForm} saving={saving} onSave={handleSaveMacros} onCancel={() => setAdjusting(false)} />
+        )}
       </Card>
     );
   }
@@ -251,9 +298,22 @@ function NutritionOverview({ nutritionHistory, mealPlan }) {
   return (
     <Card title="Nutrition" subtitle="7-day average">
       {macroTargets.calories > 0 && (
-        <div style={{ fontSize: 11, color: 'var(--t3)', marginBottom: 10 }}>
-          Targets: {macroTargets.calories} kcal · {macroTargets.protein}P · {macroTargets.carbs}C · {macroTargets.fat}F
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+          <div style={{ fontSize: 11, color: 'var(--t3)' }}>
+            Targets: {macroTargets.calories} kcal · {macroTargets.protein}P · {macroTargets.carbs}C · {macroTargets.fat}F
+          </div>
+          <button className="btn btn-ghost btn-sm" style={{ fontSize: 10, padding: '2px 8px' }} onClick={handleOpenAdjust}>
+            <Icon name="edit" size={9} /> Adjust
+          </button>
         </div>
+      )}
+      {!macroTargets.calories && clientId && (
+        <button className="btn btn-ghost btn-sm" style={{ fontSize: 10, marginBottom: 8 }} onClick={handleOpenAdjust}>
+          <Icon name="edit" size={9} /> Set Targets
+        </button>
+      )}
+      {adjusting && (
+        <MacroAdjustForm form={form} setForm={setForm} saving={saving} onSave={handleSaveMacros} onCancel={() => setAdjusting(false)} />
       )}
       {avgMacros ? (
         <div style={{ display: 'flex', gap: 20, justifyContent: 'center' }}>
@@ -289,6 +349,44 @@ function NutritionOverview({ nutritionHistory, mealPlan }) {
         </div>
       )}
     </Card>
+  );
+}
+
+// ── Inline Macro Adjust Form ──
+function MacroAdjustForm({ form, setForm, saving, onSave, onCancel }) {
+  const fields = [
+    { key: 'calories', label: 'Calories', unit: 'kcal', color: 'var(--gold)' },
+    { key: 'protein', label: 'Protein', unit: 'g', color: 'var(--green)' },
+    { key: 'carbs', label: 'Carbs', unit: 'g', color: 'var(--blue)' },
+    { key: 'fat', label: 'Fat', unit: 'g', color: 'var(--orange)' },
+  ];
+
+  return (
+    <div style={{ padding: 12, background: 'var(--c2)', borderRadius: 10, marginBottom: 12, border: '1px solid var(--gold-d, var(--border))' }}>
+      <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 10, color: 'var(--gold)' }}>
+        <Icon name="edit" size={11} /> Adjust Macro Targets
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        {fields.map(f => (
+          <div key={f.key}>
+            <label style={{ fontSize: 10, color: f.color, fontWeight: 500, display: 'block', marginBottom: 3 }}>{f.label} ({f.unit})</label>
+            <input
+              className="form-inp"
+              type="number"
+              value={form[f.key]}
+              onChange={e => setForm({ ...form, [f.key]: e.target.value })}
+              style={{ width: '100%' }}
+            />
+          </div>
+        ))}
+      </div>
+      <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+        <button className="btn btn-primary btn-sm" onClick={onSave} disabled={saving} style={{ flex: 1 }}>
+          {saving ? 'Saving...' : 'Push to Client'}
+        </button>
+        <button className="btn btn-ghost btn-sm" onClick={onCancel}>Cancel</button>
+      </div>
+    </div>
   );
 }
 
@@ -1261,7 +1359,58 @@ function CoachGoalSelector({ clientId, currentGoal, onGoalChange }) {
 }
 
 // ── Section: Quick Actions ──
-function QuickActions({ clientId, clientName, navigate }) {
+function QuickActions({ clientId, clientName, navigate, data, goalId, coachName }) {
+  const [generating, setGenerating] = useState(false);
+  const { showToast } = useUIStore();
+
+  const handleGenerateReport = async () => {
+    setGenerating(true);
+    try {
+      const { generateProgressReport } = await import('../../utils/progressReport');
+      const weightLog = data?.weightLog || [];
+      const weightTrend = weightLog.length >= 2 ? analyzeWeightTrend(weightLog) : null;
+
+      // Count workouts and checkins
+      const wh = data?.workoutHistory || {};
+      const totalWorkouts = Object.values(wh).reduce((sum, sessions) => sum + sessions.length, 0);
+      const totalCheckins = (data?.weeklyCheckins || []).length;
+
+      // Build measurement comparison
+      const measurements = data?.measurements || [];
+      const measStart = measurements.length ? measurements[0] : null;
+      const measCurrent = measurements.length > 1 ? measurements[measurements.length - 1] : null;
+
+      const url = await generateProgressReport({
+        clientName,
+        goal: goalId,
+        weightLog,
+        weightTrend,
+        adherence: null, // Would need to calculate
+        totalWorkouts,
+        totalCheckins,
+        startDate: weightLog[0]?.date,
+        endDate: weightLog[weightLog.length - 1]?.date,
+        coachName,
+        measurements: measStart && measCurrent ? { start: measStart, current: measCurrent } : null,
+      });
+
+      // Download
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${(clientName || 'client').replace(/\s+/g, '_')}_progress_report.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      showToast('Report downloaded!', 'success');
+    } catch (err) {
+      console.error('[Report] error:', err);
+      showToast('Failed to generate report', 'error');
+    }
+    setGenerating(false);
+  };
+
   return (
     <Card title="Quick Actions">
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -1277,7 +1426,70 @@ function QuickActions({ clientId, clientName, navigate }) {
         <button className="btn btn-secondary btn-sm" onClick={() => navigate('/coach/checkins')}>
           <Icon name="clipboard" size={12} /> Check-ins
         </button>
+        <button className="btn btn-secondary btn-sm" onClick={handleGenerateReport} disabled={generating}>
+          <Icon name="download" size={12} /> {generating ? 'Generating...' : 'PDF Report'}
+        </button>
       </div>
+    </Card>
+  );
+}
+
+// ── Section: Client Onboarding Info ──
+function OnboardingInfo({ clientId }) {
+  const [info, setInfo] = useState(null);
+  const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    if (!clientId) return;
+    supabase.from('client_onboarding').select('*').eq('client_id', clientId).maybeSingle()
+      .then(({ data }) => { if (data) setInfo(data); });
+  }, [clientId]);
+
+  if (!info) return null;
+
+  const fields = [
+    { label: 'Age', value: info.age },
+    { label: 'Height', value: info.height_cm ? `${info.height_cm} cm` : null },
+    { label: 'Occupation', value: info.occupation },
+    { label: 'Starting Weight', value: info.current_weight ? `${info.current_weight} kg` : null },
+    { label: 'Goal Weight', value: info.goal_weight ? `${info.goal_weight} kg` : null },
+    { label: 'Goal', value: info.goal },
+    { label: 'Body Fat Est.', value: info.body_fat_estimate },
+    { label: 'Experience', value: info.training_experience },
+    { label: 'Training Days', value: info.training_days },
+    { label: 'Preferred Split', value: info.preferred_split },
+    { label: 'Injuries', value: info.injuries, highlight: true },
+    { label: 'Diet', value: info.diet_type },
+    { label: 'Allergies', value: info.allergies?.length ? info.allergies.filter(a => a !== 'None').join(', ') : null },
+    { label: 'Meals/Day', value: info.meals_per_day },
+    { label: 'Sleep', value: info.sleep_hours },
+    { label: 'Stress', value: info.stress_level },
+    { label: 'Daily Steps', value: info.daily_steps },
+    { label: 'Motivation', value: info.motivation },
+    { label: 'Biggest Challenge', value: info.biggest_challenge },
+  ].filter(f => f.value);
+
+  const visible = expanded ? fields : fields.slice(0, 6);
+
+  return (
+    <Card title="Intake Questionnaire" subtitle={`Completed ${info.completed_at ? new Date(info.completed_at).toLocaleDateString() : ''}`}>
+      {visible.map(f => (
+        <div key={f.label} style={{
+          display: 'flex', justifyContent: 'space-between', padding: '5px 0',
+          borderBottom: '1px solid var(--border)', fontSize: 12,
+        }}>
+          <span style={{ color: 'var(--t3)', minWidth: 110 }}>{f.label}</span>
+          <span style={{
+            color: f.highlight ? 'var(--red, #e74c3c)' : 'var(--t1)', fontWeight: f.highlight ? 600 : 400,
+            textAlign: 'right', flex: 1, marginLeft: 8,
+          }}>{f.value}</span>
+        </div>
+      ))}
+      {fields.length > 6 && (
+        <button className="btn btn-ghost btn-sm" style={{ width: '100%', marginTop: 8, fontSize: 11 }} onClick={() => setExpanded(!expanded)}>
+          {expanded ? 'Show less' : `Show all (${fields.length})`}
+        </button>
+      )}
     </Card>
   );
 }
@@ -1381,18 +1593,19 @@ export default function ClientProfileScreen() {
             workoutHistory={data.workoutHistory}
           />
           <WeightTrend weightLog={data.weightLog} />
-          <NutritionOverview nutritionHistory={data.nutritionHistory} mealPlan={data.mealPlan} />
+          <NutritionOverview nutritionHistory={data.nutritionHistory} mealPlan={data.mealPlan} clientId={clientId} coachId={user?.id} />
           <FullWeeklyCheckins checkins={data.weeklyCheckins} />
           <ProgressPhotoComparison photos={data.photos} />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <CoachingIntelligence weightLog={data.weightLog} goalId={clientGoal} mealPlan={data.mealPlan} />
-          <QuickActions clientId={clientId} clientName={clientName} navigate={navigate} />
+          <QuickActions clientId={clientId} clientName={clientName} navigate={navigate} data={data} goalId={clientGoal} coachName={user?.user_metadata?.full_name} />
           <SupplementsPanel clientId={clientId} coachId={user?.id} />
           <ReminderSettings clientId={clientId} coachId={user?.id} />
           <CoachGoalSelector clientId={clientId} currentGoal={clientGoal} onGoalChange={setClientGoal} />
           <TrainingSummary trainingPlan={data.trainingPlan} workoutHistory={data.workoutHistory} />
           <MeasurementsSection measurements={data.measurements} />
+          <OnboardingInfo clientId={clientId} />
         </div>
       </div>
     </div>

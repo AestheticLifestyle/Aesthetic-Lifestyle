@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { useUIStore } from '../../stores/uiStore';
 import { Card } from '../../components/ui';
 import { Icon } from '../../utils/icons';
 import { supabase } from '../../services/supabase';
+import { createInviteCode, fetchInviteCodes, deactivateInviteCode } from '../../services/invites';
 
 function SettingRow({ label, children }) {
   return (
@@ -120,6 +121,124 @@ function DefaultsSection() {
   );
 }
 
+function InviteCodesSection({ coachId }) {
+  const { showToast } = useUIStore();
+  const [codes, setCodes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+
+  useEffect(() => {
+    if (!coachId) return;
+    fetchInviteCodes(coachId)
+      .then(data => setCodes(data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [coachId]);
+
+  const handleCreate = async () => {
+    setCreating(true);
+    try {
+      const newCode = await createInviteCode(coachId, { maxUses: 1 });
+      setCodes(prev => [newCode, ...prev]);
+      showToast(`Code created: ${newCode.code}`, 'success');
+    } catch {
+      showToast('Failed to create code', 'error');
+    }
+    setCreating(false);
+  };
+
+  const handleDeactivate = async (id) => {
+    try {
+      await deactivateInviteCode(id);
+      setCodes(prev => prev.map(c => c.id === id ? { ...c, active: false } : c));
+      showToast('Code deactivated', 'success');
+    } catch {
+      showToast('Failed to deactivate', 'error');
+    }
+  };
+
+  const handleCopy = (code) => {
+    navigator.clipboard?.writeText(code);
+    showToast('Copied to clipboard!', 'success');
+  };
+
+  const activeCodes = codes.filter(c => c.active !== false);
+  const usedCodes = codes.filter(c => c.active === false || (c.used_count >= c.max_uses));
+
+  return (
+    <Card title="Invite Codes" subtitle="Generate codes for new clients">
+      <div style={{ marginBottom: 14 }}>
+        <button
+          className="btn btn-primary btn-sm"
+          onClick={handleCreate}
+          disabled={creating}
+          style={{ width: '100%' }}
+        >
+          <Icon name="plus" size={12} /> {creating ? 'Creating...' : 'Generate New Code'}
+        </button>
+      </div>
+
+      {loading ? (
+        <div style={{ fontSize: 12, color: 'var(--t3)', textAlign: 'center', padding: 16 }}>Loading...</div>
+      ) : activeCodes.length === 0 && usedCodes.length === 0 ? (
+        <div style={{ fontSize: 12, color: 'var(--t3)', textAlign: 'center', padding: 16 }}>
+          No invite codes yet. Generate one to share with a new client.
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {activeCodes.map(c => (
+            <div key={c.id} style={{
+              display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
+              background: 'var(--s2)', borderRadius: 8, border: '1px solid var(--border)',
+            }}>
+              <div style={{
+                fontFamily: 'var(--fd)', fontSize: 18, letterSpacing: 3,
+                color: 'var(--gold)', fontWeight: 600, flex: 1,
+              }}>
+                {c.code}
+              </div>
+              <span style={{ fontSize: 10, color: 'var(--t3)' }}>
+                {c.used_count || 0}/{c.max_uses} used
+              </span>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => handleCopy(c.code)}
+                style={{ padding: '4px 8px', fontSize: 10 }}
+              >
+                Copy
+              </button>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => handleDeactivate(c.id)}
+                style={{ padding: '4px 8px', fontSize: 10, color: 'var(--red)' }}
+              >
+                Revoke
+              </button>
+            </div>
+          ))}
+          {usedCodes.slice(0, 5).map(c => (
+            <div key={c.id} style={{
+              display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px',
+              background: 'var(--s1)', borderRadius: 8, opacity: 0.5,
+            }}>
+              <div style={{
+                fontFamily: 'var(--fd)', fontSize: 16, letterSpacing: 3,
+                color: 'var(--t3)', fontWeight: 600, flex: 1,
+                textDecoration: 'line-through',
+              }}>
+                {c.code}
+              </div>
+              <span style={{ fontSize: 10, color: 'var(--t3)' }}>
+                {c.label || 'Used / Revoked'}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 function AppSection({ onSignOut }) {
   return (
     <Card title="App">
@@ -149,6 +268,7 @@ export default function CoachSettingsScreen() {
     <div className="screen active">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 18, maxWidth: 600 }}>
         <ProfileSection user={user} />
+        <InviteCodesSection coachId={user?.id} />
         <DefaultsSection />
         <AppSection onSignOut={signOut} />
       </div>

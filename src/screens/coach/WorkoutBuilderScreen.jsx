@@ -1,10 +1,11 @@
 import { useState, useMemo, useRef, useCallback } from 'react';
 import { useCoachStore } from '../../stores/coachStore';
 import { useAuthStore } from '../../stores/authStore';
-import { Card } from '../../components/ui';
+import { Card, ConfirmDialog } from '../../components/ui';
 import { Icon } from '../../utils/icons';
 import { useUIStore } from '../../stores/uiStore';
 import { saveTrainingPlan, saveTrainingTemplate } from '../../services/training';
+import { useUnsavedWarning } from '../../hooks/useUnsavedWarning';
 
 // ══════════════════════════════════════
 // Exercise Library — pre-tagged with muscle groups
@@ -642,10 +643,12 @@ function EmptyState() {
 export default function WorkoutBuilderScreen() {
   const { trainingTemplates, setTrainingTemplates } = useCoachStore();
   const { showToast } = useUIStore();
+  const { markDirty, markClean } = useUnsavedWarning();
   const [activeTemplate, setActiveTemplate] = useState(null);
   const [editingName, setEditingName] = useState(false);
   const [templateName, setTemplateName] = useState('');
   const [showAssign, setShowAssign] = useState(false);
+  const [confirmRemoveDay, setConfirmRemoveDay] = useState(null); // dayIdx or null
 
   const tmpl = activeTemplate;
 
@@ -666,13 +669,20 @@ export default function WorkoutBuilderScreen() {
     const updated = { ...tmpl, days: tmpl.days.map((d, i) => i === dayIdx ? updatedDay : d) };
     setActiveTemplate(updated);
     setTrainingTemplates(trainingTemplates.map(t => t.id === updated.id ? updated : t));
+    markDirty();
   };
 
   const handleRemoveDay = (dayIdx) => {
-    if (!tmpl) return;
-    const updated = { ...tmpl, days: tmpl.days.filter((_, i) => i !== dayIdx) };
+    setConfirmRemoveDay(dayIdx);
+  };
+
+  const executeRemoveDay = () => {
+    if (!tmpl || confirmRemoveDay === null) return;
+    const updated = { ...tmpl, days: tmpl.days.filter((_, i) => i !== confirmRemoveDay) };
     setActiveTemplate(updated);
     setTrainingTemplates(trainingTemplates.map(t => t.id === updated.id ? updated : t));
+    markDirty();
+    setConfirmRemoveDay(null);
   };
 
   const handleAddDay = () => {
@@ -684,6 +694,7 @@ export default function WorkoutBuilderScreen() {
     };
     setActiveTemplate(updated);
     setTrainingTemplates(trainingTemplates.map(t => t.id === updated.id ? updated : t));
+    markDirty();
   };
 
   const handleNewTemplate = () => {
@@ -714,6 +725,7 @@ export default function WorkoutBuilderScreen() {
       const updated = { ...tmpl, id: savedId };
       setActiveTemplate(updated);
       setTrainingTemplates(trainingTemplates.map(t => t.id === tmpl.id ? updated : t));
+      markClean();
       showToast('Template saved!', 'success');
     } else {
       showToast('Failed to save template', 'error');
@@ -800,6 +812,16 @@ export default function WorkoutBuilderScreen() {
         <button className="btn btn-secondary" style={{ width: '100%', marginTop: 8 }} onClick={handleAddDay}>
           <Icon name="plus" size={13} /> Add Training Day
         </button>
+
+        <ConfirmDialog
+          open={confirmRemoveDay !== null}
+          title="Remove this day?"
+          message="All exercises in this day will be removed."
+          confirmLabel="Remove"
+          danger
+          onConfirm={executeRemoveDay}
+          onCancel={() => setConfirmRemoveDay(null)}
+        />
       </div>
     );
   }

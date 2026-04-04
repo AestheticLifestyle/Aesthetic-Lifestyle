@@ -144,3 +144,63 @@ export async function fetchNutritionLogHistory(clientId, days = 30) {
     .order('date', { ascending: false });
   return data || [];
 }
+
+// ── Coach: Update client macro targets by scaling meal plan ──
+export async function updateClientMacroTargets(clientId, coachId, newTargets) {
+  // Fetch current active meal plan
+  const { data: plan, error: planErr } = await supabase
+    .from('meal_plans').select('id, name, meals')
+    .eq('client_id', clientId).eq('is_active', true).single();
+
+  if (planErr || !plan) {
+    // No active meal plan — create a minimal one with the targets
+    const baseMeals = [
+      { name: 'Meal 1', time: '08:00', foods: [] },
+      { name: 'Meal 2', time: '12:00', foods: [] },
+      { name: 'Meal 3', time: '18:00', foods: [] },
+    ];
+    const { error } = await supabase.from('meal_plans').insert({
+      client_id: clientId, coach_id: coachId,
+      name: 'Macro Plan', is_active: true, meals: baseMeals,
+      targets: newTargets,
+    });
+    return !error;
+  }
+
+  // Calculate current totals from meal plan foods
+  let curKcal = 0, curP = 0, curC = 0, curF = 0;
+  (plan.meals || []).forEach(m => (m.foods || []).forEach(f => {
+    curKcal += f.kcal || 0; curP += f.p || 0; curC += f.c || 0; curF += f.f || 0;
+  }));
+
+  // If there are foods, scale them proportionally to hit new targets
+  if (curKcal > 0) {
+    const ratio = newTargets.calories / curKcal;
+    const scaledMeals = plan.meals.map(m => ({
+      ...m,
+      foods: (m.foods || []).map(f => {
+        const r = ratio;
+        const newGrams = Math.round((f.grams || 100) * r);
+        return {
+          ...f,
+          grams: newGrams,
+          kcal: Math.round((f.kcal || 0) * r),
+          p: Math.round((f.p || 0) * (newTargets.protein / (curP || 1))),
+          c: Math.round((f.c || 0) * (newTargets.carbs / (curC || 1))),
+          f: Math.round((f.f || 0) * (newTargets.fat / (curF || 1))),
+        };
+      }),
+    }));
+
+    const { error } = await supabase.from('meal_plans')
+      .update({ meals: scaledMeals, targets: newTargets })
+      .eq('id', plan.id);
+    return !error;
+  }
+
+  // No foods in plan — just store targets metadata
+  const { error } = await supabase.from('meal_plans')
+    .update({ targets: newTargets })
+    .eq('id', plan.id);
+  return !error;
+}

@@ -1,10 +1,11 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useClientStore } from '../../stores/clientStore';
 import { useAuthStore } from '../../stores/authStore';
 import { useUIStore } from '../../stores/uiStore';
 import { Card } from '../../components/ui';
 import { Icon } from '../../utils/icons';
 import { saveWorkoutSession } from '../../services/training';
+import { estimate1RM, extractAllTimePRs, checkPR, strengthLevel, getLevelColor } from '../../utils/strengthMetrics';
 
 function getClientId() {
   const authState = useAuthStore.getState();
@@ -73,12 +74,135 @@ function SetRow({ setIdx, set, prevSet, onChange, onComplete, active }) {
   );
 }
 
+// ---------- Rest Timer ----------
+function RestTimer({ seconds, onDone, onSkip }) {
+  const [remaining, setRemaining] = useState(seconds);
+  const [paused, setPaused] = useState(false);
+  const totalRef = useRef(seconds);
+
+  useEffect(() => {
+    if (paused || remaining <= 0) return;
+    const id = setInterval(() => {
+      setRemaining(prev => {
+        if (prev <= 1) {
+          clearInterval(id);
+          // Try to vibrate when timer ends
+          if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+          onDone?.();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [paused, remaining]);
+
+  const pct = (remaining / totalRef.current) * 100;
+  const mins = Math.floor(remaining / 60);
+  const secs = remaining % 60;
+
+  // Color shifts from green → gold → red as time runs out
+  const color = pct > 50 ? 'var(--green)' : pct > 20 ? 'var(--gold)' : 'var(--red, #e74c3c)';
+
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px',
+      background: 'var(--c2)', borderRadius: 8, marginTop: 8,
+      border: `1px solid ${color}40`,
+    }}>
+      {/* Circular progress */}
+      <svg width={36} height={36} viewBox="0 0 36 36">
+        <circle cx="18" cy="18" r="15" fill="none" stroke="var(--c3)" strokeWidth="3" />
+        <circle cx="18" cy="18" r="15" fill="none" stroke={color} strokeWidth="3"
+          strokeDasharray={`${(pct / 100) * 94.25} 94.25`}
+          strokeLinecap="round" transform="rotate(-90 18 18)"
+          style={{ transition: 'stroke-dasharray 0.3s, stroke 0.3s' }}
+        />
+      </svg>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontFamily: 'var(--fd)', fontSize: 20, fontWeight: 700, color, letterSpacing: 1 }}>
+          {mins}:{secs.toString().padStart(2, '0')}
+        </div>
+        <div style={{ fontSize: 10, color: 'var(--t3)' }}>
+          {remaining === 0 ? 'Time to go!' : 'Rest timer'}
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 4 }}>
+        <button
+          className="btn btn-ghost btn-sm"
+          onClick={(e) => { e.stopPropagation(); setPaused(!paused); }}
+          style={{ padding: '4px 8px', fontSize: 10 }}
+        >
+          {paused ? 'Resume' : 'Pause'}
+        </button>
+        <button
+          className="btn btn-ghost btn-sm"
+          onClick={(e) => { e.stopPropagation(); setRemaining(prev => Math.min(prev + 30, 600)); }}
+          style={{ padding: '4px 8px', fontSize: 10 }}
+        >
+          +30s
+        </button>
+        <button
+          className="btn btn-ghost btn-sm"
+          onClick={(e) => { e.stopPropagation(); onSkip?.(); }}
+          style={{ padding: '4px 8px', fontSize: 10, color: 'var(--gold)' }}
+        >
+          Skip
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ---------- Rest time presets by exercise type ----------
+function getDefaultRestSec(exerciseName) {
+  const name = (exerciseName || '').toLowerCase();
+  // Compound lifts get longer rest
+  if (/squat|deadlift|bench press|barbell row|overhead press|pull-up/i.test(name)) return 180;
+  // Medium rest for secondary compounds
+  if (/dumbbell press|incline|row|pulldown|leg press|hip thrust/i.test(name)) return 120;
+  // Short rest for isolation
+  return 90;
+}
+
 // ---------- Exercise card ----------
-function ExerciseCard({ exercise, exerciseIdx, prevData, onUpdate, active }) {
+function ExerciseCard({ exercise, exerciseIdx, prevData, onUpdate, active, allTimePRs }) {
   const [expanded, setExpanded] = useState(false);
+  const [restActive, setRestActive] = useState(false);
+  const [restSec, setRestSec] = useState(exercise.restSec || getDefaultRestSec(exercise.name));
   const sets = exercise.sets || [];
   const doneSets = sets.filter(s => s.done).length;
   const totalSets = sets.length;
+
+  // Calculate best e1RM from current session's completed sets
+  const bestE1rm = useMemo(() => {
+    let best = 0;
+    sets.forEach(s => {
+      if (!s.done) return;
+      const kg = parseFloat(s.weight) || 0;
+      const reps = parseInt(s.reps) || 0;
+      if (kg > 0 && reps > 0) {
+        const e = estimate1RM(kg, reps);
+        if (e > best) best = e;
+      }
+    });
+    return best;
+  }, [sets]);
+
+  // Check if current session has a new PR
+  const prType = useMemo(() => {
+    if (!active || doneSets === 0) return null;
+    let best = null;
+    sets.forEach(s => {
+      if (!s.done) return;
+      const kg = parseFloat(s.weight) || 0;
+      const reps = parseInt(s.reps) || 0;
+      if (kg <= 0 || reps <= 0) return;
+      const pr = checkPR(exercise.name, kg, reps, allTimePRs || {});
+      if (pr && (!best || pr === 'e1rm')) best = pr;
+    });
+    return best;
+  }, [sets, active, doneSets, exercise.name, allTimePRs]);
 
   const handleSetChange = (setIdx, data) => {
     const updated = [...sets];
@@ -88,8 +212,18 @@ function ExerciseCard({ exercise, exerciseIdx, prevData, onUpdate, active }) {
 
   const handleComplete = (setIdx) => {
     const updated = [...sets];
-    updated[setIdx] = { ...updated[setIdx], done: !updated[setIdx].done };
+    const wasDone = updated[setIdx].done;
+    updated[setIdx] = { ...updated[setIdx], done: !wasDone };
     onUpdate(exerciseIdx, { ...exercise, sets: updated });
+
+    // Auto-start rest timer when marking a set as done (not when unchecking)
+    // Only if there are still sets remaining
+    if (!wasDone && active) {
+      const newDone = updated.filter(s => s.done).length;
+      if (newDone < totalSets) {
+        setRestActive(true);
+      }
+    }
   };
 
   return (
@@ -100,16 +234,53 @@ function ExerciseCard({ exercise, exerciseIdx, prevData, onUpdate, active }) {
           <div className="ex-nm">{exercise.name}</div>
           <div className="ex-sets">
             {totalSets} sets · <span>{exercise.targetReps || '8-12'} reps</span>
-            {exercise.restSec && <span style={{ color: 'var(--t3)' }}> · {exercise.restSec}s rest</span>}
+            <span style={{ color: 'var(--t3)' }}> · {restSec}s rest</span>
           </div>
         </div>
-        <div className={`ex-tag ${doneSets === totalSets && totalSets > 0 ? 'done-tag' : doneSets > 0 ? 'active-tag' : 'pend-tag'}`}>
-          {doneSets === totalSets && totalSets > 0 ? 'Done' : doneSets > 0 ? `${doneSets}/${totalSets}` : 'Pending'}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {prType && (
+            <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: 'var(--gold-d)', color: 'var(--gold)', animation: 'fadeUp .3s ease' }}>
+              PR!
+            </span>
+          )}
+          {bestE1rm > 0 && doneSets > 0 && (
+            <span style={{ fontSize: 9, color: 'var(--t3)', fontFamily: 'var(--fd)' }}>
+              e1RM: {bestE1rm}kg
+            </span>
+          )}
+          <div className={`ex-tag ${doneSets === totalSets && totalSets > 0 ? 'done-tag' : doneSets > 0 ? 'active-tag' : 'pend-tag'}`}>
+            {doneSets === totalSets && totalSets > 0 ? 'Done' : doneSets > 0 ? `${doneSets}/${totalSets}` : 'Pending'}
+          </div>
         </div>
       </div>
 
+      {/* Rest timer — shows when active */}
+      {restActive && active && (
+        <RestTimer
+          seconds={restSec}
+          onDone={() => setRestActive(false)}
+          onSkip={() => setRestActive(false)}
+        />
+      )}
+
       {expanded && (
         <div style={{ marginTop: 12 }} onClick={e => e.stopPropagation()}>
+          {/* Rest time adjuster */}
+          {active && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 10, color: 'var(--t3)' }}>
+              <span>Rest:</span>
+              {[60, 90, 120, 150, 180].map(t => (
+                <button
+                  key={t}
+                  className={`btn btn-sm ${restSec === t ? 'btn-primary' : 'btn-ghost'}`}
+                  style={{ padding: '2px 6px', fontSize: 9, minWidth: 32 }}
+                  onClick={(e) => { e.stopPropagation(); setRestSec(t); }}
+                >
+                  {t >= 60 ? `${t / 60}m` : `${t}s`}{t === 90 ? '' : ''}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="set-log-row set-log-hdr">
             <div>Set</div>
             <div style={{ textAlign: 'center' }}>Previous</div>
@@ -196,6 +367,9 @@ export default function TrainingScreen() {
 
   // Extract previous session data for this day
   const prevHistory = extractPrevData(workoutHistory, activeWorkoutDay, currentDay?.name);
+
+  // Compute all-time PRs from full workout history
+  const allTimePRs = useMemo(() => extractAllTimePRs(workoutHistory), [workoutHistory]);
 
   // Local exercise state for the active session
   const [exercises, setExercises] = useState(() => {
@@ -426,6 +600,7 @@ export default function TrainingScreen() {
               prevData={prevSetsForEx}
               onUpdate={handleExerciseUpdate}
               active={workoutActive}
+              allTimePRs={allTimePRs}
             />
           );
         })}

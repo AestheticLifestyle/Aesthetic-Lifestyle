@@ -14,6 +14,7 @@ import { analyzeWeightTrend, detectPlateau } from '../../utils/coachingInsights'
 import { useNotificationStore } from '../../stores/notificationStore';
 import { generateSmartReminders, fetchReminderRules } from '../../services/reminders';
 import ReminderCards from '../../components/client/ReminderCards';
+import { PageSkeleton } from '../../components/ui';
 
 // ---------- helpers ----------
 /** Resolve the correct client ID — uses override when coach is in client view */
@@ -406,7 +407,7 @@ function TodayWorkout({ plan, dayIdx }) {
 }
 
 // ---------- build checklist from real data ----------
-function buildChecklist({ meals, dayData, stepGoal, macroTargets, weightLog, dailyLog, selectedDate, checkinDone }) {
+function buildChecklist({ meals, dayData, stepGoal, waterGoal, macroTargets, weightLog, dailyLog, selectedDate, checkinDone }) {
   const dateWeight = weightLog.find(w => w.date === selectedDate);
   const currentSteps = dayData.currentSteps || 0;
   const waterML = dayData.waterML || 0;
@@ -423,7 +424,8 @@ function buildChecklist({ meals, dayData, stepGoal, macroTargets, weightLog, dai
   items.push({ label: 'Log all meals', checked: mealsLogged >= meals.length && meals.length > 0, link: '/app/nutrition' });
   items.push({ label: 'Hit protein target', checked: totalProtein >= (macroTargets.protein || 180), link: '/app/nutrition' });
   items.push({ label: 'Complete workout', checked: !!workoutDone, link: '/app/training' });
-  items.push({ label: 'Water intake: 3L minimum', checked: waterML >= 3000, sub: `${(waterML / 1000).toFixed(1)}L` });
+  const wGoal = waterGoal || 3000;
+  items.push({ label: `Water intake: ${(wGoal / 1000).toFixed(1)}L`, checked: waterML >= wGoal, sub: `${(waterML / 1000).toFixed(1)}L` });
   items.push({ label: 'Daily check-in', checked: checkinDone, sub: checkinDone ? 'Submitted' : 'Mood, sleep & energy', link: '/app/journal' });
   return items;
 }
@@ -473,15 +475,26 @@ function ProgressInsights({ weightLog, goal }) {
 
 // ---------- main ----------
 export default function DashboardScreen() {
-  const { user } = useAuthStore();
+  const { user, roleOverride } = useAuthStore();
+  const navigate = useNavigate();
   const store = useClientStore();
   const {
     selectedDate, isToday,
-    macroTargets, stepGoal, goal,
+    macroTargets, stepGoal, waterGoal, goal,
     trainingPlan, activeWorkoutDay, dailyLog, weightLog,
     dayDataMap, getMealsForDate, _getDayData,
+    dataLoaded,
   } = store;
   const { showToast } = useUIStore();
+
+  // Redirect new clients to onboarding (skip if coach is previewing client view)
+  useEffect(() => {
+    if (roleOverride) return; // Coach preview — skip onboarding
+    const clientId = user?.id;
+    if (!clientId) return;
+    const done = localStorage.getItem(`onboarding_complete_${clientId}`);
+    if (!done) navigate('/app/onboarding', { replace: true });
+  }, [user?.id, roleOverride, navigate]);
 
   // Per-date data
   const dayData = _getDayData(selectedDate);
@@ -525,10 +538,9 @@ export default function DashboardScreen() {
 
   // Build checklist from real per-date data
   const checklist = useMemo(() => buildChecklist({
-    meals, dayData, stepGoal, macroTargets, weightLog, dailyLog, selectedDate, checkinDone,
-  }), [meals, dayData, stepGoal, macroTargets, weightLog, dailyLog, selectedDate, checkinDone]);
+    meals, dayData, stepGoal, waterGoal, macroTargets, weightLog, dailyLog, selectedDate, checkinDone,
+  }), [meals, dayData, stepGoal, waterGoal, macroTargets, weightLog, dailyLog, selectedDate, checkinDone]);
 
-  const navigate = useNavigate();
   const { setSmartReminders } = useNotificationStore();
 
   // Generate smart reminders based on today's activity
@@ -537,7 +549,7 @@ export default function DashboardScreen() {
     const clientId = getClientId();
 
     // Check today's data to generate reminders
-    const todayWeight = weightLog[selectedDate];
+    const todayWeight = Array.isArray(weightLog) ? weightLog.find(w => w.date === selectedDate) : weightLog[selectedDate];
     const todayNutrition = meals.some(m => m.foods?.some(f => f.logged));
     const todayWorkout = false; // Could check workout history
     const waterL = (waterML || 0) / 1000;
@@ -560,6 +572,9 @@ export default function DashboardScreen() {
     loadAndGenerate();
   }, [isToday, user?.id, selectedDate, checkinDone, waterML, currentSteps]);
 
+  // Show skeleton while initial data loads
+  if (!dataLoaded) return <PageSkeleton />;
+
   return (
     <div className="screen active">
       {/* Mission Briefing */}
@@ -575,7 +590,7 @@ export default function DashboardScreen() {
       <div className="g4">
         <WeightCard weightLog={weightLog} selectedDate={selectedDate} />
         <StepsCard currentSteps={currentSteps} stepGoal={stepGoal} selectedDate={selectedDate} />
-        <WaterCard current={waterML} goal={3000} selectedDate={selectedDate} />
+        <WaterCard current={waterML} goal={waterGoal || 3000} selectedDate={selectedDate} />
         <CaloriesCard meals={meals} targets={macroTargets} />
       </div>
 

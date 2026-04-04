@@ -73,6 +73,10 @@ function calcTargetsFromMeals(meals) {
 }
 
 export const useClientStore = create((set, get) => ({
+  // ── Loading state ──
+  dataLoaded: false,
+  setDataLoaded: (v) => set({ dataLoaded: v }),
+
   // ── Date navigation ──
   selectedDate: todayKey(),
   isToday: true,
@@ -153,6 +157,9 @@ export const useClientStore = create((set, get) => ({
 
   // ── Daily tracking (these are now per-date via dayDataMap) ──
   stepGoal: 10000,
+  setStepGoal: (v) => set({ stepGoal: v }),
+  waterGoal: 3000,    // ml — coach can override via coach_clients
+  setWaterGoal: (v) => set({ waterGoal: v }),
 
   // ── Progress ──
   weightLog: [],

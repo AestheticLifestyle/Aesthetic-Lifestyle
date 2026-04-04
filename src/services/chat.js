@@ -22,6 +22,36 @@ export function subscribeToMessages(userId, callback) {
     .subscribe();
 }
 
+/**
+ * Fetch the latest message for each client (for coach chat sidebar).
+ * Returns { [clientId]: { text, created_at, sender_id } }
+ */
+export async function fetchLatestMessages(coachId, clientIds) {
+  if (!clientIds?.length) return {};
+  // Fetch recent messages involving the coach and any client
+  const { data } = await supabase.from('messages')
+    .select('sender_id, receiver_id, text, created_at')
+    .or(`sender_id.eq.${coachId},receiver_id.eq.${coachId}`)
+    .order('created_at', { ascending: false })
+    .limit(200);
+
+  if (!data) return {};
+
+  const result = {};
+  for (const msg of data) {
+    const clientId = msg.sender_id === coachId ? msg.receiver_id : msg.sender_id;
+    if (!clientIds.includes(clientId)) continue;
+    if (!result[clientId]) {
+      result[clientId] = {
+        text: msg.text,
+        created_at: msg.created_at,
+        isFromClient: msg.sender_id !== coachId,
+      };
+    }
+  }
+  return result;
+}
+
 // Goal ID → label mapping (shared)
 export const GOAL_LABELS = {
   'cut': 'Cutting', 'lean-bulk': 'Lean Bulk', 'recomp': 'Body Recomp',

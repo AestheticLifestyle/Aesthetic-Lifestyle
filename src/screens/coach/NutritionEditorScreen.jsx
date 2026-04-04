@@ -1,11 +1,12 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useCoachStore } from '../../stores/coachStore';
 import { useAuthStore } from '../../stores/authStore';
-import { Card } from '../../components/ui';
+import { Card, ConfirmDialog } from '../../components/ui';
 import { Icon } from '../../utils/icons';
 import { useUIStore } from '../../stores/uiStore';
 import { saveMealPlan, saveNutritionTemplate, deleteNutritionTemplate } from '../../services/nutrition';
 import FOOD_DATABASE, { FOOD_CATEGORIES, CATEGORY_COLORS, computeMacros, searchFoods } from '../../data/foodDatabase';
+import { useUnsavedWarning } from '../../hooks/useUnsavedWarning';
 
 // ── Drag grip handle ──
 function DragGrip({ style }) {
@@ -468,6 +469,7 @@ export default function NutritionEditorScreen() {
   const { nutritionTemplates, setNutritionTemplates } = useCoachStore();
   const { user } = useAuthStore();
   const { showToast } = useUIStore();
+  const { markDirty, markClean } = useUnsavedWarning();
   const [activePlan, setActivePlan] = useState(null);
   const [editingName, setEditingName] = useState(false);
   const [planName, setPlanName] = useState('');
@@ -476,6 +478,7 @@ export default function NutritionEditorScreen() {
   const [targetForm, setTargetForm] = useState({ calories: '', protein: '', carbs: '', fat: '' });
   const [dragMealIdx, setDragMealIdx] = useState(null);
   const [dragOverMealIdx, setDragOverMealIdx] = useState(null);
+  const [confirmRemoveMeal, setConfirmRemoveMeal] = useState(null); // mealIdx or null
 
   const plan = activePlan;
 
@@ -513,13 +516,20 @@ export default function NutritionEditorScreen() {
     const updatedPlan = { ...plan, meals: plan.meals.map((m, i) => i === mealIdx ? updated : m) };
     setActivePlan(updatedPlan);
     setNutritionTemplates(nutritionTemplates.map(t => t.id === updatedPlan.id ? updatedPlan : t));
+    markDirty();
   };
 
   const handleMealRemove = (mealIdx) => {
-    if (!plan) return;
-    const updatedPlan = { ...plan, meals: plan.meals.filter((_, i) => i !== mealIdx) };
+    setConfirmRemoveMeal(mealIdx);
+  };
+
+  const executeMealRemove = () => {
+    if (!plan || confirmRemoveMeal === null) return;
+    const updatedPlan = { ...plan, meals: plan.meals.filter((_, i) => i !== confirmRemoveMeal) };
     setActivePlan(updatedPlan);
     setNutritionTemplates(nutritionTemplates.map(t => t.id === updatedPlan.id ? updatedPlan : t));
+    markDirty();
+    setConfirmRemoveMeal(null);
   };
 
   const handleAddMeal = () => {
@@ -531,6 +541,7 @@ export default function NutritionEditorScreen() {
     };
     setActivePlan(updatedPlan);
     setNutritionTemplates(nutritionTemplates.map(t => t.id === updatedPlan.id ? updatedPlan : t));
+    markDirty();
   };
 
   const [saving, setSaving] = useState(false);
@@ -588,6 +599,7 @@ export default function NutritionEditorScreen() {
         setActivePlan(updatedPlan);
         setNutritionTemplates(nutritionTemplates.map(t => t.id === plan.id ? updatedPlan : t));
       }
+      markClean();
       showToast('Template saved!', 'success');
     } else {
       showToast(result.error || 'Failed to save', 'error');
@@ -730,6 +742,16 @@ export default function NutritionEditorScreen() {
         <button className="btn btn-secondary" style={{ width: '100%', marginTop: 8 }} onClick={handleAddMeal}>
           <Icon name="plus" size={13} /> Add Meal
         </button>
+
+        <ConfirmDialog
+          open={confirmRemoveMeal !== null}
+          title="Remove this meal?"
+          message="All foods in this meal will be removed."
+          confirmLabel="Remove"
+          danger
+          onConfirm={executeMealRemove}
+          onCancel={() => setConfirmRemoveMeal(null)}
+        />
       </div>
     );
   }

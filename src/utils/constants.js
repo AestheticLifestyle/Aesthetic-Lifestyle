@@ -23,9 +23,11 @@ export const COACH_NAV = [
   { id: 'overview', label: 'Command Center', group: 'Overview', icon: 'grid' },
   { id: 'clients', label: 'All Clients', group: 'Clients', icon: 'users', badge: true },
   { id: 'checkins', label: 'Check-ins', group: 'Clients', icon: 'clipboard', badge: true },
+  { id: 'weekly-review', label: 'Weekly Review', group: 'Clients', icon: 'trending-up' },
   { id: 'workout-builder', label: 'Workout Builder', group: 'Builder', icon: 'dumbbell' },
   { id: 'nutrition-editor', label: 'Nutrition Editor', group: 'Builder', icon: 'utensils' },
   { id: 'supplements', label: 'Supplements', group: 'Builder', icon: 'pill' },
+  { id: 'analytics', label: 'Analytics', group: 'Clients', icon: 'bar-chart' },
   { id: 'chat', label: 'Coach Chat', group: 'System', icon: 'message', badge: true },
   { id: 'settings', label: 'Settings', group: 'System', icon: 'settings' },
 ];

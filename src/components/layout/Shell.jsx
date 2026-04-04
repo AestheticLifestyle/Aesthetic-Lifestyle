@@ -5,6 +5,7 @@ import { useUIStore } from '../../stores/uiStore';
 import { useAuthStore } from '../../stores/authStore';
 import { COACH_NAV, CLIENT_NAV } from '../../utils/constants';
 import { useDataLoader } from '../../hooks/useDataLoader';
+import { ErrorBoundary } from '../ui/ErrorBoundary';
 
 export default function Shell() {
   // Load all data from Supabase on mount
@@ -31,16 +32,20 @@ export default function Shell() {
       <div className="main-area">
         <Header title={pageTitle} />
         <main className="main-content">
-          <Outlet />
+          <ErrorBoundary key={location.pathname}>
+            <Outlet />
+          </ErrorBoundary>
         </main>
       </div>
 
-      {/* Toast notification */}
-      {toast && (
-        <div className={`toast toast-${toast.type}`}>
-          {toast.message}
-        </div>
-      )}
+      {/* Toast notification — aria-live for screen readers */}
+      <div aria-live="polite" aria-atomic="true">
+        {toast && (
+          <div className={`toast toast-${toast.type}`} role="status">
+            {toast.message}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
