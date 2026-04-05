@@ -60,9 +60,14 @@ export async function fetchWeeklyCheckins(clientId) {
 
 export async function saveCoachFeedback(checkinId, feedback, type = 'weekly') {
   const table = type === 'daily' ? 'daily_checkins' : 'weekly_checkins';
-  const { error } = await supabase.from(table)
-    .update({ coach_feedback: feedback, coach_responded_at: new Date().toISOString() })
-    .eq('id', checkinId);
+  const payload = {
+    coach_feedback: feedback,
+    coach_responded_at: new Date().toISOString(),
+  };
+  // Weekly check-ins carry a pending/reviewed status — mark reviewed when coach responds
+  if (type === 'weekly') payload.status = 'reviewed';
+  const { error } = await supabase.from(table).update(payload).eq('id', checkinId);
+  if (error) console.error('[saveCoachFeedback] error:', error.message, error.details, error.hint);
   return !error;
 }
 

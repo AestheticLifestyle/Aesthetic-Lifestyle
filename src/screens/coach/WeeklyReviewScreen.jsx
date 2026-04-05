@@ -269,6 +269,16 @@ export default function WeeklyReviewScreen() {
     const ok = await saveCoachFeedback(clientData.latestWeekly.id, feedback.trim(), 'weekly');
     setSaving(false);
     if (ok) {
+      // Optimistically update local state so badge flips to Reviewed immediately
+      setClientData(prev => prev ? {
+        ...prev,
+        latestWeekly: {
+          ...prev.latestWeekly,
+          coach_feedback: feedback.trim(),
+          coach_responded_at: new Date().toISOString(),
+          status: 'reviewed',
+        },
+      } : prev);
       showToast('Feedback saved', 'success');
     } else {
       showToast('Failed to save feedback', 'error');
