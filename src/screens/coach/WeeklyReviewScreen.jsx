@@ -157,66 +157,75 @@ export default function WeeklyReviewScreen() {
         const mealPlan = val(6, null);
         results.forEach((r, i) => { if (r.status === 'rejected') console.warn('[WeeklyReview] fetch', i, 'failed:', r.reason); });
 
+        // Safe wrapper — logs which step failed but never throws
+        const safe = (label, fn, fallback) => {
+          try { return fn(); } catch (e) { console.warn('[WeeklyReview]', label, 'failed:', e); return fallback; }
+        };
+
         // Latest weekly check-in
-        const latestWeekly = weeklyCheckins?.length ? weeklyCheckins[weeklyCheckins.length - 1] : null;
+        const latestWeekly = Array.isArray(weeklyCheckins) && weeklyCheckins.length ? weeklyCheckins[weeklyCheckins.length - 1] : null;
 
         // Weight analysis
-        const weightTrend = analyzeWeightTrend(weightLog, { days: 14 });
-        const plateau = detectPlateau(weightLog);
+        const weightTrend = safe('analyzeWeightTrend', () => analyzeWeightTrend(weightLog, { days: 14 }), null);
+        const plateau = safe('detectPlateau', () => detectPlateau(weightLog), null);
 
         // Last 7 days of daily checkins
         const today = new Date();
         const weekAgo = new Date(today); weekAgo.setDate(weekAgo.getDate() - 7);
         const weekStr = weekAgo.toISOString().slice(0, 10);
-        const thisWeekDaily = (dailyCheckins || []).filter(c => c.date >= weekStr);
+        const thisWeekDaily = (Array.isArray(dailyCheckins) ? dailyCheckins : []).filter(c => c?.date && c.date >= weekStr);
 
         // Adherence
-        const nutritionDays = (nutritionLog || []).filter(n => n.date >= weekStr).length;
+        const nutritionDays = (Array.isArray(nutritionLog) ? nutritionLog : []).filter(n => n?.date && n.date >= weekStr).length;
         const now = new Date();
         const weekAgoDate = new Date(now); weekAgoDate.setDate(weekAgoDate.getDate() - 7);
         const weekAgoStr = weekAgoDate.toISOString().slice(0, 10);
-        const workoutDays = (workoutHistory || []).filter(w => (w.date || w.created_at?.slice(0, 10)) >= weekAgoStr).length;
+        const workoutDays = (Array.isArray(workoutHistory) ? workoutHistory : []).filter(w => {
+          const d = w?.date || (typeof w?.created_at === 'string' ? w.created_at.slice(0, 10) : null);
+          return d && d >= weekAgoStr;
+        }).length;
         const checkinDays = thisWeekDaily.length;
-        const adherence = calculateAdherence({ nutritionDays, workoutDays, checkinDays });
+        const adherence = safe('calculateAdherence', () => calculateAdherence({ nutritionDays, workoutDays, checkinDays }), 0);
 
         // Calorie suggestion
         const currentCalories = mealPlan?.targets?.calories || null;
-        const calSuggestions = suggestCalorieAdjustment(currentClient?.goal, weightTrend, currentCalories);
+        const calSuggestions = safe('suggestCalorieAdjustment', () => suggestCalorieAdjustment(currentClient?.goal, weightTrend, currentCalories), null);
 
         // Photos — latest and 4 weeks ago
-        const sortedPhotos = (photos || []).sort((a, b) => a.date.localeCompare(b.date));
+        const sortedPhotos = (Array.isArray(photos) ? photos : [])
+          .filter(p => p && typeof p.date === 'string')
+          .sort((a, b) => a.date.localeCompare(b.date));
         const latestPhotos = {};
         const prevPhotos = {};
         const fourWeeksAgo = new Date(); fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
         const fourWeeksStr = fourWeeksAgo.toISOString().slice(0, 10);
 
         for (const p of sortedPhotos) {
-          if (p.date >= weekStr) latestPhotos[p.pose] = p;
-          else if (p.date >= fourWeeksStr) prevPhotos[p.pose] = p;
+          const pose = p.pose || 'front';
+          if (p.date >= weekStr) latestPhotos[pose] = p;
+          else if (p.date >= fourWeeksStr) prevPhotos[pose] = p;
         }
 
         // Weekly summary
-        const stepEntries = thisWeekDaily.filter(d => d.steps > 0);
-        const stepAvg = stepEntries.length ? stepEntries.reduce((s, d) => s + d.steps, 0) / stepEntries.length : 0;
-        const summary = generateWeeklySummary({
+        const stepEntries = thisWeekDaily.filter(d => d?.steps > 0);
+        const stepAvg = stepEntries.length ? stepEntries.reduce((s, d) => s + (d.steps || 0), 0) / stepEntries.length : 0;
+        const summary = safe('generateWeeklySummary', () => generateWeeklySummary({
           weightLog, nutritionDays, workoutDays, checkinDays, stepAvg,
           stepGoal: currentClient?.step_goal || 10000,
           goal: currentClient?.goal,
-        });
+        }), { highlights: [], improvements: [] });
 
         // Mood averages
         const moodValues = { 'Unstoppable': 5, 'Good': 4, 'Neutral': 3, 'Low': 2, 'Struggling': 1 };
-        const moods = thisWeekDaily.filter(d => d.mood).map(d => moodValues[d.mood] || 3);
+        const moods = thisWeekDaily.filter(d => d?.mood).map(d => moodValues[d.mood] || 3);
         const avgMood = moods.length ? (moods.reduce((s, m) => s + m, 0) / moods.length).toFixed(1) : null;
-        const avgSleep = thisWeekDaily.filter(d => d.sleep).length
-          ? (thisWeekDaily.filter(d => d.sleep).reduce((s, d) => s + d.sleep, 0) / thisWeekDaily.filter(d => d.sleep).length).toFixed(1)
-          : null;
-        const avgEnergy = thisWeekDaily.filter(d => d.energy).length
-          ? (thisWeekDaily.filter(d => d.energy).reduce((s, d) => s + d.energy, 0) / thisWeekDaily.filter(d => d.energy).length).toFixed(1)
-          : null;
+        const sleepEntries = thisWeekDaily.filter(d => typeof d?.sleep === 'number');
+        const avgSleep = sleepEntries.length ? (sleepEntries.reduce((s, d) => s + d.sleep, 0) / sleepEntries.length).toFixed(1) : null;
+        const energyEntries = thisWeekDaily.filter(d => typeof d?.energy === 'number');
+        const avgEnergy = energyEntries.length ? (energyEntries.reduce((s, d) => s + d.energy, 0) / energyEntries.length).toFixed(1) : null;
 
         setClientData({
-          weightLog: weightLog?.slice(-14) || [],
+          weightLog: Array.isArray(weightLog) ? weightLog.slice(-14) : [],
           weightTrend,
           plateau,
           latestWeekly,
@@ -234,7 +243,7 @@ export default function WeeklyReviewScreen() {
           avgSleep,
           avgEnergy,
           stepAvg: Math.round(stepAvg),
-          workoutHistory: (workoutHistory || []).slice(-5),
+          workoutHistory: (Array.isArray(workoutHistory) ? workoutHistory : []).slice(-5),
         });
 
         // Pre-fill feedback if coach already responded
