@@ -102,7 +102,7 @@ function PhotoPair({ current, previous }) {
 // Main: WeeklyReviewScreen
 // ══════════════════════════════════════
 export default function WeeklyReviewScreen() {
-  const { clients } = useCoachStore();
+  const { clients, pendingCheckins, setPendingCheckins } = useCoachStore();
   const { showToast } = useUIStore();
 
   // Queue state
@@ -269,20 +269,50 @@ export default function WeeklyReviewScreen() {
     const ok = await saveCoachFeedback(clientData.latestWeekly.id, feedback.trim(), 'weekly');
     setSaving(false);
     if (ok) {
+      const now = new Date().toISOString();
+      const savedId = clientData.latestWeekly.id;
+      const savedText = feedback.trim();
       // Optimistically update local state so badge flips to Reviewed immediately
       setClientData(prev => prev ? {
         ...prev,
         latestWeekly: {
           ...prev.latestWeekly,
-          coach_feedback: feedback.trim(),
-          coach_responded_at: new Date().toISOString(),
+          coach_feedback: savedText,
+          coach_responded_at: now,
         },
       } : prev);
+      // Also sync the shared coach store so CheckinsScreen picks it up
+      setPendingCheckins(
+        (pendingCheckins || []).map(c =>
+          c.id === savedId
+            ? { ...c, coach_feedback: savedText, coach_responded_at: now, status: 'reviewed' }
+            : c
+        )
+      );
       showToast('Feedback saved', 'success');
     } else {
       showToast('Failed to save feedback', 'error');
     }
   };
+
+  // Reverse sync: if the same weekly check-in is updated elsewhere (e.g. CheckinsScreen),
+  // reflect that change in our local view so the badge + prefilled feedback stay accurate.
+  useEffect(() => {
+    if (!clientData?.latestWeekly?.id) return;
+    const shared = (pendingCheckins || []).find(c => c.id === clientData.latestWeekly.id);
+    if (!shared) return;
+    if ((shared.coach_feedback || '') !== (clientData.latestWeekly.coach_feedback || '')) {
+      setClientData(prev => prev ? {
+        ...prev,
+        latestWeekly: {
+          ...prev.latestWeekly,
+          coach_feedback: shared.coach_feedback,
+          coach_responded_at: shared.coach_responded_at || prev.latestWeekly.coach_responded_at,
+        },
+      } : prev);
+      if (shared.coach_feedback && !feedback) setFeedback(shared.coach_feedback);
+    }
+  }, [pendingCheckins, clientData?.latestWeekly?.id]);
 
   // Navigate queue
   const goNext = () => { if (currentIdx < queue.length - 1) setCurrentIdx(currentIdx + 1); };
