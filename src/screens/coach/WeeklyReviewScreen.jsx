@@ -276,7 +276,6 @@ export default function WeeklyReviewScreen() {
           ...prev.latestWeekly,
           coach_feedback: feedback.trim(),
           coach_responded_at: new Date().toISOString(),
-          status: 'reviewed',
         },
       } : prev);
       showToast('Feedback saved', 'success');
@@ -328,10 +327,10 @@ export default function WeeklyReviewScreen() {
         {wc && (
           <div style={{
             padding: '3px 10px', borderRadius: 6, fontSize: 10, fontWeight: 600,
-            background: wc.status === 'reviewed' ? 'var(--green-d, rgba(46,204,113,0.15))' : 'var(--gold-d)',
-            color: wc.status === 'reviewed' ? 'var(--green)' : 'var(--gold)',
+            background: !!wc.coach_feedback ? 'var(--green-d, rgba(46,204,113,0.15))' : 'var(--gold-d)',
+            color: !!wc.coach_feedback ? 'var(--green)' : 'var(--gold)',
           }}>
-            {wc.status === 'reviewed' ? 'Reviewed' : 'Pending'}
+            {!!wc.coach_feedback ? 'Reviewed' : 'Pending'}
           </div>
         )}
       </div>
