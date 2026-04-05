@@ -138,7 +138,7 @@ export default function WeeklyReviewScreen() {
 
     (async () => {
       try {
-        const [weightLog, dailyCheckins, weeklyCheckins, nutritionLog, workoutHistory, photos, mealPlan] = await Promise.all([
+        const results = await Promise.allSettled([
           fetchWeightLog(currentClientId),
           fetchDailyCheckins(currentClientId, 14),
           fetchWeeklyCheckins(currentClientId),
@@ -147,6 +147,15 @@ export default function WeeklyReviewScreen() {
           fetchProgressPhotos(currentClientId),
           fetchMealPlan(currentClientId),
         ]);
+        const val = (i, fallback) => results[i].status === 'fulfilled' ? (results[i].value ?? fallback) : fallback;
+        const weightLog = val(0, []);
+        const dailyCheckins = val(1, []);
+        const weeklyCheckins = val(2, []);
+        const nutritionLog = val(3, []);
+        const workoutHistory = val(4, []);
+        const photos = val(5, []);
+        const mealPlan = val(6, null);
+        results.forEach((r, i) => { if (r.status === 'rejected') console.warn('[WeeklyReview] fetch', i, 'failed:', r.reason); });
 
         // Latest weekly check-in
         const latestWeekly = weeklyCheckins?.length ? weeklyCheckins[weeklyCheckins.length - 1] : null;
@@ -233,6 +242,13 @@ export default function WeeklyReviewScreen() {
       } catch (err) {
         console.error('[WeeklyReview] load error:', err);
         showToast('Failed to load client data', 'error');
+        setClientData({
+          weightLog: [], weightTrend: null, plateau: null, latestWeekly: null,
+          thisWeekDaily: [], adherence: 0, nutritionDays: 0, workoutDays: 0, checkinDays: 0,
+          calSuggestions: null, mealPlan: null, latestPhotos: {}, prevPhotos: {},
+          summary: { highlights: [], improvements: [] },
+          avgMood: null, avgSleep: null, avgEnergy: null, stepAvg: 0, workoutHistory: [],
+        });
       }
     })();
   }, [currentClientId]);
@@ -281,7 +297,7 @@ export default function WeeklyReviewScreen() {
             <Icon name="chevron-left" size={14} />
           </button>
           <div>
-            <div style={{ fontSize: 16, fontWeight: 700 }}>{currentClient?.name || 'Client'}</div>
+            <div style={{ fontSize: 16, fontWeight: 700 }}>{currentClient?.client_name || currentClient?.name || 'Client'}</div>
             <div style={{ fontSize: 11, color: 'var(--t3)' }}>
               {goalLabel(currentClient?.goal)} · Client {currentIdx + 1} of {queue.length}
             </div>
