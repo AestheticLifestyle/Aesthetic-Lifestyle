@@ -115,21 +115,10 @@ export async function saveWeeklyCheckin(clientId, checkinData) {
     return { ok: false, error: 'Missing week number' };
   }
 
-  // Verify the authenticated user matches the client_id we're writing for.
-  // Without this, RLS will reject the row with an opaque "violates row-level
-  // security policy" error — catching it here gives a clearer message.
-  try {
-    const { data: { user: authUser } } = await supabase.auth.getUser();
-    if (!authUser?.id) {
-      return { ok: false, error: 'Not signed in' };
-    }
-    if (authUser.id !== clientId) {
-      console.warn('[saveWeeklyCheckin] auth mismatch', { auth: authUser.id, clientId });
-      return { ok: false, error: `Auth mismatch: signed in as ${authUser.id.slice(0,8)}… but saving for ${clientId.slice(0,8)}…` };
-    }
-  } catch (e) {
-    console.warn('[saveWeeklyCheckin] auth check failed:', e);
-  }
+  // Note: we intentionally do NOT check that auth.uid() === clientId here.
+  // Coaches may legitimately save check-ins on behalf of their linked clients,
+  // and Supabase RLS is the correct place to enforce that boundary (via both
+  // the "*_insert_own" and "*_insert_coach" policies).
 
   // Select-then-update-or-insert (same reliable pattern as saveDailyCheckin).
   // We don't use upsert() because it needs a unique index on (client_id, week_number)
