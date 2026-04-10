@@ -83,10 +83,44 @@ export async function fetchDailyCheckins(clientId, days = 30) {
 
 // ── Weekly Check-ins ──
 
+// Whitelist of columns known to exist in the weekly_checkins table.
+const WEEKLY_CHECKIN_COLUMNS = new Set([
+  'client_id', 'week_number', 'date',
+  'mood', 'sleep_quality', 'digestion', 'energy',
+  'pain', 'pain_detail',
+  'nutrition_adherence', 'workouts_completed', 'water_avg', 'steps_goal',
+  'biggest_struggle', 'what_went_well', 'what_to_improve',
+  'motivation', 'questions_for_coach',
+  'coach_feedback', 'coach_responded_at',
+]);
+
+function cleanWeeklyPayload(obj) {
+  const out = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (!WEEKLY_CHECKIN_COLUMNS.has(k)) continue;
+    if (v === undefined) continue;
+    out[k] = v;
+  }
+  return out;
+}
+
 export async function saveWeeklyCheckin(clientId, checkinData) {
+  if (!clientId) {
+    console.error('[saveWeeklyCheckin] missing clientId');
+    return { ok: false, error: 'Missing client ID' };
+  }
+  const payload = cleanWeeklyPayload({ ...checkinData, client_id: clientId });
+  if (payload.week_number == null) {
+    console.error('[saveWeeklyCheckin] missing week_number', payload);
+    return { ok: false, error: 'Missing week number' };
+  }
   const { error } = await supabase.from('weekly_checkins')
-    .upsert({ ...checkinData, client_id: clientId }, { onConflict: 'client_id,week_number' });
-  return !error;
+    .upsert(payload, { onConflict: 'client_id,week_number' });
+  if (error) {
+    console.error('[saveWeeklyCheckin] error:', error.message, error.details, error.hint, error.code);
+    return { ok: false, error: error.message || 'Save failed', code: error.code, details: error.details };
+  }
+  return { ok: true };
 }
 
 export async function fetchWeeklyCheckins(clientId) {

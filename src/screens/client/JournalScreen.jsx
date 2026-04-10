@@ -405,9 +405,17 @@ function WeeklyCheckin() {
   }, [user?.id, weekNum]);
 
   const handleSave = async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      showToast('Please sign in first', 'error');
+      return;
+    }
+    const clientId = getClientId();
+    if (!clientId) {
+      showToast('No client ID — try reloading', 'error');
+      return;
+    }
     setSaving(true);
-    const ok = await saveWeeklyCheckin(getClientId(), {
+    const result = await saveWeeklyCheckin(clientId, {
       week_number: weekNum,
       date: weekDate,
       mood: weeklyMood,
@@ -427,11 +435,13 @@ function WeeklyCheckin() {
       questions_for_coach: questionsForCoach || null,
     });
     setSaving(false);
+    const ok = result === true || (result && result.ok === true);
     if (ok) {
       setHasExisting(true);
       showToast(isCurrentWeek ? 'Weekly check-in saved!' : `Week ${weekNum} check-in saved!`, 'success');
     } else {
-      showToast('Failed to save', 'error');
+      const msg = (result && result.error) ? `Failed to save: ${result.error}` : 'Failed to save';
+      showToast(msg, 'error');
     }
   };
 
