@@ -114,10 +114,55 @@ export async function saveWeeklyCheckin(clientId, checkinData) {
     console.error('[saveWeeklyCheckin] missing week_number', payload);
     return { ok: false, error: 'Missing week number' };
   }
-  const { error } = await supabase.from('weekly_checkins')
-    .upsert(payload, { onConflict: 'client_id,week_number' });
+
+  // Verify the authenticated user matches the client_id we're writing for.
+  // Without this, RLS will reject the row with an opaque "violates row-level
+  // security policy" error — catching it here gives a clearer message.
+  try {
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser?.id) {
+      return { ok: false, error: 'Not signed in' };
+    }
+    if (authUser.id !== clientId) {
+      console.warn('[saveWeeklyCheckin] auth mismatch', { auth: authUser.id, clientId });
+      return { ok: false, error: `Auth mismatch: signed in as ${authUser.id.slice(0,8)}… but saving for ${clientId.slice(0,8)}…` };
+    }
+  } catch (e) {
+    console.warn('[saveWeeklyCheckin] auth check failed:', e);
+  }
+
+  // Select-then-update-or-insert (same reliable pattern as saveDailyCheckin).
+  // We don't use upsert() because it needs a unique index on (client_id, week_number)
+  // AND both INSERT and UPDATE RLS policies to succeed simultaneously.
+  const { data: existing, error: selErr } = await supabase
+    .from('weekly_checkins')
+    .select('id')
+    .eq('client_id', clientId)
+    .eq('week_number', payload.week_number)
+    .maybeSingle();
+
+  if (selErr) {
+    console.error('[saveWeeklyCheckin] select error:', selErr);
+    return { ok: false, error: selErr.message || 'Select failed' };
+  }
+
+  let error;
+  if (existing) {
+    const updateFields = { ...payload };
+    delete updateFields.client_id;
+    delete updateFields.week_number;
+    ({ error } = await supabase
+      .from('weekly_checkins')
+      .update(updateFields)
+      .eq('id', existing.id));
+  } else {
+    ({ error } = await supabase
+      .from('weekly_checkins')
+      .insert(payload));
+  }
+
   if (error) {
-    console.error('[saveWeeklyCheckin] error:', error.message, error.details, error.hint, error.code);
+    console.error('[saveWeeklyCheckin] write error:', error.message, error.details, error.hint, error.code);
     return { ok: false, error: error.message || 'Save failed', code: error.code, details: error.details };
   }
   return { ok: true };
