@@ -176,10 +176,12 @@ function StepsCard({ currentSteps, stepGoal, selectedDate }) {
     if (isNaN(s) || s < 0) { showToast('Enter valid steps', 'error'); return; }
     setSaving(true);
     setSteps(s);
-    const ok = await saveDailyCheckin({ client_id: getClientId(), date: selectedDate, steps: s }).catch(() => false);
+    const result = await saveDailyCheckin({ client_id: getClientId(), date: selectedDate, steps: s }).catch(() => ({ ok: false, error: 'Network error' }));
+    const ok = result === true || (result && result.ok === true);
     setSaving(false);
     setEditing(false);
-    showToast(ok ? 'Steps saved!' : 'Failed to save', ok ? 'success' : 'error');
+    const errMsg = result && result.error ? `Failed to save: ${result.error}` : 'Failed to save';
+    showToast(ok ? 'Steps saved!' : errMsg, ok ? 'success' : 'error');
   };
 
   if (editing) {

@@ -2,11 +2,41 @@ import { supabase } from './supabase';
 
 // ── Daily Check-ins ──
 
-export async function saveDailyCheckin(data) {
-  const { client_id, date, ...fields } = data;
-  if (!client_id || !date) return false;
+// Whitelist of columns known to exist in the daily_checkins table.
+// Keep this list in sync with the DB schema. Any field passed to
+// saveDailyCheckin that isn't in this list will be silently dropped
+// before hitting Supabase (prevents "column does not exist" errors).
+const DAILY_CHECKIN_COLUMNS = new Set([
+  'client_id', 'date',
+  'mood', 'sleep', 'energy', 'stress',
+  'weight', 'hydration', 'steps',
+  'note', 'coach_feedback', 'coach_responded_at',
+]);
 
-  // Try update first (preserves other columns)
+function cleanDailyPayload(obj) {
+  const out = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (!DAILY_CHECKIN_COLUMNS.has(k)) continue;
+    if (v === undefined) continue; // never send undefined
+    out[k] = v;
+  }
+  return out;
+}
+
+export async function saveDailyCheckin(data) {
+  const { client_id, date } = data;
+  if (!client_id || !date) {
+    console.error('[saveDailyCheckin] missing client_id or date', { client_id, date });
+    return { ok: false, error: 'Missing client_id or date' };
+  }
+
+  const clean = cleanDailyPayload(data);
+  // Never overwrite unrelated columns with null — only send keys that were provided
+  const updateFields = { ...clean };
+  delete updateFields.client_id;
+  delete updateFields.date;
+
+  // Check for existing row
   const { data: existing, error: selErr } = await supabase
     .from('daily_checkins')
     .select('id')
@@ -14,21 +44,29 @@ export async function saveDailyCheckin(data) {
     .eq('date', date)
     .maybeSingle();
 
+  if (selErr) {
+    console.error('[saveDailyCheckin] select error:', selErr);
+    return { ok: false, error: selErr.message || 'Select failed' };
+  }
+
   let error;
   if (existing) {
-    // Row exists — only update the provided fields
-    ({ error } = await supabase.from('daily_checkins')
-      .update(fields)
+    ({ error } = await supabase
+      .from('daily_checkins')
+      .update(updateFields)
       .eq('client_id', client_id)
       .eq('date', date));
   } else {
-    // No row yet — insert
-    ({ error } = await supabase.from('daily_checkins')
-      .insert({ client_id, date, ...fields }));
+    ({ error } = await supabase
+      .from('daily_checkins')
+      .insert({ client_id, date, ...updateFields }));
   }
 
-  if (error) console.error('[saveDailyCheckin] error:', error.message, error.details, error.hint);
-  return !error;
+  if (error) {
+    console.error('[saveDailyCheckin] write error:', error.message, error.details, error.hint, error.code);
+    return { ok: false, error: error.message || 'Save failed', code: error.code, details: error.details };
+  }
+  return { ok: true };
 }
 
 export async function fetchDailyCheckins(clientId, days = 30) {

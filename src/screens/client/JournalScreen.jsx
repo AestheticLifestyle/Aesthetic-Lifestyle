@@ -157,27 +157,36 @@ function DailyCheckin() {
   }, [selectedDate, checkinHistory]);
 
   const handleSave = async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      showToast('Please sign in first', 'error');
+      return;
+    }
+    if (!clientId) {
+      showToast('No client ID — try reloading', 'error');
+      return;
+    }
     setSaving(true);
-    const ok = await saveDailyCheckin({
+    const result = await saveDailyCheckin({
       client_id: clientId,
       date: selectedDate,
       mood: mood !== null ? MOOD_OPTIONS[mood].label : null,
-      sleep: sleep,
-      energy: energy,
-      stress: stress,
+      sleep,
+      energy,
+      stress,
       note: notes || null,
     });
     setSaving(false);
+    // Back-compat: result used to be a boolean
+    const ok = result === true || (result && result.ok === true);
     if (ok) {
-      // Update history so the dot turns green
       setCheckinHistory(prev => ({
         ...prev,
         [selectedDate]: { mood: MOOD_OPTIONS[mood]?.label, sleep, energy, stress, note: notes, date: selectedDate },
       }));
       showToast(isToday ? 'Daily check-in saved!' : `Check-in saved for ${formatDateShort(selectedDate)}!`, 'success');
     } else {
-      showToast('Failed to save', 'error');
+      const msg = (result && result.error) ? `Failed to save: ${result.error}` : 'Failed to save';
+      showToast(msg, 'error');
     }
   };
 
