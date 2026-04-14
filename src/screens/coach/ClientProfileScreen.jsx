@@ -6,6 +6,7 @@ import { Card, ProgressRing } from '../../components/ui';
 import { Icon } from '../../utils/icons';
 import { useUIStore } from '../../stores/uiStore';
 import { detectPlateau, analyzeWeightTrend, suggestCalorieAdjustment } from '../../utils/coachingInsights';
+import { updateClientSettings, archiveClient, GOAL_LABELS } from '../../services/chat';
 
 // Services — fetch all client data
 import { fetchWeightLog, fetchMeasurements, fetchProgressPhotos } from '../../services/progress';
@@ -31,7 +32,7 @@ function daysAgo(d) {
 }
 
 // ── Section: Header ──
-function ProfileHeader({ client, onBack }) {
+function ProfileHeader({ client, onBack, onManage }) {
   const name = client.client_name || client.name || 'Client';
   const statusMap = {
     'on-track': { label: 'On Track', cls: 't-gr' },
@@ -63,6 +64,11 @@ function ProfileHeader({ client, onBack }) {
         </div>
       </div>
       <span className={`tag ${s.cls}`}>{s.label}</span>
+      {onManage && (
+        <button className="icon-btn" onClick={onManage} title="Client Settings" style={{ marginLeft: 4 }}>
+          <Icon name="settings" size={16} />
+        </button>
+      )}
     </div>
   );
 }
@@ -1501,8 +1507,12 @@ export default function ClientProfileScreen() {
   const { clients } = useCoachStore();
   const { user } = useAuthStore();
 
+  const { showToast } = useUIStore();
+  const { setClients } = useCoachStore();
+
   const client = clients.find(c => (c.client_id || c.id) === clientId) || {};
   const [clientGoal, setClientGoal] = useState(client.goalId || client.goal || '');
+  const [showManage, setShowManage] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState({
@@ -1556,7 +1566,7 @@ export default function ClientProfileScreen() {
   if (loading) {
     return (
       <div className="screen active">
-        <ProfileHeader client={client} onBack={() => navigate('/coach/clients')} />
+        <ProfileHeader client={client} onBack={() => navigate('/coach/clients')} onManage={() => setShowManage(true)} />
         <div style={{ textAlign: 'center', padding: 60, color: 'var(--t3)' }}>
           <div style={{ fontSize: 14 }}>Loading client data...</div>
         </div>
@@ -1568,7 +1578,7 @@ export default function ClientProfileScreen() {
 
   return (
     <div className="screen active">
-      <ProfileHeader client={client} onBack={() => navigate('/coach/clients')} />
+      <ProfileHeader client={client} onBack={() => navigate('/coach/clients')} onManage={() => setShowManage(true)} />
 
       {/* Key metrics */}
       <KeyMetrics

@@ -58,12 +58,53 @@ export const GOAL_LABELS = {
   'maintenance': 'Maintenance', 'comp-prep': 'Comp Prep',
 };
 
+// ── Client Management ─────────────────────────────────────────────
+
+/** Update goal / target fields on a coach_clients row */
+export async function updateClientSettings(coachId, clientId, fields) {
+  // Only allow whitelisted columns
+  const ALLOWED = ['goal', 'step_target', 'target_weight', 'calorie_target',
+    'protein_target', 'carb_target', 'fat_target', 'total_weeks', 'workout_days', 'notes_coach'];
+  const payload = {};
+  for (const k of ALLOWED) { if (fields[k] !== undefined) payload[k] = fields[k]; }
+  if (!Object.keys(payload).length) return { ok: false, error: 'Nothing to update' };
+
+  const { error } = await supabase.from('coach_clients')
+    .update(payload)
+    .eq('coach_id', coachId)
+    .eq('client_id', clientId);
+  if (error) { console.error('[updateClientSettings]', error); return { ok: false, error: error.message }; }
+  return { ok: true };
+}
+
+/** Archive a client (hides from active list but preserves all data) */
+export async function archiveClient(coachId, clientId) {
+  const { error } = await supabase.from('coach_clients')
+    .update({ archived: true })
+    .eq('coach_id', coachId)
+    .eq('client_id', clientId);
+  if (error) { console.error('[archiveClient]', error); return false; }
+  return true;
+}
+
+/** Reactivate an archived client */
+export async function reactivateClient(coachId, clientId) {
+  const { error } = await supabase.from('coach_clients')
+    .update({ archived: false })
+    .eq('coach_id', coachId)
+    .eq('client_id', clientId);
+  if (error) { console.error('[reactivateClient]', error); return false; }
+  return true;
+}
+
 // Fetch all clients for a coach (with real stats: weight, adherence, streak)
 // Also includes "pending" clients from invite codes with client_setup that haven't been redeemed
-export async function fetchClients(coachId) {
+export async function fetchClients(coachId, { includeArchived = false } = {}) {
   // Get coach_clients rows + pending invite codes in parallel
+  let linksQuery = supabase.from('coach_clients').select('*').eq('coach_id', coachId);
+  if (!includeArchived) linksQuery = linksQuery.or('archived.is.null,archived.eq.false');
   const [linksRes, pendingRes] = await Promise.allSettled([
-    supabase.from('coach_clients').select('*').eq('coach_id', coachId),
+    linksQuery,
     supabase.from('invite_codes').select('id, code, label, client_setup, used_count, max_uses, created_at')
       .eq('coach_id', coachId).eq('active', true).not('client_setup', 'is', null),
   ]);

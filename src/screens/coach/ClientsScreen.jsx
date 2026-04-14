@@ -6,7 +6,7 @@ import { useUIStore } from '../../stores/uiStore';
 import { Card } from '../../components/ui';
 import { Icon } from '../../utils/icons';
 import { createInviteCode, fetchInviteCodes, deactivateInviteCode } from '../../services/invites';
-import { fetchTrainingTemplates, fetchNutritionTemplates } from '../../services/chat';
+import { fetchTrainingTemplates, fetchNutritionTemplates, fetchClients, updateClientSettings, archiveClient, reactivateClient, GOAL_LABELS } from '../../services/chat';
 
 function ClientCard({ client, onClick }) {
   const isPending = client.isPending;
@@ -885,16 +885,259 @@ function PendingClientModal({ client, onClose }) {
   );
 }
 
+// ══════════════════════════════════════
+// Client Manage Panel (slide-out)
+// ══════════════════════════════════════
+const GOAL_OPTIONS = [
+  { value: 'cut', label: 'Cut' },
+  { value: 'lean-bulk', label: 'Lean Bulk' },
+  { value: 'recomp', label: 'Body Recomp' },
+  { value: 'maintenance', label: 'Maintenance' },
+  { value: 'comp-prep', label: 'Comp Prep' },
+];
+
+function ClientManagePanel({ client, onClose, onUpdated, onArchived }) {
+  const { showToast } = useUIStore();
+  const { user } = useAuthStore();
+  const clientId = client?.client_id || client?.id;
+  const clientName = client?.client_name || client?.name || 'Client';
+
+  // Editable fields
+  const [goal, setGoal] = useState(client?.goal || 'maintenance');
+  const [stepTarget, setStepTarget] = useState(client?.step_target || 10000);
+  const [targetWeight, setTargetWeight] = useState(client?.target_weight || '');
+  const [calorieTarget, setCalorieTarget] = useState(client?.calorie_target || '');
+  const [proteinTarget, setProteinTarget] = useState(client?.protein_target || '');
+  const [carbTarget, setCarbTarget] = useState(client?.carb_target || '');
+  const [fatTarget, setFatTarget] = useState(client?.fat_target || '');
+  const [saving, setSaving] = useState(false);
+  const [confirmArchive, setConfirmArchive] = useState(false);
+
+  if (!client) return null;
+
+  const handleSave = async () => {
+    setSaving(true);
+    const result = await updateClientSettings(user?.id, clientId, {
+      goal,
+      step_target: parseInt(stepTarget) || 10000,
+      target_weight: targetWeight ? parseFloat(targetWeight) : null,
+      calorie_target: calorieTarget ? parseInt(calorieTarget) : null,
+      protein_target: proteinTarget ? parseInt(proteinTarget) : null,
+      carb_target: carbTarget ? parseInt(carbTarget) : null,
+      fat_target: fatTarget ? parseInt(fatTarget) : null,
+    });
+    setSaving(false);
+    if (result.ok) {
+      showToast('Client settings saved', 'success');
+      onUpdated?.({ ...client, goal, step_target: parseInt(stepTarget) || 10000,
+        target_weight: targetWeight ? parseFloat(targetWeight) : null,
+        calorie_target: calorieTarget ? parseInt(calorieTarget) : null,
+        protein_target: proteinTarget ? parseInt(proteinTarget) : null,
+        carb_target: carbTarget ? parseInt(carbTarget) : null,
+        fat_target: fatTarget ? parseInt(fatTarget) : null,
+      });
+    } else {
+      showToast(result.error || 'Failed to save', 'error');
+    }
+  };
+
+  const handleArchive = async () => {
+    const ok = await archiveClient(user?.id, clientId);
+    if (ok) {
+      showToast(`${clientName} archived`, 'success');
+      onArchived?.(clientId);
+      onClose();
+    } else {
+      showToast('Failed to archive client', 'error');
+    }
+  };
+
+  const inputStyle = {
+    width: '100%', padding: '8px 12px', borderRadius: 8,
+    border: '1px solid var(--border)', background: 'var(--s1)',
+    color: 'var(--t1)', fontSize: 13, fontFamily: 'var(--fm)',
+  };
+  const labelStyle = { fontSize: 11, fontWeight: 600, color: 'var(--t2)', marginBottom: 4, display: 'block' };
+  const fieldGroup = { marginBottom: 14 };
+
+  return (
+    <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 'min(460px, 92vw)', background: 'var(--s0)', borderLeft: '1px solid var(--border)', zIndex: 300, display: 'flex', flexDirection: 'column', animation: 'slideIn .25s ease' }}>
+      {/* Header */}
+      <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 16, fontWeight: 700 }}>{clientName}</div>
+          <div style={{ fontSize: 11, color: 'var(--t3)' }}>Client Settings</div>
+        </div>
+        <button className="icon-btn" onClick={onClose}><Icon name="x" size={14} /></button>
+      </div>
+
+      {/* Scrollable body */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
+
+        {/* Goal */}
+        <div style={fieldGroup}>
+          <label style={labelStyle}>Goal</label>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {GOAL_OPTIONS.map(g => (
+              <button key={g.value}
+                onClick={() => setGoal(g.value)}
+                style={{
+                  padding: '6px 14px', borderRadius: 8, fontSize: 12, cursor: 'pointer',
+                  border: goal === g.value ? '1px solid var(--gold)' : '1px solid var(--border)',
+                  background: goal === g.value ? 'var(--gold-d)' : 'transparent',
+                  color: goal === g.value ? 'var(--gold)' : 'var(--t2)',
+                  fontWeight: goal === g.value ? 600 : 400,
+                }}>
+                {g.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Target Weight */}
+        <div style={fieldGroup}>
+          <label style={labelStyle}>Target Weight (kg)</label>
+          <input type="number" style={inputStyle} value={targetWeight}
+            onChange={e => setTargetWeight(e.target.value)}
+            placeholder="e.g. 80" />
+        </div>
+
+        {/* Step Target */}
+        <div style={fieldGroup}>
+          <label style={labelStyle}>Daily Step Target</label>
+          <input type="number" style={inputStyle} value={stepTarget}
+            onChange={e => setStepTarget(e.target.value)}
+            placeholder="10000" />
+        </div>
+
+        {/* Macro Targets */}
+        <div style={{ ...fieldGroup, marginTop: 6 }}>
+          <label style={{ ...labelStyle, marginBottom: 10 }}>Macro Targets</label>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <label style={{ ...labelStyle, fontSize: 10, color: 'var(--t3)' }}>Calories (kcal)</label>
+              <input type="number" style={inputStyle} value={calorieTarget}
+                onChange={e => setCalorieTarget(e.target.value)} placeholder="—" />
+            </div>
+            <div>
+              <label style={{ ...labelStyle, fontSize: 10, color: 'var(--t3)' }}>Protein (g)</label>
+              <input type="number" style={inputStyle} value={proteinTarget}
+                onChange={e => setProteinTarget(e.target.value)} placeholder="—" />
+            </div>
+            <div>
+              <label style={{ ...labelStyle, fontSize: 10, color: 'var(--t3)' }}>Carbs (g)</label>
+              <input type="number" style={inputStyle} value={carbTarget}
+                onChange={e => setCarbTarget(e.target.value)} placeholder="—" />
+            </div>
+            <div>
+              <label style={{ ...labelStyle, fontSize: 10, color: 'var(--t3)' }}>Fat (g)</label>
+              <input type="number" style={inputStyle} value={fatTarget}
+                onChange={e => setFatTarget(e.target.value)} placeholder="—" />
+            </div>
+          </div>
+        </div>
+
+        {/* Info */}
+        <Card>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--t3)' }}>
+            <span>Start Date</span>
+            <span>{client.start_date || '—'}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--t3)', marginTop: 6 }}>
+            <span>Program</span>
+            <span>Week {client.program_week || 1} / {client.total_weeks || 12}</span>
+          </div>
+          {client.adherence != null && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--t3)', marginTop: 6 }}>
+              <span>Adherence</span>
+              <span style={{ color: client.adherence >= 70 ? 'var(--green)' : client.adherence >= 40 ? 'var(--gold)' : 'var(--red, #e74c3c)' }}>{client.adherence}%</span>
+            </div>
+          )}
+        </Card>
+
+        {/* Danger zone — Archive */}
+        <div style={{ marginTop: 24, padding: 16, borderRadius: 10, border: '1px solid var(--red, rgba(231,76,60,0.3))', background: 'rgba(231,76,60,0.05)' }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--red, #e74c3c)', marginBottom: 6 }}>Archive Client</div>
+          <div style={{ fontSize: 11, color: 'var(--t3)', lineHeight: 1.5, marginBottom: 10 }}>
+            This hides {clientName} from your active clients list. All data is preserved and you can reactivate them anytime from the "Archived" tab.
+          </div>
+          {!confirmArchive ? (
+            <button className="btn btn-sm" onClick={() => setConfirmArchive(true)}
+              style={{ background: 'rgba(231,76,60,0.1)', color: 'var(--red, #e74c3c)', border: '1px solid var(--red, rgba(231,76,60,0.3))' }}>
+              <Icon name="archive" size={12} /> Archive {clientName}
+            </button>
+          ) : (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-sm" onClick={handleArchive}
+                style={{ background: 'var(--red, #e74c3c)', color: '#fff', flex: 1 }}>
+                Confirm Archive
+              </button>
+              <button className="btn btn-sm btn-ghost" onClick={() => setConfirmArchive(false)}>
+                Cancel
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Footer — Save */}
+      <div style={{ padding: '14px 20px', borderTop: '1px solid var(--border)' }}>
+        <button className="btn btn-primary" style={{ width: '100%' }} disabled={saving} onClick={handleSave}>
+          <Icon name="check" size={12} /> {saving ? 'Saving...' : 'Save Settings'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════
+// Archived Client Card (minimal)
+// ══════════════════════════════════════
+function ArchivedClientCard({ client, onReactivate }) {
+  const [loading, setLoading] = useState(false);
+  const name = client.client_name || client.name || 'Client';
+  const handleReactivate = async () => {
+    setLoading(true);
+    const ok = await onReactivate(client.client_id || client.id);
+    setLoading(false);
+  };
+  return (
+    <Card>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--s2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, color: 'var(--t3)' }}>
+          {name.charAt(0).toUpperCase()}
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t2)' }}>{name}</div>
+          <div style={{ fontSize: 10, color: 'var(--t3)' }}>{GOAL_LABELS[client.goal] || client.goal || 'No goal'} · Archived</div>
+        </div>
+        <button className="btn btn-sm btn-secondary" disabled={loading} onClick={handleReactivate}>
+          <Icon name="refresh-cw" size={11} /> {loading ? '...' : 'Reactivate'}
+        </button>
+      </div>
+    </Card>
+  );
+}
+
+// ══════════════════════════════════════
+// Main
+// ══════════════════════════════════════
 export default function ClientsScreen() {
-  const { clients } = useCoachStore();
+  const { clients, setClients } = useCoachStore();
+  const { user } = useAuthStore();
+  const { showToast } = useUIStore();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
   const [showWizard, setShowWizard] = useState(false);
   const [showCodes, setShowCodes] = useState(false);
   const [pendingClient, setPendingClient] = useState(null);
+  const [manageClient, setManageClient] = useState(null);
+  const [archivedClients, setArchivedClients] = useState([]);
+  const [loadingArchived, setLoadingArchived] = useState(false);
 
   const filtered = clients.filter(c => {
+    if (filter === 'archived') return false; // archived shown separately
     const name = (c.client_name || c.name || '').toLowerCase();
     const matchSearch = name.includes(search.toLowerCase());
     const matchFilter = filter === 'all'
@@ -902,6 +1145,17 @@ export default function ClientsScreen() {
       || (!c.isPending && (c.status || 'on-track') === filter);
     return matchSearch && matchFilter;
   });
+
+  // Load archived clients when that tab is selected
+  useEffect(() => {
+    if (filter !== 'archived' || !user?.id) return;
+    setLoadingArchived(true);
+    fetchClients(user.id, { includeArchived: true }).then(all => {
+      // archived = all clients that have archived=true
+      setArchivedClients((all || []).filter(c => c.archived));
+      setLoadingArchived(false);
+    }).catch(() => setLoadingArchived(false));
+  }, [filter, user?.id]);
 
   const handleClientClick = (client) => {
     if (client.isPending) {
@@ -912,11 +1166,48 @@ export default function ClientsScreen() {
     navigate(`/coach/clients/${id}`);
   };
 
+  const handleManageClick = (client, e) => {
+    e.stopPropagation();
+    setManageClient(client);
+  };
+
+  const handleClientUpdated = (updatedClient) => {
+    setClients(clients.map(c =>
+      (c.client_id || c.id) === (updatedClient.client_id || updatedClient.id)
+        ? { ...c, ...updatedClient } : c
+    ));
+  };
+
+  const handleClientArchived = (clientId) => {
+    setClients(clients.filter(c => (c.client_id || c.id) !== clientId));
+  };
+
+  const handleReactivate = async (clientId) => {
+    const ok = await reactivateClient(user?.id, clientId);
+    if (ok) {
+      showToast('Client reactivated', 'success');
+      setArchivedClients(prev => prev.filter(c => (c.client_id || c.id) !== clientId));
+      // Re-fetch active clients so they reappear
+      fetchClients(user.id).then(data => setClients(data || []));
+    } else {
+      showToast('Failed to reactivate', 'error');
+    }
+    return ok;
+  };
+
   return (
     <div className="screen active">
       {showWizard && <AddClientWizard onClose={() => setShowWizard(false)} />}
       {showCodes && <CodesModal onClose={() => setShowCodes(false)} />}
       {pendingClient && <PendingClientModal client={pendingClient} onClose={() => setPendingClient(null)} />}
+      {manageClient && (
+        <ClientManagePanel
+          client={manageClient}
+          onClose={() => setManageClient(null)}
+          onUpdated={handleClientUpdated}
+          onArchived={handleClientArchived}
+        />
+      )}
 
       {/* Search & filters + Add Client button */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 18, flexWrap: 'wrap' }}>
@@ -952,6 +1243,7 @@ export default function ClientsScreen() {
             { key: 'on-track', label: 'On Track' },
             { key: 'attention', label: 'Attention' },
             { key: 'at-risk', label: 'At Risk' },
+            { key: 'archived', label: 'Archived' },
           ].map(f => (
             <button
               key={f.key}
@@ -964,18 +1256,48 @@ export default function ClientsScreen() {
         </div>
       </div>
 
-      {/* Client grid */}
-      {clients.length === 0 ? (
+      {/* Client grid or archived list */}
+      {filter === 'archived' ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {loadingArchived ? (
+            <Card><div style={{ textAlign: 'center', padding: 30, color: 'var(--t3)', fontSize: 13 }}>Loading archived clients...</div></Card>
+          ) : archivedClients.length === 0 ? (
+            <Card><div style={{ textAlign: 'center', padding: 40, color: 'var(--t3)' }}>
+              <Icon name="archive" size={24} style={{ opacity: 0.2, display: 'block', margin: '0 auto 8px' }} />
+              <div style={{ fontSize: 13 }}>No archived clients</div>
+            </div></Card>
+          ) : (
+            archivedClients.map(c => (
+              <ArchivedClientCard
+                key={c.client_id || c.id}
+                client={c}
+                onReactivate={handleReactivate}
+              />
+            ))
+          )}
+        </div>
+      ) : clients.length === 0 ? (
         <EmptyState />
       ) : (
         <>
           <div className="g3">
             {filtered.map(c => (
-              <ClientCard
-                key={c.client_id || c.id}
-                client={c}
-                onClick={() => handleClientClick(c)}
-              />
+              <div key={c.client_id || c.id} style={{ position: 'relative' }}>
+                <ClientCard
+                  client={c}
+                  onClick={() => handleClientClick(c)}
+                />
+                {!c.isPending && (
+                  <button
+                    className="icon-btn"
+                    title="Client Settings"
+                    onClick={(e) => handleManageClick(c, e)}
+                    style={{ position: 'absolute', top: 10, right: 10, zIndex: 2, opacity: 0.5 }}
+                  >
+                    <Icon name="settings" size={14} />
+                  </button>
+                )}
+              </div>
             ))}
           </div>
 
