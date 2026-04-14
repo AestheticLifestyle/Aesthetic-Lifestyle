@@ -229,6 +229,14 @@ export async function fetchClients(coachId, { includeArchived = false } = {}) {
       adherence,
       streak,
       lastActive,
+      // Archive & target fields
+      archived: link.archived || false,
+      target_weight: link.target_weight || null,
+      calorie_target: link.calorie_target || null,
+      protein_target: link.protein_target || null,
+      carb_target: link.carb_target || null,
+      fat_target: link.fat_target || null,
+      notes_coach: link.notes_coach || null,
     };
   });
 
