@@ -33,8 +33,8 @@ function getGreeting(t) {
   return t('goodEvening');
 }
 
-function getStreakDays() {
-  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+function getStreakDays(t) {
+  const days = [t('dayMon'), t('dayTue'), t('dayWed'), t('dayThu'), t('dayFri'), t('daySat'), t('daySun')];
   const today = new Date();
   const dow = today.getDay();
   const mondayOffset = dow === 0 ? -6 : 1 - dow;
@@ -150,7 +150,7 @@ function WeightCard({ weightLog, selectedDate, t }) {
       </div>
       {dateWeight && (
         <div style={{ fontSize: 10, color: 'var(--green)', marginBottom: 6 }}>
-          Logged for {formatShortDate(selectedDate)}
+          {t('loggedFor')} {formatShortDate(selectedDate)}
         </div>
       )}
       <button className="btn btn-secondary btn-sm" style={{ marginTop: 4, width: '100%' }}
@@ -177,7 +177,7 @@ function StepsCard({ currentSteps, stepGoal, selectedDate, t }) {
     if (isNaN(s) || s < 0) { showToast(t('enterValidSteps'), 'error'); return; }
     setSaving(true);
     setSteps(s);
-    const result = await saveDailyCheckin({ client_id: getClientId(), date: selectedDate, steps: s }).catch(() => ({ ok: false, error: 'Network error' }));
+    const result = await saveDailyCheckin({ client_id: getClientId(), date: selectedDate, steps: s }).catch(() => ({ ok: false, error: t('networkError') }));
     const ok = result === true || (result && result.ok === true);
     setSaving(false);
     setEditing(false);
@@ -361,7 +361,7 @@ function DailyChecklist({ items, t }) {
 }
 
 function StreakCalendar({ dailyLog, t }) {
-  const days = getStreakDays();
+  const days = getStreakDays(t);
   return (
     <Card title={t('thisWeek')}>
       <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
@@ -455,10 +455,10 @@ function ProgressInsights({ weightLog, goal, t }) {
         <span style={{ fontSize: 20, color: trendColor, fontWeight: 700 }}>{trendArrow}</span>
         <div>
           <div style={{ fontSize: 13, fontWeight: 500, color: trendColor }}>
-            {trend.weekChange != null ? `${trend.weekChange > 0 ? '+' : ''}${trend.weekChange} ${t('kgThisWeek')}` : `${trend.totalChange > 0 ? '+' : ''}${trend.totalChange} kg trend`}
+            {trend.weekChange != null ? `${trend.weekChange > 0 ? '+' : ''}${trend.weekChange} ${t('kgThisWeek')}` : `${trend.totalChange > 0 ? '+' : ''}${trend.totalChange} ${t('kgTrend')}`}
           </div>
           <div style={{ fontSize: 10, color: 'var(--t3)' }}>
-            Avg: {trend.currentAvg} kg · Rate: {trend.weeklyRate > 0 ? '+' : ''}{trend.weeklyRate} kg/wk
+            {t('avg')}: {trend.currentAvg} kg · {t('rate')}: {trend.weeklyRate > 0 ? '+' : ''}{trend.weeklyRate} {t('kgPerWeek')}
           </div>
         </div>
       </div>
@@ -506,7 +506,7 @@ export default function DashboardScreen() {
   const currentSteps = dayData.currentSteps || 0;
   const waterML = dayData.waterML || 0;
 
-  const fullName = user?.user_metadata?.full_name || 'Athlete';
+  const fullName = user?.user_metadata?.full_name || t('athlete');
 
   // Check if daily check-in (mood/sleep/energy) was submitted for selected date
   const [checkinDone, setCheckinDone] = useState(false);

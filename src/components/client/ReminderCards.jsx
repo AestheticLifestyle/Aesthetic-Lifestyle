@@ -1,5 +1,6 @@
 import { useNotificationStore } from '../../stores/notificationStore';
 import { Icon } from '../../utils/icons';
+import { useT } from '../../i18n';
 
 const NAV_MAP = {
   daily_checkin: '/app/journal',
@@ -12,6 +13,7 @@ const NAV_MAP = {
 };
 
 export default function ReminderCards({ navigate }) {
+  const t = useT();
   const { smartReminders, dismissReminder } = useNotificationStore();
 
   if (!smartReminders.length) return null;
@@ -29,7 +31,7 @@ export default function ReminderCards({ navigate }) {
         letterSpacing: 1.2, marginBottom: 8, fontWeight: 600,
         display: 'flex', alignItems: 'center', gap: 6,
       }}>
-        <span style={{ fontSize: 13 }}>🔔</span> Reminders for Today
+        <span style={{ fontSize: 13 }}>🔔</span> {t('remindersForToday')}
       </div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         {sorted.map(r => {
@@ -52,11 +54,11 @@ export default function ReminderCards({ navigate }) {
             >
               <span style={{ fontSize: 22, flexShrink: 0 }}>{r.emoji}</span>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 2 }}>{r.title}</div>
-                <div style={{ fontSize: 11, color: 'var(--t2)', lineHeight: 1.4 }}>{r.message}</div>
+                <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 2 }}>{r.titleKey ? t(r.titleKey) : r.title}</div>
+                <div style={{ fontSize: 11, color: 'var(--t2)', lineHeight: 1.4 }}>{r.messageKey ? t(r.messageKey, r.messageParams) : r.message}</div>
                 {navTo && (
                   <div style={{ fontSize: 10, color: 'var(--gold)', marginTop: 4, fontWeight: 500 }}>
-                    Tap to go →
+                    {t('tapToGo')}
                   </div>
                 )}
               </div>

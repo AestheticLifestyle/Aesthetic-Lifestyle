@@ -123,7 +123,7 @@ function FoodPicker({ onSelect, onCancel }) {
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginBottom: 8 }}>
           <div>
-            <label style={{ fontSize: 10, color: 'var(--t3)' }}>Grams</label>
+            <label style={{ fontSize: 10, color: 'var(--t3)' }}>{t('grams')}</label>
             <input className="form-inp" type="number" value={grams} onChange={e => setGrams(e.target.value)}
               style={{ width: 70, marginTop: 3 }} autoFocus />
           </div>
@@ -137,7 +137,7 @@ function FoodPicker({ onSelect, onCancel }) {
         </div>
         {preview && (
           <div style={{ display: 'flex', gap: 12, fontSize: 12, marginBottom: 10 }}>
-            <span style={{ color: 'var(--gold)' }}><strong>{preview.kcal}</strong> kcal</span>
+            <span style={{ color: 'var(--gold)' }}><strong>{preview.kcal}</strong> {t('kcal')}</span>
             <span style={{ color: 'var(--green)' }}>P: <strong>{preview.p}g</strong></span>
             <span style={{ color: 'var(--blue)' }}>C: <strong>{preview.c}g</strong></span>
             <span style={{ color: 'var(--orange)' }}>F: <strong>{preview.f}g</strong></span>
@@ -156,11 +156,11 @@ function FoodPicker({ onSelect, onCancel }) {
     <div style={{ marginTop: 10, padding: 12, background: 'var(--c2)', borderRadius: 10 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
         <div style={{ fontSize: 12, fontWeight: 600 }}>
-          <Icon name="search" size={11} /> Food Database ({FOOD_DATABASE.length} items)
+          <Icon name="search" size={11} /> {t('foodDatabase')} ({FOOD_DATABASE.length} {t('items')})
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
           <button className="btn btn-ghost btn-sm" style={{ fontSize: 10, padding: '2px 8px' }} onClick={() => setCustomMode(true)}>
-            <Icon name="edit" size={9} /> Custom
+            <Icon name="edit" size={9} /> {t('custom')}
           </button>
           <button className="icon-btn" style={{ width: 22, height: 22 }} onClick={onCancel}>
             <Icon name="x" size={9} />
@@ -169,7 +169,7 @@ function FoodPicker({ onSelect, onCancel }) {
       </div>
 
       {/* Search input */}
-      <input ref={searchRef} className="form-inp" placeholder="Search foods... e.g. chicken, rice, banana"
+      <input ref={searchRef} className="form-inp" placeholder={t('searchFoodsPlaceholder')}
         value={query} onChange={e => setQuery(e.target.value)}
         style={{ width: '100%', marginBottom: 8, fontSize: 13 }} />
 
@@ -193,7 +193,7 @@ function FoodPicker({ onSelect, onCancel }) {
       <div style={{ maxHeight: 240, overflowY: 'auto', borderRadius: 8 }}>
         {results.length === 0 ? (
           <div style={{ padding: 20, textAlign: 'center', color: 'var(--t3)', fontSize: 12 }}>
-            No foods found. Try a different search or <button style={{ color: 'var(--gold)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', fontSize: 12 }} onClick={() => setCustomMode(true)}>add custom food</button>.
+            {t('noFoodsFound')} <button style={{ color: 'var(--gold)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', fontSize: 12 }} onClick={() => setCustomMode(true)}>{t('addCustomFood')}</button>.
           </div>
         ) : results.slice(0, 30).map((food, i) => (
           <div key={i} onClick={() => { setSelectedFood(food); setGrams('100'); }}
@@ -221,7 +221,7 @@ function FoodPicker({ onSelect, onCancel }) {
         ))}
         {results.length > 30 && (
           <div style={{ padding: 8, textAlign: 'center', fontSize: 10, color: 'var(--t3)' }}>
-            Showing 30 of {results.length} — refine your search
+            {t('showing30Of')} {results.length} — {t('refineSearch')}
           </div>
         )}
       </div>
@@ -231,6 +231,7 @@ function FoodPicker({ onSelect, onCancel }) {
 
 // ── Meal editor card (with food drag reorder) ──
 function MealEditor({ meal, mealIdx, onUpdate, onRemove, onMealDragStart, onMealDragOver, onMealDrop, isDraggingMeal }) {
+  const t = useT();
   const [adding, setAdding] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [mealName, setMealName] = useState(meal.name);
@@ -315,10 +316,10 @@ function MealEditor({ meal, mealIdx, onUpdate, onRemove, onMealDragStart, onMeal
           {editingName ? (
             <div style={{ display: 'flex', gap: 6, alignItems: 'center', flex: 1 }}>
               <input className="form-inp" value={mealName} onChange={e => setMealName(e.target.value)}
-                placeholder="Meal name" style={{ flex: 1, fontSize: 13 }} autoFocus
+                placeholder={t('mealName')} style={{ flex: 1, fontSize: 13 }} autoFocus
                 onKeyDown={e => e.key === 'Enter' && handleSaveName()} />
               <input className="form-inp" value={mealTime} onChange={e => setMealTime(e.target.value)}
-                placeholder="Time" style={{ width: 70, fontSize: 13 }} />
+                placeholder={t('time')} style={{ width: 70, fontSize: 13 }} />
               <button className="btn btn-primary btn-sm" style={{ padding: '4px 10px' }} onClick={handleSaveName}>
                 <Icon name="check" size={10} />
               </button>
@@ -340,7 +341,7 @@ function MealEditor({ meal, mealIdx, onUpdate, onRemove, onMealDragStart, onMeal
       <table className="tbl">
         <thead>
           <tr>
-            <th style={{ width: 20 }}></th><th>Food</th><th>Grams</th><th>Kcal</th><th>P</th><th>C</th><th>F</th><th></th>
+            <th style={{ width: 20 }}></th><th>{t('food')}</th><th>{t('grams')}</th><th>{t('kcal')}</th><th>{t('p')}</th><th>{t('c')}</th><th>{t('f')}</th><th></th>
           </tr>
         </thead>
         <tbody>
@@ -389,7 +390,7 @@ function MealEditor({ meal, mealIdx, onUpdate, onRemove, onMealDragStart, onMeal
         <FoodPicker onSelect={handleAddFood} onCancel={() => setAdding(false)} />
       ) : (
         <button className="btn btn-secondary btn-sm" style={{ marginTop: 8 }} onClick={() => setAdding(true)}>
-          <Icon name="plus" size={12} /> Add Food
+          <Icon name="plus" size={12} /> {t('addFood')}
         </button>
       )}
     </Card>
@@ -398,6 +399,7 @@ function MealEditor({ meal, mealIdx, onUpdate, onRemove, onMealDragStart, onMeal
 
 // ── Assign to client modal ──
 function AssignPanel({ plan, onClose }) {
+  const t = useT();
   const { clients } = useCoachStore();
   const { user } = useAuthStore();
   const { showToast } = useUIStore();
@@ -405,15 +407,15 @@ function AssignPanel({ plan, onClose }) {
   const [saving, setSaving] = useState(false);
 
   const handleAssign = async () => {
-    if (!selectedClientId) { showToast('Select a client', 'error'); return; }
+    if (!selectedClientId) { showToast(t('selectAClient'), 'error'); return; }
     setSaving(true);
-    const result = await saveMealPlan(selectedClientId, user.id, plan.meals || [], plan.name || 'Meal Plan');
+    const result = await saveMealPlan(selectedClientId, user.id, plan.meals || [], plan.name || t('mealPlan'));
     setSaving(false);
     if (result.ok) {
-      showToast('Meal plan assigned!', 'success');
+      showToast(t('mealPlanAssigned'), 'success');
       onClose();
     } else {
-      showToast(result.error || 'Failed to assign', 'error');
+      showToast(result.error || t('failedToAssign'), 'error');
       console.error('[AssignPanel] Failed:', result.error);
     }
   };
@@ -421,13 +423,13 @@ function AssignPanel({ plan, onClose }) {
   return (
     <Card style={{ marginTop: 14, border: '1px solid var(--gold)', borderColor: 'var(--gold)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-        <div className="kl">Assign to Client</div>
+        <div className="kl">{t('assignToClient')}</div>
         <button className="icon-btn" style={{ width: 24, height: 24 }} onClick={onClose}>
           <Icon name="x" size={10} />
         </button>
       </div>
       {clients.length === 0 ? (
-        <div style={{ fontSize: 12, color: 'var(--t3)', padding: 10 }}>No clients found. Add clients first.</div>
+        <div style={{ fontSize: 12, color: 'var(--t3)', padding: 10 }}>{t('noClientsFoundFirst')}</div>
       ) : (
         <>
           <select
@@ -436,15 +438,15 @@ function AssignPanel({ plan, onClose }) {
             onChange={e => setSelectedClientId(e.target.value)}
             style={{ width: '100%', marginBottom: 10, padding: '8px 10px', fontSize: 13 }}
           >
-            <option value="">Select a client...</option>
+            <option value="">{t('selectAClient')}</option>
             {clients.map(c => (
               <option key={c.client_id || c.id} value={c.client_id || c.id}>
-                {c.client_name || c.name || 'Unknown'}
+                {c.client_name || c.name || t('unknown')}
               </option>
             ))}
           </select>
           <button className="btn btn-primary btn-sm" style={{ width: '100%' }} onClick={handleAssign} disabled={saving}>
-            {saving ? 'Assigning...' : 'Assign Plan'}
+            {saving ? t('assigning') : t('assignPlan')}
           </button>
         </>
       )}
@@ -454,12 +456,13 @@ function AssignPanel({ plan, onClose }) {
 
 // ── Empty state ──
 function EmptyState() {
+  const t = useT();
   return (
     <Card>
       <div style={{ textAlign: 'center', padding: 60, color: 'var(--t3)' }}>
         <Icon name="utensils" size={32} style={{ opacity: 0.2, display: 'block', margin: '0 auto 14px' }} />
-        <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 6, color: 'var(--t2)' }}>No nutrition plans yet</div>
-        <div style={{ fontSize: 12 }}>Create a meal plan to assign to your clients.</div>
+        <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 6, color: 'var(--t2)' }}>{t('noNutritionPlansYet')}</div>
+        <div style={{ fontSize: 12 }}>{t('createMealPlanToAssign')}</div>
       </div>
     </Card>
   );
@@ -469,6 +472,7 @@ function EmptyState() {
 // Main
 // ══════════════════════════════════════
 export default function NutritionEditorScreen() {
+  const t = useT();
   const { nutritionTemplates, setNutritionTemplates } = useCoachStore();
   const { user } = useAuthStore();
   const { showToast } = useUIStore();
@@ -540,7 +544,7 @@ export default function NutritionEditorScreen() {
     const mealNum = (plan.meals || []).length + 1;
     const updatedPlan = {
       ...plan,
-      meals: [...(plan.meals || []), { name: `Meal ${mealNum}`, time: '', foods: [] }],
+      meals: [...(plan.meals || []), { name: t('meal') + ` ${mealNum}`, time: '', foods: [] }],
     };
     setActivePlan(updatedPlan);
     setNutritionTemplates(nutritionTemplates.map(t => t.id === updatedPlan.id ? updatedPlan : t));
@@ -552,8 +556,8 @@ export default function NutritionEditorScreen() {
   const handleNewPlan = async () => {
     const newPlan = {
       id: `new-${Date.now()}`,
-      name: 'New Meal Plan',
-      meals: [{ name: 'Meal 1', time: '08:00', foods: [] }],
+      name: t('newMealPlan'),
+      meals: [{ name: t('meal') + ' 1', time: '08:00', foods: [] }],
       targets: { calories: 2400, protein: 180, carbs: 260, fat: 70 },
     };
     // Save to Supabase immediately
@@ -603,9 +607,9 @@ export default function NutritionEditorScreen() {
         setNutritionTemplates(nutritionTemplates.map(t => t.id === plan.id ? updatedPlan : t));
       }
       markClean();
-      showToast('Template saved!', 'success');
+      showToast(t('templateSaved'), 'success');
     } else {
-      showToast(result.error || 'Failed to save', 'error');
+      showToast(result.error || t('failedToSave'), 'error');
     }
   };
 
@@ -615,7 +619,7 @@ export default function NutritionEditorScreen() {
     if (isReal) await deleteNutritionTemplate(plan.id);
     setNutritionTemplates(nutritionTemplates.filter(t => t.id !== plan.id));
     setActivePlan(null);
-    showToast('Plan deleted', 'success');
+    showToast(t('planDeleted'), 'success');
   };
 
   // ══════════════════════════════════════
@@ -636,7 +640,7 @@ export default function NutritionEditorScreen() {
                   className="form-inp"
                   value={planName}
                   onChange={e => setPlanName(e.target.value)}
-                  placeholder="Plan name"
+                  placeholder={t('planName')}
                   autoFocus
                   onKeyDown={e => e.key === 'Enter' && handleSaveName()}
                   style={{ flex: 1, fontSize: 15, fontWeight: 600 }}
@@ -659,10 +663,10 @@ export default function NutritionEditorScreen() {
           </div>
           <div style={{ display: 'flex', gap: 6 }}>
             <button className="btn btn-secondary btn-sm" onClick={() => setShowAssign(!showAssign)}>
-              <Icon name="user" size={12} /> Assign
+              <Icon name="user" size={12} /> {t('assign')}
             </button>
             <button className="btn btn-primary btn-sm" onClick={handleSaveTemplate} disabled={saving}>
-              <Icon name="check" size={12} /> {saving ? 'Saving...' : 'Save'}
+              <Icon name="check" size={12} /> {saving ? t('saving') : t('save')}
             </button>
           </div>
         </div>
@@ -675,13 +679,13 @@ export default function NutritionEditorScreen() {
         {/* Macro targets (editable) */}
         {editingTargets ? (
           <Card style={{ marginBottom: 18 }}>
-            <div className="kl" style={{ marginBottom: 8 }}>Macro Targets</div>
+            <div className="kl" style={{ marginBottom: 8 }}>{t('macroTargets')}</div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {[
-                { key: 'calories', label: 'Calories', unit: 'kcal' },
-                { key: 'protein', label: 'Protein', unit: 'g' },
-                { key: 'carbs', label: 'Carbs', unit: 'g' },
-                { key: 'fat', label: 'Fat', unit: 'g' },
+                { key: 'calories', label: t('calories'), unit: t('kcal') },
+                { key: 'protein', label: t('protein'), unit: t('g') },
+                { key: 'carbs', label: t('carbs'), unit: t('g') },
+                { key: 'fat', label: t('fat'), unit: t('g') },
               ].map(t => (
                 <div key={t.key} style={{ flex: '1 1 80px' }}>
                   <label style={{ fontSize: 10, color: 'var(--t3)' }}>{t.label} ({t.unit})</label>
@@ -696,8 +700,8 @@ export default function NutritionEditorScreen() {
               ))}
             </div>
             <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
-              <button className="btn btn-primary btn-sm" onClick={handleSaveTargets}>Save Targets</button>
-              <button className="btn btn-secondary btn-sm" onClick={() => setEditingTargets(false)}>Cancel</button>
+              <button className="btn btn-primary btn-sm" onClick={handleSaveTargets}>{t('saveTargets')}</button>
+              <button className="btn btn-secondary btn-sm" onClick={() => setEditingTargets(false)}>{t('cancel')}</button>
             </div>
           </Card>
         ) : (
@@ -716,7 +720,7 @@ export default function NutritionEditorScreen() {
                 setEditingTargets(true);
               }}
             >
-              <Icon name="edit" size={9} /> Edit Targets
+              <Icon name="edit" size={9} /> {t('editTargets')}
             </button>
           </div>
         )}
@@ -748,9 +752,9 @@ export default function NutritionEditorScreen() {
 
         <ConfirmDialog
           open={confirmRemoveMeal !== null}
-          title="Remove this meal?"
-          message="All foods in this meal will be removed."
-          confirmLabel="Remove"
+          title={t('removeThisMeal')}
+          message={t('allFoodsInMealWillBeRemoved')}
+          confirmLabel={t('remove')}
           danger
           onConfirm={executeMealRemove}
           onCancel={() => setConfirmRemoveMeal(null)}
@@ -765,9 +769,9 @@ export default function NutritionEditorScreen() {
   return (
     <div className="screen active">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-        <div style={{ fontSize: 12, color: 'var(--t3)' }}>{nutritionTemplates.length} plans</div>
+        <div style={{ fontSize: 12, color: 'var(--t3)' }}>{nutritionTemplates.length} {t('plans')}</div>
         <button className="btn btn-primary btn-sm" onClick={handleNewPlan}>
-          <Icon name="plus" size={12} /> New Plan
+          <Icon name="plus" size={12} /> {t('newPlan')}
         </button>
       </div>
 

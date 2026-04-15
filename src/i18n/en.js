@@ -587,4 +587,83 @@ export default {
   assignedMeals: 'Assigned Meals',
   savePlan: 'Save Plan',
   nutritionPlanSaved: 'Nutrition plan saved!',
+
+  // ── Dashboard extras ──
+  remindersForToday: 'Reminders for Today',
+  workoutToday: 'Workout Today',
+  workoutTodayDesc: 'You have a training session scheduled. Time to move.',
+  tapToGo: 'Tap to go →',
+  today: 'TODAY',
+  loggedFor: 'Logged for',
+  networkError: 'Network error',
+  kgTrend: 'kg trend',
+  avg: 'Avg:',
+  rate: 'Rate:',
+  kgPerWeek: 'kg/wk',
+
+  // ── Day abbreviations ──
+  dayMon: 'Mon',
+  dayTue: 'Tue',
+  dayWed: 'Wed',
+  dayThu: 'Thu',
+  dayFri: 'Fri',
+  daySat: 'Sat',
+  daySun: 'Sun',
+
+  // ── Time ago ──
+  justNow: 'Just now',
+  minutesAgo: '{n}m ago',
+  hoursAgo: '{n}h ago',
+  daysAgo: '{n}d ago',
+
+  // ── Notifications ──
+  notifications: 'Notifications',
+  markAllRead: 'Mark all read',
+  todaysReminders: "Today's Reminders",
+  new: 'New',
+  earlier: 'Earlier',
+  noNotificationsYet: 'No notifications yet',
+  liveSyncActive: 'Live sync active',
+
+  // ── Nutrition extras ──
+  items: 'items',
+  assignToClient: 'Assign to Client',
+  noClientsFoundFirst: 'No clients found. Add clients first.',
+  selectAClient: 'Select a client...',
+  unknown: 'Unknown',
+  assigning: 'Assigning...',
+  assignPlan: 'Assign Plan',
+  newMealPlan: 'New Meal Plan',
+  macroTargets: 'Macro Targets',
+
+  // ── Progress extras ──
+  lastWeek: 'Last Week',
+
+  // ── Category translations ──
+  catProtein: 'Protein',
+  catSeafood: 'Seafood',
+  catDairy: 'Dairy',
+  catGrains: 'Grains',
+  catBread: 'Bread',
+  catVegetables: 'Vegetables',
+  catFruits: 'Fruits',
+  catLegumes: 'Legumes',
+  catNutsSeeds: 'Nuts & Seeds',
+  catOilsFats: 'Oils & Fats',
+  catCondiments: 'Condiments',
+  catBeverages: 'Beverages',
+  catSnacks: 'Snacks',
+
+  // ── Smart Reminders ──
+  reminderWeighIn: 'Morning Weigh-in',
+  reminderWeighInMsg: 'Step on the scale before eating. Consistency is key.',
+  reminderLogMeals: 'Log Your Meals',
+  reminderLogMealsMsg: "You haven't logged any meals today. Track what you eat to stay on plan.",
+  reminderLogMealsEvening: "Day's almost over — log your meals so your coach can review them.",
+  reminderHydration: 'Hydration Check',
+  reminderHydrationMsg: "You're at {current}L so far. Aim for at least 3L today.",
+  reminderCheckin: 'Daily Check-in',
+  reminderCheckinMsg: "Don't forget to submit your daily check-in before bed.",
+  reminderSteps: 'Step Target',
+  reminderStepsMsg: '{remaining} steps to go. A short walk can get you there.',
 };

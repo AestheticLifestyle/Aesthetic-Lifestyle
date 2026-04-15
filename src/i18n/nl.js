@@ -584,4 +584,83 @@ export default {
   assignedMeals: 'Toegewezen Maaltijden',
   savePlan: 'Plan Opslaan',
   nutritionPlanSaved: 'Voedingsplan opgeslagen!',
+
+  // ── Dashboard extras ──
+  remindersForToday: 'Herinneringen voor Vandaag',
+  workoutToday: 'Training Vandaag',
+  workoutTodayDesc: 'Je hebt een trainingssessie gepland. Tijd om te bewegen.',
+  tapToGo: 'Ga naar training →',
+  today: 'VANDAAG',
+  loggedFor: 'Gelogd voor',
+  networkError: 'Netwerkfout',
+  kgTrend: 'kg trend',
+  avg: 'Gem:',
+  rate: 'Snelheid:',
+  kgPerWeek: 'kg/wk',
+
+  // ── Day abbreviations ──
+  dayMon: 'Ma',
+  dayTue: 'Di',
+  dayWed: 'Wo',
+  dayThu: 'Do',
+  dayFri: 'Vr',
+  daySat: 'Za',
+  daySun: 'Zo',
+
+  // ── Time ago ──
+  justNow: 'Zojuist',
+  minutesAgo: '{n}m geleden',
+  hoursAgo: '{n}u geleden',
+  daysAgo: '{n}d geleden',
+
+  // ── Notifications ──
+  notifications: 'Meldingen',
+  markAllRead: 'Alles gelezen',
+  todaysReminders: 'Herinneringen van Vandaag',
+  new: 'Nieuw',
+  earlier: 'Eerder',
+  noNotificationsYet: 'Nog geen meldingen',
+  liveSyncActive: 'Live synchronisatie actief',
+
+  // ── Nutrition extras ──
+  items: 'items',
+  assignToClient: 'Toewijzen aan Cliënt',
+  noClientsFoundFirst: 'Geen cliënten gevonden. Voeg eerst cliënten toe.',
+  selectAClient: 'Selecteer een cliënt...',
+  unknown: 'Onbekend',
+  assigning: 'Toewijzen...',
+  assignPlan: 'Plan Toewijzen',
+  newMealPlan: 'Nieuw Maaltijdplan',
+  macroTargets: 'Macro Doelen',
+
+  // ── Progress extras ──
+  lastWeek: 'Vorige Week',
+
+  // ── Category translations ──
+  catProtein: 'Eiwitten',
+  catSeafood: 'Vis & Zeevruchten',
+  catDairy: 'Zuivel',
+  catGrains: 'Granen & Aardappelen',
+  catBread: 'Brood',
+  catVegetables: 'Groenten',
+  catFruits: 'Fruit',
+  catLegumes: 'Peulvruchten',
+  catNutsSeeds: 'Noten & Zaden',
+  catOilsFats: 'Oliën & Vetten',
+  catCondiments: 'Sauzen & Kruiden',
+  catBeverages: 'Dranken',
+  catSnacks: 'Snacks',
+
+  // ── Slimme Herinneringen ──
+  reminderWeighIn: 'Ochtend Weging',
+  reminderWeighInMsg: 'Stap op de weegschaal voor het eten. Consistentie is de sleutel.',
+  reminderLogMeals: 'Log Je Maaltijden',
+  reminderLogMealsMsg: 'Je hebt vandaag nog geen maaltijden gelogd. Houd bij wat je eet.',
+  reminderLogMealsEvening: 'De dag is bijna voorbij — log je maaltijden zodat je coach ze kan bekijken.',
+  reminderHydration: 'Hydratatie Check',
+  reminderHydrationMsg: 'Je zit op {current}L tot nu toe. Streef naar minimaal 3L vandaag.',
+  reminderCheckin: 'Dagelijkse Check-in',
+  reminderCheckinMsg: 'Vergeet niet je dagelijkse check-in in te vullen voor het slapen.',
+  reminderSteps: 'Stappen Doel',
+  reminderStepsMsg: 'Nog {remaining} stappen te gaan. Een korte wandeling kan je daar brengen.',
 };

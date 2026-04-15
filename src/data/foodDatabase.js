@@ -406,9 +406,13 @@ const FOOD_DATABASE = [
   { name: 'Zoete Aardappel', cat: 'Grains', per100: { kcal: 86, p: 1.6, c: 20.1, f: 0.1 } },
   { name: 'Aardappelpuree', cat: 'Grains', per100: { kcal: 340, p: 7.5, c: 73, f: 1 } },
   { name: 'Diepvries Friet', cat: 'Grains', per100: { kcal: 150, p: 2.2, c: 24, f: 5.2 } },
+  { name: 'Witte Rijst', cat: 'Grains', per100: { kcal: 360, p: 6.7, c: 78.9, f: 0.6 } },
+  { name: 'Basmatirijst', cat: 'Grains', per100: { kcal: 350, p: 7.5, c: 77, f: 0.6 } },
   { name: 'Nasirijst', cat: 'Grains', per100: { kcal: 356, p: 7.5, c: 77, f: 0.9 } },
   { name: 'Bamimie', cat: 'Grains', per100: { kcal: 352, p: 12, c: 70, f: 1.3 } },
   { name: 'Zilvervliesrijst', cat: 'Grains', per100: { kcal: 362, p: 7.5, c: 76, f: 2.7 } },
+  { name: 'Volkoren Pasta', cat: 'Grains', per100: { kcal: 348, p: 13, c: 65, f: 2.5 } },
+  { name: 'Witte Pasta', cat: 'Grains', per100: { kcal: 371, p: 13, c: 74.7, f: 1.5 } },
   { name: 'Couscous NL', cat: 'Grains', per100: { kcal: 376, p: 12.8, c: 77.4, f: 0.6 } },
   { name: 'Wraps', cat: 'Grains', per100: { kcal: 310, p: 8, c: 52, f: 7 } },
 

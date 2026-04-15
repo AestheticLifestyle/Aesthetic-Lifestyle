@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { useNotificationStore } from '../../stores/notificationStore';
 import { Icon } from '../../utils/icons';
+import { useT } from '../../i18n';
 
 const PRIORITY_COLORS = {
   high: 'var(--red)',
@@ -9,18 +10,19 @@ const PRIORITY_COLORS = {
   low: 'var(--t3)',
 };
 
-function timeAgo(dateStr) {
+function timeAgo(dateStr, t) {
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'Just now';
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1) return t('justNow');
+  if (mins < 60) return t('minutesAgo', { n: mins });
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return t('hoursAgo', { n: hours });
   const days = Math.floor(hours / 24);
-  return `${days}d ago`;
+  return t('daysAgo', { n: days });
 }
 
 export default function NotificationPanel() {
+  const t = useT();
   const { user } = useAuthStore();
   const {
     notifications, smartReminders, panelOpen, loading,
@@ -63,13 +65,13 @@ export default function NotificationPanel() {
         padding: '12px 16px', borderBottom: '1px solid var(--b2)',
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
       }}>
-        <span style={{ fontSize: 14, fontWeight: 600 }}>Notifications</span>
+        <span style={{ fontSize: 14, fontWeight: 600 }}>{t('notifications')}</span>
         {hasUnread && (
           <button
             onClick={() => markAllRead(user?.id)}
             style={{ fontSize: 10, color: 'var(--gold)', background: 'none', border: 'none', cursor: 'pointer' }}
           >
-            Mark all read
+            {t('markAllRead')}
           </button>
         )}
       </div>
@@ -77,14 +79,14 @@ export default function NotificationPanel() {
       {/* Content */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {loading && (
-          <div style={{ padding: 20, textAlign: 'center', color: 'var(--t3)', fontSize: 12 }}>Loading...</div>
+          <div style={{ padding: 20, textAlign: 'center', color: 'var(--t3)', fontSize: 12 }}>{t('loading')}</div>
         )}
 
         {/* Smart reminders (real-time, generated on load) */}
         {smartReminders.length > 0 && (
           <div style={{ padding: '8px 12px 4px' }}>
             <div style={{ fontSize: 9, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 6, fontWeight: 600 }}>
-              Today's Reminders
+              {t('todaysReminders')}
             </div>
             {smartReminders.map(r => (
               <div key={r.type} style={{
@@ -112,7 +114,7 @@ export default function NotificationPanel() {
         {unreadNotifs.length > 0 && (
           <div style={{ padding: '8px 12px 4px' }}>
             <div style={{ fontSize: 9, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 6, fontWeight: 600 }}>
-              New
+              {t('new')}
             </div>
             {unreadNotifs.map(n => (
               <div
@@ -133,7 +135,7 @@ export default function NotificationPanel() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 1 }}>{n.title}</div>
                   <div style={{ fontSize: 11, color: 'var(--t2)', lineHeight: 1.3 }}>{n.message}</div>
-                  <div style={{ fontSize: 9, color: 'var(--t3)', marginTop: 3 }}>{timeAgo(n.created_at)}</div>
+                  <div style={{ fontSize: 9, color: 'var(--t3)', marginTop: 3 }}>{timeAgo(n.created_at, t)}</div>
                 </div>
               </div>
             ))}
@@ -144,7 +146,7 @@ export default function NotificationPanel() {
         {readNotifs.length > 0 && (
           <div style={{ padding: '8px 12px 4px' }}>
             <div style={{ fontSize: 9, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 6, fontWeight: 600 }}>
-              Earlier
+              {t('earlier')}
             </div>
             {readNotifs.map(n => (
               <div key={n.id} style={{
@@ -154,7 +156,7 @@ export default function NotificationPanel() {
                 <Icon name={n.icon || 'bell'} size={13} style={{ color: 'var(--t3)', marginTop: 2, flexShrink: 0 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 11, color: 'var(--t2)' }}>{n.title}</div>
-                  <div style={{ fontSize: 9, color: 'var(--t3)', marginTop: 1 }}>{timeAgo(n.created_at)}</div>
+                  <div style={{ fontSize: 9, color: 'var(--t3)', marginTop: 1 }}>{timeAgo(n.created_at, t)}</div>
                 </div>
               </div>
             ))}
@@ -165,7 +167,7 @@ export default function NotificationPanel() {
         {!loading && smartReminders.length === 0 && notifications.length === 0 && (
           <div style={{ padding: 30, textAlign: 'center' }}>
             <div style={{ fontSize: 28, marginBottom: 8 }}>🔔</div>
-            <div style={{ fontSize: 12, color: 'var(--t3)' }}>No notifications yet</div>
+            <div style={{ fontSize: 12, color: 'var(--t3)' }}>{t('noNotificationsYet')}</div>
           </div>
         )}
       </div>
