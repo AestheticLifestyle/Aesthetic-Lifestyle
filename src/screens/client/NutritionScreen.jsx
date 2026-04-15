@@ -4,6 +4,7 @@ import { useUIStore } from '../../stores/uiStore';
 import { Card, ProgressRing, DateNavigator } from '../../components/ui';
 import { Icon } from '../../utils/icons';
 import AddFoodModal from '../../components/nutrition/AddFoodModal';
+import { useT } from '../../i18n';
 
 // ---------- Macro bar ----------
 function MacroBar({ label, current, target, color }) {
@@ -86,7 +87,7 @@ function GramEditor({ food, onSave, onCancel }) {
 }
 
 // ---------- Food item row ----------
-function FoodItem({ food, mealIdx, foodIdx, isExtra }) {
+function FoodItem({ food, mealIdx, foodIdx, isExtra, t }) {
   const { toggleFoodCheck, toggleExtraFoodCheck, removeExtraFood, removePlanFood, restorePlanFood, updateFoodGrams } = useClientStore();
   const [editing, setEditing] = useState(false);
   const isRemoved = food._removed;
@@ -141,7 +142,7 @@ function FoodItem({ food, mealIdx, foodIdx, isExtra }) {
           </div>
         </div>
         <button className="afm-restore-btn" onClick={handleRestore} aria-label="Restore">
-          Undo
+          {t('undo')}
         </button>
       </div>
     );
@@ -155,8 +156,8 @@ function FoodItem({ food, mealIdx, foodIdx, isExtra }) {
       <div style={{ flex: 1, minWidth: 0 }} onClick={handleCheck}>
         <div className="ct">
           {food.fname}
-          {isExtra && <span className="tag t-bl" style={{ marginLeft: 6, fontSize: 8, padding: '1px 5px' }}>added</span>}
-          {hasGramOverride && <span className="tag t-or" style={{ marginLeft: 6, fontSize: 8, padding: '1px 5px' }}>edited</span>}
+          {isExtra && <span className="tag t-bl" style={{ marginLeft: 6, fontSize: 8, padding: '1px 5px' }}>{t('added')}</span>}
+          {hasGramOverride && <span className="tag t-or" style={{ marginLeft: 6, fontSize: 8, padding: '1px 5px' }}>{t('edited')}</span>}
         </div>
 
         {editing ? (
@@ -172,7 +173,7 @@ function FoodItem({ food, mealIdx, foodIdx, isExtra }) {
               </span>
             )}
             {food.grams > 0 && ' · '}
-            {food.kcal} kcal · P:{food.p} C:{food.c} F:{food.f}
+            {food.kcal} kcal · {t('protein').charAt(0)}:{food.p} {t('carbs').charAt(0)}:{food.c} {t('fat').charAt(0)}:{food.f}
           </div>
         )}
       </div>
@@ -188,7 +189,7 @@ function FoodItem({ food, mealIdx, foodIdx, isExtra }) {
 }
 
 // ---------- Meal card ----------
-function MealCard({ meal, mealIdx, onAddFood }) {
+function MealCard({ meal, mealIdx, onAddFood, t }) {
   const { logMeal } = useClientStore();
   const { showToast } = useUIStore();
   const planFoods = meal.foods?.filter(f => !f.addedByClient) || [];
@@ -204,7 +205,7 @@ function MealCard({ meal, mealIdx, onAddFood }) {
 
   const handleLogAll = () => {
     logMeal(mealIdx);
-    showToast(`${meal.name} logged`, 'success');
+    showToast(t('mealLogged', { name: meal.name }), 'success');
   };
 
   const isQuickAdd = meal._isQuickAdd;
@@ -222,10 +223,10 @@ function MealCard({ meal, mealIdx, onAddFood }) {
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {!isQuickAdd && meal.logged && <span className="tag t-gr">Logged</span>}
+          {!isQuickAdd && meal.logged && <span className="tag t-gr">{t('logged')}</span>}
           {!isQuickAdd && !meal.logged && (
             <button className="btn btn-green btn-sm" onClick={handleLogAll}>
-              Log All
+              {t('logAll')}
             </button>
           )}
         </div>
@@ -238,6 +239,7 @@ function MealCard({ meal, mealIdx, onAddFood }) {
           mealIdx={mealIdx}
           foodIdx={fi}
           isExtra={!!food.addedByClient}
+          t={t}
         />
       ))}
 
@@ -247,7 +249,7 @@ function MealCard({ meal, mealIdx, onAddFood }) {
         onClick={() => onAddFood(isQuickAdd ? null : mealIdx, meal.name)}
       >
         <Icon name="plus" size={11} />
-        <span>Add food</span>
+        <span>{t('addFood')}</span>
       </button>
     </Card>
   );
@@ -255,6 +257,7 @@ function MealCard({ meal, mealIdx, onAddFood }) {
 
 // ---------- Main ----------
 export default function NutritionScreen() {
+  const t = useT();
   const { macroTargets, getMealsForDate, getExtraFoodsForDate, addExtraFood } = useClientStore();
   const meals = getMealsForDate();
 
@@ -296,20 +299,20 @@ export default function NutritionScreen() {
       <Card className="mb-14">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <div>
-            <div className="kl">Daily Nutrition</div>
+            <div className="kl">{t('dailyNutrition')}</div>
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, marginTop: 4 }}>
               <span className="kv" style={{ color: 'var(--gold)' }}>{totals.kcal}</span>
               <span className="ku">/ {macroTargets.calories} kcal</span>
             </div>
             <div style={{ fontSize: 11, color: 'var(--t3)', marginTop: 4 }}>
-              {loggedMeals}/{planMeals.length} meals logged
+              {t('mealsLogged', { logged: loggedMeals, total: planMeals.length })}
             </div>
           </div>
           <div style={{ display: 'flex', gap: 14 }}>
             {[
-              { label: 'P', val: totals.p, max: macroTargets.protein, color: 'var(--green)' },
-              { label: 'C', val: totals.c, max: macroTargets.carbs, color: 'var(--blue)' },
-              { label: 'F', val: totals.f, max: macroTargets.fat, color: 'var(--orange)' },
+              { label: t('protein').charAt(0).toUpperCase(), val: totals.p, max: macroTargets.protein, color: 'var(--green)' },
+              { label: t('carbs').charAt(0).toUpperCase(), val: totals.c, max: macroTargets.carbs, color: 'var(--blue)' },
+              { label: t('fat').charAt(0).toUpperCase(), val: totals.f, max: macroTargets.fat, color: 'var(--orange)' },
             ].map(m => (
               <div key={m.label} style={{ textAlign: 'center' }}>
                 <ProgressRing value={m.val} max={m.max} size={48} stroke={3.5} color={m.color}>
@@ -324,9 +327,9 @@ export default function NutritionScreen() {
         </div>
 
         {/* Macro bars */}
-        <MacroBar label="Protein" current={totals.p} target={macroTargets.protein} color="var(--green)" />
-        <MacroBar label="Carbs" current={totals.c} target={macroTargets.carbs} color="var(--blue)" />
-        <MacroBar label="Fat" current={totals.f} target={macroTargets.fat} color="var(--orange)" />
+        <MacroBar label={t('protein')} current={totals.p} target={macroTargets.protein} color="var(--green)" />
+        <MacroBar label={t('carbs')} current={totals.c} target={macroTargets.carbs} color="var(--blue)" />
+        <MacroBar label={t('fat')} current={totals.f} target={macroTargets.fat} color="var(--orange)" />
       </Card>
 
       {/* Meal cards */}
@@ -336,19 +339,19 @@ export default function NutritionScreen() {
             <Card>
               <div style={{ textAlign: 'center', padding: 40 }}>
                 <Icon name="utensils" size={32} style={{ opacity: 0.3, marginBottom: 12 }} />
-                <div style={{ fontSize: 16, fontWeight: 500, marginBottom: 6 }}>No Meal Plan</div>
+                <div style={{ fontSize: 16, fontWeight: 500, marginBottom: 6 }}>{t('noMealPlan')}</div>
                 <div style={{ fontSize: 13, color: 'var(--t3)', marginBottom: 16 }}>
-                  Your coach hasn't assigned a meal plan yet.
+                  {t('noMealPlanDesc')}
                 </div>
-                <button className="btn btn-p" onClick={() => handleOpenAdd(null, 'Quick Add')}>
-                  <Icon name="plus" size={12} /> Log a meal
+                <button className="btn btn-p" onClick={() => handleOpenAdd(null, t('quickAdd'))}>
+                  <Icon name="plus" size={12} /> {t('logAMeal')}
                 </button>
               </div>
             </Card>
           </>
         ) : (
           meals.map((meal, idx) => (
-            <MealCard key={idx} meal={meal} mealIdx={idx} onAddFood={handleOpenAdd} />
+            <MealCard key={idx} meal={meal} mealIdx={idx} onAddFood={handleOpenAdd} t={t} />
           ))
         )}
 
@@ -356,10 +359,10 @@ export default function NutritionScreen() {
         {meals.length > 0 && !meals.some(m => m._isQuickAdd) && (
           <button
             className="afm-quick-add-btn"
-            onClick={() => handleOpenAdd(null, 'Quick Add')}
+            onClick={() => handleOpenAdd(null, t('quickAdd'))}
           >
             <Icon name="plus" size={13} />
-            <span>Quick Add Food</span>
+            <span>{t('quickAddFood')}</span>
           </button>
         )}
       </div>

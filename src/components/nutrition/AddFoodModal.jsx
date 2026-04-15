@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { searchFoods, computeMacros, FOOD_CATEGORIES } from '../../data/foodDatabase';
 import { Icon } from '../../utils/icons';
+import { useT } from '../../i18n';
 
 /**
  * Full-screen slide-up modal for searching & adding foods.
@@ -11,6 +12,7 @@ import { Icon } from '../../utils/icons';
  *   mealName    — optional string shown in header ("Add to Breakfast")
  */
 export default function AddFoodModal({ open, onClose, onAddFood, mealName }) {
+  const t = useT();
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('All');
   const [selectedFood, setSelectedFood] = useState(null);
@@ -97,10 +99,10 @@ export default function AddFoodModal({ open, onClose, onAddFood, mealName }) {
         <div className="afm-header">
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--t1)' }}>
-              {mealName ? `Add to ${mealName}` : 'Add Food'}
+              {mealName ? t('addTo', { meal: mealName }) : t('addFoodTitle')}
             </div>
             <div style={{ fontSize: 11, color: 'var(--t3)', marginTop: 2 }}>
-              Search from 270+ foods or add custom
+              {t('searchFromFoods')}
             </div>
           </div>
           <button className="icon-btn" onClick={handleClose} aria-label="Close">
@@ -114,13 +116,13 @@ export default function AddFoodModal({ open, onClose, onAddFood, mealName }) {
             className={`chip ${!customMode ? 'active' : ''}`}
             onClick={() => { setCustomMode(false); setSelectedFood(null); }}
           >
-            Search Database
+            {t('searchDatabase')}
           </button>
           <button
             className={`chip ${customMode ? 'active' : ''}`}
             onClick={() => { setCustomMode(true); setSelectedFood(null); }}
           >
-            Custom Entry
+            {t('customEntry')}
           </button>
         </div>
 
@@ -131,7 +133,7 @@ export default function AddFoodModal({ open, onClose, onAddFood, mealName }) {
               <Icon name="search" size={14} style={{ color: 'var(--t3)', flexShrink: 0 }} />
               <input
                 className="search-input"
-                placeholder="Search food..."
+                placeholder={t('searchFood')}
                 value={query}
                 onChange={e => { setQuery(e.target.value); setSelectedFood(null); }}
                 autoFocus
@@ -163,7 +165,7 @@ export default function AddFoodModal({ open, onClose, onAddFood, mealName }) {
                   {selectedFood.name}
                 </div>
                 <div className="afm-gram-row">
-                  <label style={{ fontSize: 12, color: 'var(--t3)' }}>Amount (g)</label>
+                  <label style={{ fontSize: 12, color: 'var(--t3)' }}>{t('amountGrams')}</label>
                   <input
                     className="afm-gram-input"
                     type="number"
@@ -175,9 +177,9 @@ export default function AddFoodModal({ open, onClose, onAddFood, mealName }) {
                 </div>
                 <div className="afm-macro-row">
                   <div className="afm-macro"><span className="afm-mv">{preview.kcal}</span><span className="afm-ml">kcal</span></div>
-                  <div className="afm-macro"><span className="afm-mv" style={{ color: 'var(--green)' }}>{preview.p}g</span><span className="afm-ml">protein</span></div>
-                  <div className="afm-macro"><span className="afm-mv" style={{ color: 'var(--blue)' }}>{preview.c}g</span><span className="afm-ml">carbs</span></div>
-                  <div className="afm-macro"><span className="afm-mv" style={{ color: 'var(--orange)' }}>{preview.f}g</span><span className="afm-ml">fat</span></div>
+                  <div className="afm-macro"><span className="afm-mv" style={{ color: 'var(--green)' }}>{preview.p}g</span><span className="afm-ml">{t('protein').toLowerCase()}</span></div>
+                  <div className="afm-macro"><span className="afm-mv" style={{ color: 'var(--blue)' }}>{preview.c}g</span><span className="afm-ml">{t('carbs').toLowerCase()}</span></div>
+                  <div className="afm-macro"><span className="afm-mv" style={{ color: 'var(--orange)' }}>{preview.f}g</span><span className="afm-ml">{t('fat').toLowerCase()}</span></div>
                 </div>
                 {/* Quick gram buttons */}
                 <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
@@ -188,7 +190,7 @@ export default function AddFoodModal({ open, onClose, onAddFood, mealName }) {
                   ))}
                 </div>
                 <button className="btn btn-p" style={{ width: '100%', marginTop: 12 }} onClick={handleAdd}>
-                  Add {preview.fname} ({preview.kcal} kcal)
+                  {t('addFoodBtn', { name: preview.fname, kcal: preview.kcal })}
                 </button>
               </div>
             )}
@@ -198,12 +200,12 @@ export default function AddFoodModal({ open, onClose, onAddFood, mealName }) {
               <div className="afm-list">
                 {results.length === 0 && query.length > 0 && (
                   <div style={{ textAlign: 'center', padding: 30, color: 'var(--t3)', fontSize: 13 }}>
-                    No foods found. Try a different search or use Custom Entry.
+                    {t('noFoodsFoundSearch')}
                   </div>
                 )}
                 {results.length === 0 && query.length === 0 && (
                   <div style={{ textAlign: 'center', padding: 30, color: 'var(--t3)', fontSize: 13 }}>
-                    Start typing to search foods
+                    {t('startTypingSearch')}
                   </div>
                 )}
                 {results.map((food, i) => (
@@ -211,7 +213,7 @@ export default function AddFoodModal({ open, onClose, onAddFood, mealName }) {
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--t1)' }}>{food.name}</div>
                       <div style={{ fontSize: 11, color: 'var(--t3)', marginTop: 1 }}>
-                        {food.per100.kcal} kcal · P:{food.per100.p} C:{food.per100.c} F:{food.per100.f} <span style={{ opacity: 0.5 }}>per 100g</span>
+                        {food.per100.kcal} kcal · {t('protein').charAt(0)}:{food.per100.p} {t('carbs').charAt(0)}:{food.per100.c} {t('fat').charAt(0)}:{food.per100.f} <span style={{ opacity: 0.5 }}>{t('per100gLabel')}</span>
                       </div>
                     </div>
                     <div className="tag t-gy" style={{ fontSize: 9 }}>{food.cat}</div>
@@ -224,24 +226,24 @@ export default function AddFoodModal({ open, onClose, onAddFood, mealName }) {
           /* Custom entry mode */
           <div className="afm-custom">
             <div className="afm-field">
-              <label>Food name</label>
-              <input placeholder="e.g. Pizza, Birthday cake..." value={customName} onChange={e => setCustomName(e.target.value)} autoFocus />
+              <label>{t('foodName')}</label>
+              <input placeholder={t('foodNamePlaceholder')} value={customName} onChange={e => setCustomName(e.target.value)} autoFocus />
             </div>
             <div className="afm-custom-macros">
               <div className="afm-field">
-                <label>Calories</label>
+                <label>{t('calories')}</label>
                 <input type="number" placeholder="kcal" value={customKcal} onChange={e => setCustomKcal(e.target.value)} />
               </div>
               <div className="afm-field">
-                <label>Protein (g)</label>
+                <label>{t('proteinG')}</label>
                 <input type="number" placeholder="0" value={customP} onChange={e => setCustomP(e.target.value)} />
               </div>
               <div className="afm-field">
-                <label>Carbs (g)</label>
+                <label>{t('carbsG')}</label>
                 <input type="number" placeholder="0" value={customC} onChange={e => setCustomC(e.target.value)} />
               </div>
               <div className="afm-field">
-                <label>Fat (g)</label>
+                <label>{t('fatG')}</label>
                 <input type="number" placeholder="0" value={customF} onChange={e => setCustomF(e.target.value)} />
               </div>
             </div>
@@ -251,7 +253,7 @@ export default function AddFoodModal({ open, onClose, onAddFood, mealName }) {
               onClick={handleCustomAdd}
               disabled={!customName.trim()}
             >
-              Add Custom Food
+              {t('addCustomFood')}
             </button>
           </div>
         )}
