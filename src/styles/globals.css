@@ -4,7 +4,60 @@
 @import url('https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600;700&family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ── LOCK MOBILE VIEWPORT — no horizontal scroll, no zoom ── */
+html, body {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  touch-action: pan-y; /* allow vertical scroll only, disable pinch-zoom */
+}
 html { scroll-behavior: smooth; }
+
+/* Root container — lock width */
+#root {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* All screens and pages must fit the viewport */
+.screen, .page, .main-content, .main-area, .main, .app-wrap {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* Safety net: prevent any image, video, iframe, pre, code from overflowing */
+img, video, iframe, canvas, svg { max-width: 100%; height: auto; }
+pre, code { max-width: 100%; overflow-x: auto; word-wrap: break-word; white-space: pre-wrap; }
+
+/* Force long unbreakable text to wrap on mobile (URLs, long words) */
+p, h1, h2, h3, h4, h5, h6, span, div, a, li, td, th, label {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* On mobile, ensure the set-log row fits by shrinking the input */
+@media (max-width: 400px) {
+  .set-log-row {
+    grid-template-columns: 30px 1fr 1fr 28px !important;
+    gap: 6px !important;
+    padding: 6px 4px !important;
+  }
+  .log-inp {
+    width: 100% !important;
+    max-width: 100%;
+    min-width: 0;
+  }
+  .ex-row {
+    grid-template-columns: 36px 1fr auto !important;
+    gap: 10px !important;
+    padding: 10px 10px !important;
+  }
+}
 
 /* ── Accessibility: focus-visible ring for keyboard navigation ── */
 :focus-visible {
