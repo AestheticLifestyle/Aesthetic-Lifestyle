@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useT } from '../../i18n';
 import { useClientStore } from '../../stores/clientStore';
 import { useAuthStore } from '../../stores/authStore';
 import { useUIStore } from '../../stores/uiStore';
@@ -75,7 +76,7 @@ function SetRow({ setIdx, set, prevSet, onChange, onComplete, active }) {
 }
 
 // ---------- Rest Timer ----------
-function RestTimer({ seconds, onDone, onSkip }) {
+function RestTimer({ seconds, onDone, onSkip, t }) {
   const [remaining, setRemaining] = useState(seconds);
   const [paused, setPaused] = useState(false);
   const totalRef = useRef(seconds);
@@ -124,7 +125,7 @@ function RestTimer({ seconds, onDone, onSkip }) {
           {mins}:{secs.toString().padStart(2, '0')}
         </div>
         <div style={{ fontSize: 10, color: 'var(--t3)' }}>
-          {remaining === 0 ? 'Time to go!' : 'Rest timer'}
+          {remaining === 0 ? t('timeToGo') : t('restTimer')}
         </div>
       </div>
       <div style={{ display: 'flex', gap: 4 }}>
@@ -133,7 +134,7 @@ function RestTimer({ seconds, onDone, onSkip }) {
           onClick={(e) => { e.stopPropagation(); setPaused(!paused); }}
           style={{ padding: '4px 8px', fontSize: 10 }}
         >
-          {paused ? 'Resume' : 'Pause'}
+          {paused ? t('resume') : t('pause')}
         </button>
         <button
           className="btn btn-ghost btn-sm"
@@ -147,7 +148,7 @@ function RestTimer({ seconds, onDone, onSkip }) {
           onClick={(e) => { e.stopPropagation(); onSkip?.(); }}
           style={{ padding: '4px 8px', fontSize: 10, color: 'var(--gold)' }}
         >
-          Skip
+          {t('skip')}
         </button>
       </div>
     </div>
@@ -166,7 +167,7 @@ function getDefaultRestSec(exerciseName) {
 }
 
 // ---------- Exercise card ----------
-function ExerciseCard({ exercise, exerciseIdx, prevData, onUpdate, active, allTimePRs }) {
+function ExerciseCard({ exercise, exerciseIdx, prevData, onUpdate, active, allTimePRs, t }) {
   const [expanded, setExpanded] = useState(false);
   const [restActive, setRestActive] = useState(false);
   const [restSec, setRestSec] = useState(exercise.restSec || getDefaultRestSec(exercise.name));
@@ -260,6 +261,7 @@ function ExerciseCard({ exercise, exerciseIdx, prevData, onUpdate, active, allTi
           seconds={restSec}
           onDone={() => setRestActive(false)}
           onSkip={() => setRestActive(false)}
+          t={t}
         />
       )}
 
@@ -268,23 +270,23 @@ function ExerciseCard({ exercise, exerciseIdx, prevData, onUpdate, active, allTi
           {/* Rest time adjuster */}
           {active && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 10, color: 'var(--t3)' }}>
-              <span>Rest:</span>
-              {[60, 90, 120, 150, 180].map(t => (
+              <span>{t('rest')}</span>
+              {[60, 90, 120, 150, 180].map(sec => (
                 <button
-                  key={t}
-                  className={`btn btn-sm ${restSec === t ? 'btn-primary' : 'btn-ghost'}`}
+                  key={sec}
+                  className={`btn btn-sm ${restSec === sec ? 'btn-primary' : 'btn-ghost'}`}
                   style={{ padding: '2px 6px', fontSize: 9, minWidth: 32 }}
-                  onClick={(e) => { e.stopPropagation(); setRestSec(t); }}
+                  onClick={(e) => { e.stopPropagation(); setRestSec(sec); }}
                 >
-                  {t >= 60 ? `${t / 60}m` : `${t}s`}{t === 90 ? '' : ''}
+                  {sec >= 60 ? `${sec / 60}m` : `${sec}s`}
                 </button>
               ))}
             </div>
           )}
           <div className="set-log-row set-log-hdr">
             <div>Set</div>
-            <div style={{ textAlign: 'center' }}>Previous</div>
-            <div style={{ textAlign: 'center' }}>Weight × Reps</div>
+            <div style={{ textAlign: 'center' }}>{t('previous')}</div>
+            <div style={{ textAlign: 'center' }}>{t('weightTimesReps')}</div>
             <div />
           </div>
           {sets.map((set, i) => (
@@ -383,6 +385,7 @@ function clearDraft() {
 
 // ---------- Main ----------
 export default function TrainingScreen() {
+  const t = useT();
   const {
     trainingPlan, activeWorkoutDay, setWorkoutDay,
     workoutActive, setWorkoutActive, workoutHistory, setWorkoutHistory,
@@ -422,7 +425,7 @@ export default function TrainingScreen() {
     setExercises(draft.exercises);
     setWorkoutActive(true);
     setDraftBanner(null);
-    showToast('Workout resumed!', 'success');
+    showToast(t('workoutResumed'), 'success');
   };
 
   const handleDiscardDraft = () => {
@@ -517,10 +520,10 @@ export default function TrainingScreen() {
       setWorkoutHistory(updatedHistory);
 
       clearDraft();
-      showToast('Workout saved! Great work.', 'success');
+      showToast(t('workoutSaved'), 'success');
       setWorkoutActive(false);
     } else {
-      showToast('Failed to save workout', 'error');
+      showToast(t('failedToSaveWorkout'), 'error');
     }
   };
 
@@ -538,9 +541,9 @@ export default function TrainingScreen() {
         <Card>
           <div style={{ textAlign: 'center', padding: 40 }}>
             <Icon name="dumbbell" size={32} style={{ opacity: 0.3, marginBottom: 12 }} />
-            <div style={{ fontSize: 16, fontWeight: 500, marginBottom: 6 }}>No Training Plan</div>
+            <div style={{ fontSize: 16, fontWeight: 500, marginBottom: 6 }}>{t('noTrainingPlan')}</div>
             <div style={{ fontSize: 13, color: 'var(--t3)' }}>
-              Your coach hasn't assigned a training plan yet. Check back soon.
+              {t('noTrainingPlanDesc')}
             </div>
           </div>
         </Card>
@@ -559,16 +562,16 @@ export default function TrainingScreen() {
         }}>
           <Icon name="alert-triangle" size={16} style={{ color: 'var(--gold)', flexShrink: 0 }} />
           <div style={{ flex: 1, fontSize: 12 }}>
-            <strong>Unfinished workout</strong>
+            <strong>{t('unfinishedWorkout')}</strong>
             <div style={{ color: 'var(--t3)', fontSize: 11, marginTop: 2 }}>
-              {draftBanner.dayName} — pick up where you left off?
+              {draftBanner.dayName} — {t('pickUpWhereYouLeft')}
             </div>
           </div>
           <button className="btn btn-primary btn-sm" style={{ fontSize: 11, padding: '4px 10px' }} onClick={handleResumeDraft}>
-            Resume
+            {t('resume')}
           </button>
           <button className="btn btn-ghost btn-sm" style={{ fontSize: 11, padding: '4px 8px' }} onClick={handleDiscardDraft}>
-            Discard
+            {t('discard')}
           </button>
         </div>
       )}
@@ -590,15 +593,15 @@ export default function TrainingScreen() {
       {/* Workout header */}
       <Card
         title={currentDay?.name || 'Workout'}
-        subtitle={`${exercises.length} exercises · ${doneSets}/${totalSets} sets completed`}
+        subtitle={`${exercises.length} ${t('exercises')} · ${doneSets}/${totalSets} ${t('setsCompleted')}`}
         actions={
           workoutActive ? (
             <button className="btn btn-green btn-sm" onClick={handleFinish} disabled={saving}>
-              <Icon name="check" size={12} /> {saving ? 'Saving...' : 'Finish Workout'}
+              <Icon name="check" size={12} /> {saving ? t('saving') : t('finishWorkout')}
             </button>
           ) : (
             <button className="btn btn-primary btn-sm" onClick={handleStartWorkout}>
-              Start Workout
+              {t('startWorkout')}
             </button>
           )
         }
@@ -609,7 +612,7 @@ export default function TrainingScreen() {
         </div>
         {workoutActive && doneSets < totalSets && (
           <div style={{ fontSize: 11, color: 'var(--t3)', marginTop: 6 }}>
-            Fill in the sets you completed — unfilled sets keep their previous values.
+            {t('fillInSetsHint')}
           </div>
         )}
       </Card>
@@ -645,7 +648,7 @@ export default function TrainingScreen() {
         return (
           <div className="g3" style={{ marginTop: 14 }}>
             <Card>
-              <div className="kl">Volume</div>
+              <div className="kl">{t('volume')}</div>
               <div style={{ fontSize: 18, fontFamily: 'var(--fd)', color: 'var(--gold)', margin: '4px 0' }}>
                 {currentVol.toLocaleString()} <span style={{ fontSize: 11, color: 'var(--t3)' }}>kg</span>
               </div>
@@ -656,21 +659,21 @@ export default function TrainingScreen() {
               )}
             </Card>
             <Card>
-              <div className="kl">Sets Done</div>
+              <div className="kl">{t('setsDone')}</div>
               <div style={{ fontSize: 18, fontFamily: 'var(--fd)', color: 'var(--blue)', margin: '4px 0' }}>
                 {doneSets}/{totalSets}
               </div>
               <div style={{ fontSize: 10, color: 'var(--t3)' }}>
-                {totalSets - doneSets > 0 ? `${totalSets - doneSets} remaining` : 'All complete!'}
+                {totalSets - doneSets > 0 ? `${totalSets - doneSets} ${t('remaining')}` : t('allComplete')}
               </div>
             </Card>
             <Card>
-              <div className="kl">PRs</div>
+              <div className="kl">{t('prs')}</div>
               <div style={{ fontSize: 18, fontFamily: 'var(--fd)', color: prCount > 0 ? 'var(--green)' : 'var(--t3)', margin: '4px 0' }}>
                 {prCount}
               </div>
               <div style={{ fontSize: 10, color: 'var(--t3)' }}>
-                {prCount > 0 ? 'sets improved!' : 'vs last session'}
+                {prCount > 0 ? t('setsImproved') : t('vsLastSession')}
               </div>
             </Card>
           </div>
@@ -690,6 +693,7 @@ export default function TrainingScreen() {
               onUpdate={handleExerciseUpdate}
               active={workoutActive}
               allTimePRs={allTimePRs}
+              t={t}
             />
           );
         })}

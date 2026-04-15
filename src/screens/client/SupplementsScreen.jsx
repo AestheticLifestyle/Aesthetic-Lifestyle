@@ -2,22 +2,24 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { Card } from '../../components/ui';
 import { Icon } from '../../utils/icons';
+import { useT } from '../../i18n';
 import { fetchClientSupplements } from '../../services/supplements';
 import { supabase } from '../../services/supabase';
 
 const TIMING_ORDER = ['morning', 'with-meal', 'pre-workout', 'intra-workout', 'post-workout', 'before-bed', 'any-time'];
 
-const TIMING_META = {
-  'morning':        { label: 'Morning',        emoji: '🌅', color: 'var(--orange)' },
-  'pre-workout':    { label: 'Pre-Workout',     emoji: '💪', color: 'var(--green)' },
-  'intra-workout':  { label: 'Intra-Workout',   emoji: '🏋️', color: 'var(--blue)' },
-  'post-workout':   { label: 'Post-Workout',    emoji: '🔄', color: 'var(--green)' },
-  'with-meal':      { label: 'With Meal',        emoji: '🍽️', color: 'var(--gold)' },
-  'before-bed':     { label: 'Before Bed',       emoji: '🌙', color: 'var(--purple, #a78bfa)' },
-  'any-time':       { label: 'Any Time',         emoji: '⏰', color: 'var(--t2)' },
-};
+const createTimingMeta = (t) => ({
+  'morning':        { label: t('timingMorning'),        emoji: '🌅', color: 'var(--orange)' },
+  'pre-workout':    { label: t('timingPreWorkout'),     emoji: '💪', color: 'var(--green)' },
+  'intra-workout':  { label: t('timingIntraWorkout'),   emoji: '🏋️', color: 'var(--blue)' },
+  'post-workout':   { label: t('timingPostWorkout'),    emoji: '🔄', color: 'var(--green)' },
+  'with-meal':      { label: t('timingWithMeal'),       emoji: '🍽️', color: 'var(--gold)' },
+  'before-bed':     { label: t('timingBeforeBed'),      emoji: '🌙', color: 'var(--purple, #a78bfa)' },
+  'any-time':       { label: t('timingAnyTime'),        emoji: '⏰', color: 'var(--t2)' },
+});
 
 export default function SupplementsScreen() {
+  const t = useT();
   const { user, actualRole, role } = useAuthStore();
   const isCoachPreview = actualRole === 'coach' && role === 'client';
   const [supplements, setSupplements] = useState([]);
@@ -52,6 +54,7 @@ export default function SupplementsScreen() {
   }, [user?.id, isCoachPreview]);
 
   const grouped = useMemo(() => {
+    const timingMeta = createTimingMeta(t);
     const groups = {};
     supplements.forEach(s => {
       const key = s.timing || 'any-time';
@@ -60,16 +63,16 @@ export default function SupplementsScreen() {
     });
     // Sort by timing order
     return TIMING_ORDER
-      .filter(t => groups[t]?.length > 0)
-      .map(t => ({ timing: t, items: groups[t], meta: TIMING_META[t] || TIMING_META['any-time'] }));
-  }, [supplements]);
+      .filter(timing => groups[timing]?.length > 0)
+      .map(timing => ({ timing, items: groups[timing], meta: timingMeta[timing] || timingMeta['any-time'] }));
+  }, [supplements, t]);
 
   if (loading) {
     return (
       <div className="screen active">
-        <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 16 }}>My Supplements</div>
+        <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 16 }}>{t('mySupplements')}</div>
         <div style={{ textAlign: 'center', padding: 40, color: 'var(--t3)', fontSize: 13 }}>
-          Loading your supplement plan...
+          {t('loading')}
         </div>
       </div>
     );
@@ -79,9 +82,9 @@ export default function SupplementsScreen() {
     <div className="screen active">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div>
-          <div style={{ fontSize: 18, fontWeight: 600 }}>My Supplements</div>
+          <div style={{ fontSize: 18, fontWeight: 600 }}>{t('mySupplements')}</div>
           <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 2 }}>
-            {(supplements || []).length} supplement{(supplements || []).length !== 1 ? 's' : ''} in your protocol
+            {(supplements || []).length} {(supplements || []).length === 1 ? t('supplementInProtocol') : t('supplementsInProtocol')}
           </div>
         </div>
         <div style={{
@@ -96,10 +99,9 @@ export default function SupplementsScreen() {
         <Card>
           <div style={{ textAlign: 'center', padding: 30 }}>
             <div style={{ fontSize: 36, marginBottom: 12 }}>💊</div>
-            <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 6 }}>No Supplements Yet</div>
+            <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 6 }}>{t('noSupplementsYet')}</div>
             <div style={{ fontSize: 12, color: 'var(--t3)', lineHeight: 1.5 }}>
-              Your coach hasn't assigned any supplements yet.<br />
-              Check back soon or ask your coach about it.
+              {t('noSupplementsDesc')}
             </div>
           </div>
         </Card>
@@ -135,7 +137,7 @@ export default function SupplementsScreen() {
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 500 }}>{supp.name}</div>
                   <div style={{ fontSize: 11, color: 'var(--t3)' }}>
-                    {supp.dosage || 'See coach for dosage'}
+                    {supp.dosage || t('seeCoachForDosage')}
                   </div>
                   {supp.notes && (
                     <div style={{ fontSize: 10, color: 'var(--gold)', marginTop: 2, fontStyle: 'italic' }}>

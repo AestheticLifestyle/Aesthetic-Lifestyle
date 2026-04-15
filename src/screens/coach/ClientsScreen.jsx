@@ -3,18 +3,20 @@ import { useNavigate } from 'react-router-dom';
 import { useCoachStore } from '../../stores/coachStore';
 import { useAuthStore } from '../../stores/authStore';
 import { useUIStore } from '../../stores/uiStore';
+import { useT } from '../../i18n';
 import { Card, PageSkeleton } from '../../components/ui';
 import { Icon } from '../../utils/icons';
 import { createInviteCode, fetchInviteCodes, deactivateInviteCode } from '../../services/invites';
 import { fetchTrainingTemplates, fetchNutritionTemplates, fetchClients, updateClientSettings, archiveClient, reactivateClient, GOAL_LABELS } from '../../services/chat';
 
 function ClientCard({ client, onClick }) {
+  const t = useT();
   const isPending = client.isPending;
   const statusMap = {
-    'on-track': { label: 'On Track', cls: 't-gr' },
-    'attention': { label: 'Attention', cls: 't-or' },
-    'at-risk': { label: 'At Risk', cls: 't-rd' },
-    'pending': { label: 'Pending', cls: '' },
+    'on-track': { label: t('onTrack'), cls: 't-gr' },
+    'attention': { label: t('attention'), cls: 't-or' },
+    'at-risk': { label: t('atRisk'), cls: 't-rd' },
+    'pending': { label: t('pending'), cls: '' },
   };
   const status = client.status || 'on-track';
   const s = statusMap[status] || statusMap['on-track'];
@@ -61,21 +63,21 @@ function ClientCard({ client, onClick }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <Icon name="link" size={11} style={{ color: 'var(--t3)' }} />
             <span style={{ fontSize: 12, color: 'var(--t3)' }}>
-              Code: <span style={{ fontFamily: 'var(--fd)', fontWeight: 600, color: 'var(--gold)', letterSpacing: 1 }}>{client.code}</span>
+              {t('code')} <span style={{ fontFamily: 'var(--fd)', fontWeight: 600, color: 'var(--gold)', letterSpacing: 1 }}>{client.code}</span>
             </span>
           </div>
           {client.clientSetup?.trainingPlan && (
             <div style={{ fontSize: 11, color: 'var(--t3)' }}>
-              Training: {client.clientSetup.trainingPlan.name}
+              {t('training')}: {client.clientSetup.trainingPlan.name}
             </div>
           )}
           {client.clientSetup?.nutritionPlan && (
             <div style={{ fontSize: 11, color: 'var(--t3)' }}>
-              Nutrition: {client.clientSetup.nutritionPlan.name}
+              {t('nutrition')}: {client.clientSetup.nutritionPlan.name}
             </div>
           )}
           <div style={{ fontSize: 10, color: 'var(--t3)', marginTop: 4, fontStyle: 'italic' }}>
-            Waiting for client to connect...
+            {t('waitingForClient')}
           </div>
         </div>
       ) : (
@@ -88,18 +90,18 @@ function ClientCard({ client, onClick }) {
               </div>
             </div>
             <div>
-              <div className="kl">Weight</div>
-              <div style={{ fontSize: 16, fontFamily: 'var(--fd)' }}>{client.weight ? `${client.weight} kg` : '—'}</div>
+              <div className="kl">{t('weight')}</div>
+              <div style={{ fontSize: 16, fontFamily: 'var(--fd)' }}>{client.weight ? `${client.weight} ${t('kg')}` : '—'}</div>
             </div>
             <div>
-              <div className="kl">Streak</div>
+              <div className="kl">{t('streak')}</div>
               <div style={{ fontSize: 16, fontFamily: 'var(--fd)', color: 'var(--gold)' }}>{client.streak || 0}d</div>
             </div>
           </div>
 
           {client.start_date && (
             <div style={{ fontSize: 10, color: 'var(--t3)', marginTop: 10 }}>
-              Started: {(() => {
+              {t('started')} {(() => {
                 try {
                   const dt = new Date(client.start_date + 'T00:00:00');
                   return dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -114,12 +116,13 @@ function ClientCard({ client, onClick }) {
 }
 
 function EmptyState() {
+  const t = useT();
   return (
     <Card>
       <div style={{ textAlign: 'center', padding: 60, color: 'var(--t3)' }}>
         <Icon name="user" size={32} style={{ opacity: 0.2, display: 'block', margin: '0 auto 14px' }} />
-        <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 6, color: 'var(--t2)' }}>No clients yet</div>
-        <div style={{ fontSize: 12 }}>Add your first client to get started with coaching.</div>
+        <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 6, color: 'var(--t2)' }}>{t('noClientsYet')}</div>
+        <div style={{ fontSize: 12 }}>{t('noClientsDesc')}</div>
       </div>
     </Card>
   );
@@ -165,12 +168,13 @@ function StepIndicator({ current, total, labels }) {
 
 // ── Add Client Wizard (multi-step) ──
 function AddClientWizard({ onClose, onCreated }) {
+  const t = useT();
   const { user } = useAuthStore();
   const { showToast } = useUIStore();
 
   // Wizard step
   const [step, setStep] = useState(0);
-  const STEPS = ['Profile', 'Training', 'Nutrition', 'Review'];
+  const STEPS = [t('profile'), t('training'), t('nutrition'), 'Review'];
 
   // Step 1: Profile
   const [clientName, setClientName] = useState('');
@@ -249,10 +253,10 @@ function AddClientWizard({ onClose, onCreated }) {
       });
 
       setGeneratedCode(result.code);
-      showToast('Client profile & invite code created!', 'success');
+      showToast(t('clientCreated'), 'success');
       if (onCreated) onCreated();
     } catch (err) {
-      showToast('Failed to create invite code', 'error');
+      showToast(t('failedToCreate'), 'error');
       console.error(err);
     }
     setCreating(false);
@@ -269,13 +273,13 @@ function AddClientWizard({ onClose, onCreated }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div>
         <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--t2)', marginBottom: 6, display: 'block' }}>
-          Client Name *
+          {t('clientName')}
         </label>
         <input
           type="text"
           value={clientName}
           onChange={e => setClientName(e.target.value)}
-          placeholder="Enter client's name"
+          placeholder={t('clientName')}
           style={{ width: '100%', fontSize: 14 }}
           autoFocus
         />
@@ -283,7 +287,7 @@ function AddClientWizard({ onClose, onCreated }) {
 
       <div>
         <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--t2)', marginBottom: 8, display: 'block' }}>
-          Training Goal
+          {t('trainingGoal')}
         </label>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {GOALS.map(g => (
@@ -321,7 +325,7 @@ function AddClientWizard({ onClose, onCreated }) {
 
       <div>
         <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--t2)', marginBottom: 6, display: 'block' }}>
-          Daily Step Target
+          {t('stepGoalLabel')}
         </label>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {[8000, 10000, 12000, 15000].map(s => (
@@ -342,18 +346,18 @@ function AddClientWizard({ onClose, onCreated }) {
   const renderTraining = () => (
     <div>
       <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 12 }}>
-        Select a training plan template to assign, or skip to let the client start without one.
+        {t('selectTrainingPlan')}
       </div>
       {loadingTemplates ? (
-        <div style={{ textAlign: 'center', padding: 30, color: 'var(--t3)', fontSize: 12 }}>Loading templates...</div>
+        <div style={{ textAlign: 'center', padding: 30, color: 'var(--t3)', fontSize: 12 }}>{t('loadingTemplates')}</div>
       ) : trainingTemplates.length === 0 ? (
         <div style={{
           textAlign: 'center', padding: 30, background: 'var(--s2)', borderRadius: 12,
           border: '1px solid var(--border)',
         }}>
           <Icon name="dumbbell" size={24} style={{ opacity: 0.2, display: 'block', margin: '0 auto 10px' }} />
-          <div style={{ fontSize: 13, color: 'var(--t2)', fontWeight: 500, marginBottom: 4 }}>No training templates</div>
-          <div style={{ fontSize: 11, color: 'var(--t3)' }}>Create templates in the Training section first.</div>
+          <div style={{ fontSize: 13, color: 'var(--t2)', fontWeight: 500, marginBottom: 4 }}>{t('noTrainingTemplates')}</div>
+          <div style={{ fontSize: 11, color: 'var(--t3)' }}>{t('createTemplatesFirst')}</div>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -371,7 +375,7 @@ function AddClientWizard({ onClose, onCreated }) {
           >
             <Icon name="minus" size={14} style={{ color: !selectedTraining ? 'var(--gold)' : 'var(--t3)' }} />
             <div style={{ fontSize: 13, fontWeight: 500, color: !selectedTraining ? 'var(--gold)' : 'var(--t2)' }}>
-              No training plan (skip)
+              {t('noTrainingPlanSkip')}
             </div>
           </button>
 
@@ -417,18 +421,18 @@ function AddClientWizard({ onClose, onCreated }) {
   const renderNutrition = () => (
     <div>
       <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 12 }}>
-        Select a nutrition plan template, or skip to let the client start without one.
+        {t('selectTrainingPlan')}
       </div>
       {loadingTemplates ? (
-        <div style={{ textAlign: 'center', padding: 30, color: 'var(--t3)', fontSize: 12 }}>Loading templates...</div>
+        <div style={{ textAlign: 'center', padding: 30, color: 'var(--t3)', fontSize: 12 }}>{t('loadingTemplates')}</div>
       ) : nutritionTemplates.length === 0 ? (
         <div style={{
           textAlign: 'center', padding: 30, background: 'var(--s2)', borderRadius: 12,
           border: '1px solid var(--border)',
         }}>
           <Icon name="utensils" size={24} style={{ opacity: 0.2, display: 'block', margin: '0 auto 10px' }} />
-          <div style={{ fontSize: 13, color: 'var(--t2)', fontWeight: 500, marginBottom: 4 }}>No nutrition templates</div>
-          <div style={{ fontSize: 11, color: 'var(--t3)' }}>Create templates in the Nutrition section first.</div>
+          <div style={{ fontSize: 13, color: 'var(--t2)', fontWeight: 500, marginBottom: 4 }}>{t('noNutritionTemplates')}</div>
+          <div style={{ fontSize: 11, color: 'var(--t3)' }}>{t('createNutritionFirst')}</div>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -610,7 +614,7 @@ function AddClientWizard({ onClose, onCreated }) {
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>
-            {generatedCode ? 'Invite Code Ready' : 'Add New Client'}
+            {generatedCode ? t('created') : 'Add New Client'}
           </h3>
           <button className="btn btn-secondary btn-sm" onClick={onClose} style={{ padding: '4px 8px', minWidth: 0 }}>
             <Icon name="x" size={14} />
@@ -635,7 +639,7 @@ function AddClientWizard({ onClose, onCreated }) {
                 style={{ flex: 1 }}
                 onClick={() => setStep(step - 1)}
               >
-                Back
+                {t('back')}
               </button>
             )}
             {step < 3 ? (
@@ -645,7 +649,7 @@ function AddClientWizard({ onClose, onCreated }) {
                 onClick={() => setStep(step + 1)}
                 disabled={!canNext()}
               >
-                {step === 0 ? 'Next' : step === 1 ? 'Next' : 'Review'}
+                {t('continue')}
               </button>
             ) : (
               <button
@@ -654,7 +658,7 @@ function AddClientWizard({ onClose, onCreated }) {
                 onClick={handleGenerate}
                 disabled={creating}
               >
-                <Icon name="plus" size={12} /> {creating ? 'Creating...' : 'Generate Invite Code'}
+                <Icon name="plus" size={12} /> {creating ? t('creating') : 'Generate Invite Code'}
               </button>
             )}
           </div>
@@ -663,7 +667,7 @@ function AddClientWizard({ onClose, onCreated }) {
         {generatedCode && (
           <div style={{ marginTop: 12 }}>
             <button className="btn btn-secondary" style={{ width: '100%' }} onClick={onClose}>
-              Done
+              {t('done')}
             </button>
           </div>
         )}
@@ -674,6 +678,7 @@ function AddClientWizard({ onClose, onCreated }) {
 
 // ── Existing Codes Modal (view/manage) ──
 function CodesModal({ onClose }) {
+  const t = useT();
   const { user } = useAuthStore();
   const { showToast } = useUIStore();
   const [codes, setCodes] = useState([]);
@@ -693,9 +698,9 @@ function CodesModal({ onClose }) {
     try {
       await deactivateInviteCode(codeId);
       setCodes(prev => prev.map(c => c.id === codeId ? { ...c, active: false } : c));
-      showToast('Code deactivated', 'success');
+      showToast(t('revoke'), 'success');
     } catch {
-      showToast('Failed to deactivate', 'error');
+      showToast(t('failedToSave'), 'error');
     }
   };
 
@@ -716,7 +721,7 @@ function CodesModal({ onClose }) {
         maxHeight: '80vh', overflow: 'auto', border: '1px solid var(--border)',
       }} onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>Invite Codes</h3>
+          <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>{t('inviteCodes')}</h3>
           <button className="btn btn-secondary btn-sm" onClick={onClose} style={{ padding: '4px 8px', minWidth: 0 }}>
             <Icon name="x" size={14} />
           </button>
@@ -726,7 +731,7 @@ function CodesModal({ onClose }) {
           <PageSkeleton />
         ) : codes.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 20, color: 'var(--t3)', fontSize: 12 }}>
-            No invite codes yet. Use "Add Client" to create one.
+            {t('noInviteCodesYet')}
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -753,7 +758,7 @@ function CodesModal({ onClose }) {
                       style={{ padding: '4px 8px', minWidth: 0, fontSize: 10 }}
                       onClick={() => handleCopy(c.code)}
                     >
-                      {copied === c.code ? 'Copied!' : 'Copy'}
+                      {copied === c.code ? 'Copied!' : t('copy')}
                     </button>
                     <button
                       className="btn btn-secondary btn-sm"
@@ -786,6 +791,7 @@ function CodesModal({ onClose }) {
 
 // ── Pending Client Detail Modal ──
 function PendingClientModal({ client, onClose }) {
+  const t = useT();
   const { showToast } = useUIStore();
   const [copied, setCopied] = useState(false);
   const setup = client.clientSetup || {};
@@ -897,6 +903,7 @@ const GOAL_OPTIONS = [
 ];
 
 function ClientManagePanel({ client, onClose, onUpdated, onArchived }) {
+  const t = useT();
   const { showToast } = useUIStore();
   const { user } = useAuthStore();
   const clientId = client?.client_id || client?.id;
@@ -928,7 +935,7 @@ function ClientManagePanel({ client, onClose, onUpdated, onArchived }) {
     });
     setSaving(false);
     if (result.ok) {
-      showToast('Client settings saved', 'success');
+      showToast(t('update'), 'success');
       onUpdated?.({ ...client, goal, step_target: parseInt(stepTarget) || 10000,
         target_weight: targetWeight ? parseFloat(targetWeight) : null,
         calorie_target: calorieTarget ? parseInt(calorieTarget) : null,
@@ -937,18 +944,18 @@ function ClientManagePanel({ client, onClose, onUpdated, onArchived }) {
         fat_target: fatTarget ? parseInt(fatTarget) : null,
       });
     } else {
-      showToast(result.error || 'Failed to save', 'error');
+      showToast(result.error || t('failedToSave'), 'error');
     }
   };
 
   const handleArchive = async () => {
     const result = await archiveClient(user?.id, clientId);
     if (result.ok) {
-      showToast(`${clientName} archived`, 'success');
+      showToast(`${clientName} ${t('archived')}`, 'success');
       onArchived?.(clientId);
       onClose();
     } else {
-      showToast('Failed to archive client', 'error');
+      showToast(t('failedToSave'), 'error');
     }
   };
 
@@ -966,7 +973,7 @@ function ClientManagePanel({ client, onClose, onUpdated, onArchived }) {
       <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10 }}>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 16, fontWeight: 700 }}>{clientName}</div>
-          <div style={{ fontSize: 11, color: 'var(--t3)' }}>Client Settings</div>
+          <div style={{ fontSize: 11, color: 'var(--t3)' }}>{t('edit')}</div>
         </div>
         <button className="icon-btn" onClick={onClose}><Icon name="x" size={14} /></button>
       </div>
@@ -976,7 +983,7 @@ function ClientManagePanel({ client, onClose, onUpdated, onArchived }) {
 
         {/* Goal */}
         <div style={fieldGroup}>
-          <label style={labelStyle}>Goal</label>
+          <label style={labelStyle}>{t('trainingGoal')}</label>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {GOAL_OPTIONS.map(g => (
               <button key={g.value}
@@ -996,7 +1003,7 @@ function ClientManagePanel({ client, onClose, onUpdated, onArchived }) {
 
         {/* Target Weight */}
         <div style={fieldGroup}>
-          <label style={labelStyle}>Target Weight (kg)</label>
+          <label style={labelStyle}>{t('weight')} ({t('kg')})</label>
           <input type="number" style={inputStyle} value={targetWeight}
             onChange={e => setTargetWeight(e.target.value)}
             placeholder="e.g. 80" />
@@ -1004,7 +1011,7 @@ function ClientManagePanel({ client, onClose, onUpdated, onArchived }) {
 
         {/* Step Target */}
         <div style={fieldGroup}>
-          <label style={labelStyle}>Daily Step Target</label>
+          <label style={labelStyle}>{t('stepGoalLabel')}</label>
           <input type="number" style={inputStyle} value={stepTarget}
             onChange={e => setStepTarget(e.target.value)}
             placeholder="10000" />
@@ -1012,25 +1019,25 @@ function ClientManagePanel({ client, onClose, onUpdated, onArchived }) {
 
         {/* Macro Targets */}
         <div style={{ ...fieldGroup, marginTop: 6 }}>
-          <label style={{ ...labelStyle, marginBottom: 10 }}>Macro Targets</label>
+          <label style={{ ...labelStyle, marginBottom: 10 }}>{t('setTargets')}</label>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div>
-              <label style={{ ...labelStyle, fontSize: 10, color: 'var(--t3)' }}>Calories (kcal)</label>
+              <label style={{ ...labelStyle, fontSize: 10, color: 'var(--t3)' }}>{t('calories')} ({t('kcal')})</label>
               <input type="number" style={inputStyle} value={calorieTarget}
                 onChange={e => setCalorieTarget(e.target.value)} placeholder="—" />
             </div>
             <div>
-              <label style={{ ...labelStyle, fontSize: 10, color: 'var(--t3)' }}>Protein (g)</label>
+              <label style={{ ...labelStyle, fontSize: 10, color: 'var(--t3)' }}>{t('protein')} ({t('g')})</label>
               <input type="number" style={inputStyle} value={proteinTarget}
                 onChange={e => setProteinTarget(e.target.value)} placeholder="—" />
             </div>
             <div>
-              <label style={{ ...labelStyle, fontSize: 10, color: 'var(--t3)' }}>Carbs (g)</label>
+              <label style={{ ...labelStyle, fontSize: 10, color: 'var(--t3)' }}>{t('carbs')} ({t('g')})</label>
               <input type="number" style={inputStyle} value={carbTarget}
                 onChange={e => setCarbTarget(e.target.value)} placeholder="—" />
             </div>
             <div>
-              <label style={{ ...labelStyle, fontSize: 10, color: 'var(--t3)' }}>Fat (g)</label>
+              <label style={{ ...labelStyle, fontSize: 10, color: 'var(--t3)' }}>{t('fat')} ({t('g')})</label>
               <input type="number" style={inputStyle} value={fatTarget}
                 onChange={e => setFatTarget(e.target.value)} placeholder="—" />
             </div>
@@ -1057,23 +1064,23 @@ function ClientManagePanel({ client, onClose, onUpdated, onArchived }) {
 
         {/* Danger zone — Archive */}
         <div style={{ marginTop: 24, padding: 16, borderRadius: 10, border: '1px solid var(--red, rgba(231,76,60,0.3))', background: 'rgba(231,76,60,0.05)' }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--red, #e74c3c)', marginBottom: 6 }}>Archive Client</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--red, #e74c3c)', marginBottom: 6 }}>{t('archived')}</div>
           <div style={{ fontSize: 11, color: 'var(--t3)', lineHeight: 1.5, marginBottom: 10 }}>
-            This hides {clientName} from your active clients list. All data is preserved and you can reactivate them anytime from the "Archived" tab.
+            This hides {clientName} from your active clients list. All data is preserved and you can reactivate them anytime from the "{t('archived')}" tab.
           </div>
           {!confirmArchive ? (
             <button className="btn btn-sm" onClick={() => setConfirmArchive(true)}
               style={{ background: 'rgba(231,76,60,0.1)', color: 'var(--red, #e74c3c)', border: '1px solid var(--red, rgba(231,76,60,0.3))' }}>
-              <Icon name="archive" size={12} /> Archive {clientName}
+              <Icon name="archive" size={12} /> {t('archived')} {clientName}
             </button>
           ) : (
             <div style={{ display: 'flex', gap: 8 }}>
               <button className="btn btn-sm" onClick={handleArchive}
                 style={{ background: 'var(--red, #e74c3c)', color: '#fff', flex: 1 }}>
-                Confirm Archive
+                {t('confirm')}
               </button>
               <button className="btn btn-sm btn-ghost" onClick={() => setConfirmArchive(false)}>
-                Cancel
+                {t('cancel')}
               </button>
             </div>
           )}
@@ -1083,7 +1090,7 @@ function ClientManagePanel({ client, onClose, onUpdated, onArchived }) {
       {/* Footer — Save */}
       <div style={{ padding: '14px 20px', borderTop: '1px solid var(--border)' }}>
         <button className="btn btn-primary" style={{ width: '100%' }} disabled={saving} onClick={handleSave}>
-          <Icon name="check" size={12} /> {saving ? 'Saving...' : 'Save Settings'}
+          <Icon name="check" size={12} /> {saving ? t('saving') : t('save')}
         </button>
       </div>
     </div>
@@ -1094,6 +1101,7 @@ function ClientManagePanel({ client, onClose, onUpdated, onArchived }) {
 // Archived Client Card (minimal)
 // ══════════════════════════════════════
 function ArchivedClientCard({ client, onReactivate }) {
+  const t = useT();
   const [loading, setLoading] = useState(false);
   const name = client.client_name || client.name || 'Client';
   const handleReactivate = async () => {
@@ -1109,10 +1117,10 @@ function ArchivedClientCard({ client, onReactivate }) {
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t2)' }}>{name}</div>
-          <div style={{ fontSize: 10, color: 'var(--t3)' }}>{GOAL_LABELS[client.goal] || client.goal || 'No goal'} · Archived</div>
+          <div style={{ fontSize: 10, color: 'var(--t3)' }}>{GOAL_LABELS[client.goal] || client.goal || t('noGoalSet')} · {t('archived')}</div>
         </div>
         <button className="btn btn-sm btn-secondary" disabled={loading} onClick={handleReactivate}>
-          <Icon name="refresh-cw" size={11} /> {loading ? '...' : 'Reactivate'}
+          <Icon name="refresh-cw" size={11} /> {loading ? '...' : t('refresh')}
         </button>
       </div>
     </Card>
@@ -1123,6 +1131,7 @@ function ArchivedClientCard({ client, onReactivate }) {
 // Main
 // ══════════════════════════════════════
 export default function ClientsScreen() {
+  const t = useT();
   const { clients, setClients } = useCoachStore();
   const { user } = useAuthStore();
   const { showToast } = useUIStore();
@@ -1185,7 +1194,7 @@ export default function ClientsScreen() {
   const handleReactivate = async (clientId) => {
     const result = await reactivateClient(user?.id, clientId);
     if (result.ok) {
-      showToast('Client reactivated', 'success');
+      showToast(t('update'), 'success');
       setArchivedClients(prev => prev.filter(c => (c.client_id || c.id) !== clientId));
       // Re-fetch active clients so they reappear
       fetchClients(user.id).then(data => setClients(data || []));

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useCoachStore } from '../../stores/coachStore';
 import { useUIStore } from '../../stores/uiStore';
+import { useT } from '../../i18n';
 import { Card, PageSkeleton } from '../../components/ui';
 import { Icon } from '../../utils/icons';
 import { fetchWeightLog, fetchProgressPhotos } from '../../services/progress';
@@ -102,6 +103,7 @@ function PhotoPair({ current, previous }) {
 // Main: WeeklyReviewScreen
 // ══════════════════════════════════════
 export default function WeeklyReviewScreen() {
+  const t = useT();
   const { clients, pendingCheckins, setPendingCheckins } = useCoachStore();
   const { showToast } = useUIStore();
 
@@ -325,9 +327,9 @@ export default function WeeklyReviewScreen() {
     return (
       <div className="screen active" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 400, gap: 12 }}>
         <Icon name="check-circle" size={40} style={{ opacity: 0.15 }} />
-        <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--t2)' }}>No Clients to Review</div>
+        <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--t2)' }}>{t('noClientsToReview')}</div>
         <div style={{ fontSize: 13, color: 'var(--t3)', maxWidth: 280, textAlign: 'center', lineHeight: 1.5 }}>
-          Add clients first, then come back here to review their weekly progress.
+          {t('noClientsToReviewDesc')}
         </div>
       </div>
     );
@@ -368,7 +370,7 @@ export default function WeeklyReviewScreen() {
       {/* Loading data state */}
       {!d && (
         <div style={{ padding: 40, textAlign: 'center', color: 'var(--t3)', fontSize: 13 }}>
-          <div style={{ animation: 'pulse 1.5s infinite' }}>Loading client data...</div>
+          <div style={{ animation: 'pulse 1.5s infinite' }}>{t('loadingClientData')}</div>
         </div>
       )}
 

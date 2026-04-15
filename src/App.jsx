@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { RouterProvider } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
+import { I18nProvider } from './i18n';
 import router from './router';
 
 export default function App() {
@@ -10,5 +11,9 @@ export default function App() {
     init();
   }, [init]);
 
-  return <RouterProvider router={router} />;
+  return (
+    <I18nProvider>
+      <RouterProvider router={router} />
+    </I18nProvider>
+  );
 }

@@ -7,14 +7,15 @@ import { Icon } from '../../utils/icons';
 import { saveClientGoal } from '../../services/checkins';
 import { redeemInviteCode, getMyCoachLink, getCoachName, disconnectFromCoach } from '../../services/invites';
 import { supabase } from '../../services/supabase';
+import { useT, useLanguage, AVAILABLE_LANGS } from '../../i18n';
 
-// ── Goal config ──
+// ── Goal config (labels & descriptions will be translated via i18n) ──
 const GOALS = [
-  { id: 'cut',       label: 'Cut',           icon: '🔥', desc: 'Fat loss focus — deficit, high protein, more cardio' },
-  { id: 'lean-bulk', label: 'Lean Bulk',      icon: '💪', desc: 'Muscle gain — slight surplus, progressive overload' },
-  { id: 'recomp',    label: 'Body Recomp',    icon: '⚖️', desc: 'Lose fat + build muscle — maintenance cals, high protein' },
-  { id: 'maintenance',label: 'Maintenance',   icon: '🛡️', desc: 'Hold current physique — sustain habits' },
-  { id: 'comp-prep', label: 'Comp Prep',      icon: '🏆', desc: 'Contest / photoshoot prep — aggressive cut, peak week' },
+  { id: 'cut',       labelKey: 'cut',       icon: '🔥', descKey: 'cutDesc' },
+  { id: 'lean-bulk', labelKey: 'leanBulk',  icon: '💪', descKey: 'leanBulkDesc' },
+  { id: 'recomp',    labelKey: 'bodyRecomp', icon: '⚖️', descKey: 'bodyRecompDesc' },
+  { id: 'maintenance',labelKey: 'maintenance', icon: '🛡️', descKey: 'maintenanceDesc' },
+  { id: 'comp-prep', labelKey: 'compPrep',  icon: '🏆', descKey: 'compPrepDesc' },
 ];
 
 function getClientId() {
@@ -79,52 +80,53 @@ function Toggle({ checked, onChange }) {
 
 // ── Edit Profile Modal ──
 function EditProfileModal({ user, onClose, onSaved }) {
+  const t = useT();
   const [name, setName] = useState(user?.user_metadata?.full_name || '');
   const [saving, setSaving] = useState(false);
   const { showToast } = useUIStore();
 
   const handleSave = async () => {
-    if (!name.trim()) { showToast('Name is required', 'error'); return; }
+    if (!name.trim()) { showToast(t('nameRequired'), 'error'); return; }
     setSaving(true);
     const result = await updateProfile(user.id, { full_name: name.trim() });
     setSaving(false);
     if (result.ok) {
-      showToast('Profile updated!', 'success');
+      showToast(t('profileUpdated'), 'success');
       onSaved?.({ full_name: name.trim() });
       onClose();
     } else {
-      showToast(result.error || 'Failed to update', 'error');
+      showToast(result.error || t('failedToUpdate'), 'error');
     }
   };
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)' }} onClick={onClose}>
       <div style={{ background: 'var(--s0)', borderRadius: 14, width: 'min(400px, 90vw)', padding: 24, border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
-        <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>Edit Profile</div>
+        <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>{t('editProfile')}</div>
 
         <div style={{ marginBottom: 14 }}>
-          <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--t2)', marginBottom: 4, display: 'block' }}>Full Name</label>
+          <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--t2)', marginBottom: 4, display: 'block' }}>{t('fullName')}</label>
           <input
             className="form-inp"
             value={name}
             onChange={e => setName(e.target.value)}
-            placeholder="Your name"
+            placeholder={t('yourName')}
             autoFocus
           />
         </div>
 
         <div style={{ marginBottom: 14 }}>
-          <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--t2)', marginBottom: 4, display: 'block' }}>Email</label>
+          <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--t2)', marginBottom: 4, display: 'block' }}>{t('email')}</label>
           <div style={{ fontSize: 13, color: 'var(--t3)', padding: '8px 12px', background: 'var(--s2)', borderRadius: 8 }}>
             {user?.email || '—'}
           </div>
-          <div style={{ fontSize: 10, color: 'var(--t3)', marginTop: 4 }}>Email can only be changed via Supabase dashboard</div>
+          <div style={{ fontSize: 10, color: 'var(--t3)', marginTop: 4 }}>{t('emailCantChange')}</div>
         </div>
 
         <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
-          <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onClose}>Cancel</button>
+          <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onClose}>{t('cancel')}</button>
           <button className="btn btn-primary" style={{ flex: 1 }} disabled={saving} onClick={handleSave}>
-            {saving ? 'Saving...' : 'Save'}
+            {saving ? `${t('saving')}...` : t('save')}
           </button>
         </div>
       </div>
@@ -134,6 +136,7 @@ function EditProfileModal({ user, onClose, onSaved }) {
 
 // ── Goal selector card ──
 function GoalSelector() {
+  const t = useT();
   const goal = useClientStore(s => s.goal);
   const setGoal = useClientStore(s => s.setGoal);
   const { showToast } = useUIStore();
@@ -145,11 +148,11 @@ function GoalSelector() {
     setGoal(goalId);
     const ok = await saveClientGoal(getClientId(), goalId);
     setSaving(false);
-    showToast(ok ? 'Goal updated!' : 'Failed to save goal', ok ? 'success' : 'error');
+    showToast(ok ? t('goalUpdated') : t('failedToSaveGoal'), ok ? 'success' : 'error');
   };
 
   return (
-    <Card title="Training Goal" subtitle="What are you working towards?" style={{ marginTop: 14 }}>
+    <Card title={t('trainingGoal')} subtitle={t('whatAreYouWorkingTowards')} style={{ marginTop: 14 }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
         {GOALS.map(g => {
           const isActive = goal === g.id;
@@ -169,8 +172,8 @@ function GoalSelector() {
             >
               <span style={{ fontSize: 22, lineHeight: 1 }}>{g.icon}</span>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: isActive ? 'var(--gold)' : 'var(--t1)', letterSpacing: 0.3 }}>{g.label}</div>
-                <div style={{ fontSize: 11, color: 'var(--t3)', marginTop: 2 }}>{g.desc}</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: isActive ? 'var(--gold)' : 'var(--t1)', letterSpacing: 0.3 }}>{t(g.labelKey)}</div>
+                <div style={{ fontSize: 11, color: 'var(--t3)', marginTop: 2 }}>{t(g.descKey)}</div>
               </div>
               {isActive && (
                 <div style={{ width: 20, height: 20, borderRadius: '50%', background: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -187,6 +190,7 @@ function GoalSelector() {
 
 // ── Coach Connection Card ──
 function CoachConnection() {
+  const t = useT();
   const { user } = useAuthStore();
   const { showToast } = useUIStore();
   const [coachName, setCoachName] = useState(null);
@@ -215,7 +219,7 @@ function CoachConnection() {
     setError('');
     const result = await redeemInviteCode(user.id, code.trim());
     if (result.success) {
-      showToast('Connected to coach!', 'success');
+      showToast(t('connectedToCoach'), 'success');
       const name = await getCoachName(result.coachId);
       setCoachName(name);
       setLinked(true);
@@ -232,16 +236,16 @@ function CoachConnection() {
       setLinked(false);
       setCoachName(null);
       setConfirmDisconnect(false);
-      showToast('Disconnected from coach', 'success');
+      showToast(t('disconnectedFromCoach'), 'success');
     } catch {
-      showToast('Failed to disconnect', 'error');
+      showToast(t('failedToDisconnect'), 'error');
     }
   };
 
   if (loading) return null;
 
   return (
-    <Card title="Coach" subtitle={linked ? 'Connected' : 'Not connected'} style={{ marginTop: 14 }}>
+    <Card title="Coach" subtitle={linked ? t('connected') : t('notConnected')} style={{ marginTop: 14 }}>
       {linked ? (
         <div>
           <div style={{
@@ -258,19 +262,19 @@ function CoachConnection() {
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--gold)' }}>{coachName}</div>
-              <div style={{ fontSize: 11, color: 'var(--t3)' }}>Your Coach</div>
+              <div style={{ fontSize: 11, color: 'var(--t3)' }}>{t('yourCoach')}</div>
             </div>
             {!confirmDisconnect ? (
               <button className="btn btn-secondary btn-sm" style={{ fontSize: 10, color: 'var(--red, #e74c3c)' }}
                 onClick={() => setConfirmDisconnect(true)}>
-                Disconnect
+                {t('disconnect')}
               </button>
             ) : (
               <div style={{ display: 'flex', gap: 4 }}>
                 <button className="btn btn-sm" style={{ fontSize: 10, background: 'var(--red, #e74c3c)', color: '#fff' }}
-                  onClick={handleDisconnect}>Confirm</button>
+                  onClick={handleDisconnect}>{t('confirm')}</button>
                 <button className="btn btn-sm btn-ghost" style={{ fontSize: 10 }}
-                  onClick={() => setConfirmDisconnect(false)}>Cancel</button>
+                  onClick={() => setConfirmDisconnect(false)}>{t('cancel')}</button>
               </div>
             )}
           </div>
@@ -278,18 +282,18 @@ function CoachConnection() {
       ) : (
         <div>
           <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 10 }}>
-            Enter an invite code from your coach to connect.
+            {t('enterInviteCode')}
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <input
               type="text" value={code}
               onChange={e => setCode(e.target.value.toUpperCase())}
-              placeholder="ABC123" maxLength={6}
+              placeholder={t('inviteCodePlaceholder')} maxLength={6}
               style={{ flex: 1, letterSpacing: 3, fontFamily: 'var(--fd)', textAlign: 'center', fontSize: 16 }}
               autoComplete="off"
             />
             <button className="btn btn-primary btn-sm" onClick={handleRedeem} disabled={redeeming || !code.trim()}>
-              {redeeming ? '...' : 'Connect'}
+              {redeeming ? '...' : t('connect')}
             </button>
           </div>
           {error && <div style={{ fontSize: 11, color: 'var(--red)', marginTop: 6 }}>{error}</div>}
@@ -303,6 +307,8 @@ function CoachConnection() {
 // Main Settings Screen
 // ══════════════════════════════════════
 export default function SettingsScreen() {
+  const t = useT();
+  const { lang, setLang } = useLanguage();
   const { user, logout } = useAuthStore();
   const { stepGoal, macroTargets } = useClientStore();
   const { showToast } = useUIStore();
@@ -310,27 +316,36 @@ export default function SettingsScreen() {
   const [showEditProfile, setShowEditProfile] = useState(false);
 
   // Preferences — loaded from Supabase, persisted on change
-  const [prefs, setPrefs] = useState({ notifications: true, reminders: true, darkMode: true, units: 'metric' });
+  const [prefs, setPrefs] = useState({ notifications: true, reminders: true, darkMode: true, units: 'metric', language: 'en' });
   const [prefsLoaded, setPrefsLoaded] = useState(false);
 
   useEffect(() => {
     if (!user?.id) return;
     loadPreferences(user.id).then(p => {
-      if (p && Object.keys(p).length) setPrefs(prev => ({ ...prev, ...p }));
+      if (p && Object.keys(p).length) {
+        setPrefs(prev => ({ ...prev, ...p }));
+        // Sync language from prefs to i18n context
+        if (p?.language) setLang(p.language);
+      }
       setPrefsLoaded(true);
     });
-  }, [user?.id]);
+  }, [user?.id, setLang]);
 
   const updatePref = useCallback((key, value) => {
     setPrefs(prev => {
       const next = { ...prev, [key]: value };
       // Fire-and-forget save
       if (user?.id) savePreferences(user.id, next).then(ok => {
-        if (!ok) showToast('Preference not saved', 'error');
+        if (!ok) showToast(t('preferencesNotSaved'), 'error');
       });
       return next;
     });
-  }, [user?.id, showToast]);
+  }, [user?.id, showToast, t]);
+
+  const handleLangChange = (newLang) => {
+    setLang(newLang);
+    updatePref('language', newLang);
+  };
 
   const fullName = user?.user_metadata?.full_name || 'Athlete';
   const email = user?.email || '';
@@ -350,7 +365,7 @@ export default function SettingsScreen() {
       )}
 
       {/* Profile */}
-      <Card title="Profile">
+      <Card title={t('profile')}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
           <div style={{
             width: 52, height: 52, borderRadius: '50%', background: 'var(--gold-d)',
@@ -365,7 +380,7 @@ export default function SettingsScreen() {
           </div>
         </div>
         <button className="btn btn-secondary btn-sm" style={{ width: '100%' }} onClick={() => setShowEditProfile(true)}>
-          <Icon name="edit" size={12} /> Edit Profile
+          <Icon name="edit" size={12} /> {t('editProfile')}
         </button>
       </Card>
 
@@ -376,22 +391,32 @@ export default function SettingsScreen() {
       <GoalSelector />
 
       {/* Preferences */}
-      <Card title="Preferences" style={{ marginTop: 14 }}>
-        <SettingRow label="Push Notifications" sub="Workout reminders, coach messages">
+      <Card title={t('preferences')} style={{ marginTop: 14 }}>
+        <SettingRow label={t('language')} sub={t('languageDesc')}>
+          <div style={{ display: 'flex', gap: 4 }}>
+            {AVAILABLE_LANGS.map(l => (
+              <button key={l.code} className={`chip ${lang === l.code ? 'active' : ''}`}
+                onClick={() => handleLangChange(l.code)}>
+                {l.flag} {l.label}
+              </button>
+            ))}
+          </div>
+        </SettingRow>
+        <SettingRow label={t('pushNotifications')} sub={t('pushNotificationsDesc')}>
           <Toggle checked={prefs.notifications} onChange={() => updatePref('notifications', !prefs.notifications)} />
         </SettingRow>
-        <SettingRow label="Daily Reminders" sub="Morning check-in, meal logging">
+        <SettingRow label={t('dailyReminders')} sub={t('dailyRemindersDesc')}>
           <Toggle checked={prefs.reminders} onChange={() => updatePref('reminders', !prefs.reminders)} />
         </SettingRow>
-        <SettingRow label="Dark Mode" sub={prefs.darkMode ? 'On' : 'Off'}>
+        <SettingRow label={t('darkMode')} sub={prefs.darkMode ? t('on') : t('off')}>
           <Toggle checked={prefs.darkMode} onChange={() => updatePref('darkMode', !prefs.darkMode)} />
         </SettingRow>
-        <SettingRow label="Units" sub="Weight and measurements">
+        <SettingRow label={t('units')} sub={t('unitsDesc')}>
           <div style={{ display: 'flex', gap: 4 }}>
             {['metric', 'imperial'].map(u => (
               <button key={u} className={`chip ${prefs.units === u ? 'active' : ''}`}
                 onClick={() => updatePref('units', u)}>
-                {u === 'metric' ? 'kg/cm' : 'lbs/in'}
+                {u === 'metric' ? t('kgCm') : t('lbsIn')}
               </button>
             ))}
           </div>
@@ -399,26 +424,26 @@ export default function SettingsScreen() {
       </Card>
 
       {/* Daily Goals */}
-      <Card title="Daily Goals" subtitle="Set by your coach" style={{ marginTop: 14 }}>
-        <SettingRow label="Step Goal" sub={`Currently: ${stepGoal?.toLocaleString() || '—'}`}>
+      <Card title={t('dailyGoals')} subtitle={t('setByYourCoach')} style={{ marginTop: 14 }}>
+        <SettingRow label={t('stepGoalLabel')} sub={t('currently', { value: stepGoal?.toLocaleString() || '—' })}>
           <span className="tag t-gold">{stepGoal?.toLocaleString() || '—'}</span>
         </SettingRow>
-        <SettingRow label="Calorie Target" sub={`Currently: ${macroTargets?.calories || '—'}`}>
+        <SettingRow label={t('calorieTarget')} sub={t('currently', { value: macroTargets?.calories || '—' })}>
           <span className="tag t-gold">{macroTargets?.calories || '—'} kcal</span>
         </SettingRow>
-        <SettingRow label="Protein Target" sub={`Currently: ${macroTargets?.protein || '—'}g`}>
+        <SettingRow label={t('proteinTarget')} sub={t('currently', { value: `${macroTargets?.protein || '—'}g` })}>
           <span className="tag t-gr">{macroTargets?.protein || '—'}g</span>
         </SettingRow>
       </Card>
 
       {/* Account */}
-      <Card title="Account" style={{ marginTop: 14 }}>
-        <SettingRow label="App Version" sub="Aesthetic Lifestyle v2.0.0">
-          <span className="tag t-gy">React + Capacitor</span>
+      <Card title={t('account')} style={{ marginTop: 14 }}>
+        <SettingRow label={t('appVersion')} sub={t('appVersionValue')}>
+          <span className="tag t-gy">{t('appVersionSub')}</span>
         </SettingRow>
         <div style={{ marginTop: 12 }}>
           <button className="btn btn-danger" style={{ width: '100%' }} onClick={logout}>
-            <Icon name="log-out" size={13} /> Sign Out
+            <Icon name="log-out" size={13} /> {t('signOut')}
           </button>
         </div>
       </Card>

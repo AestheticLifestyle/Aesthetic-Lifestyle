@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { useUIStore } from '../../stores/uiStore';
+import { useT, useLanguage, AVAILABLE_LANGS } from '../../i18n';
 import { Card, PageSkeleton } from '../../components/ui';
 import { Icon } from '../../utils/icons';
 import { supabase } from '../../services/supabase';
@@ -16,6 +17,7 @@ function SettingRow({ label, children }) {
 }
 
 function ProfileSection({ user }) {
+  const t = useT();
   const { showToast } = useUIStore();
   const [name, setName] = useState(user?.user_metadata?.full_name || '');
   const [saving, setSaving] = useState(false);
@@ -31,7 +33,7 @@ function ProfileSection({ user }) {
   };
 
   return (
-    <Card title="Profile">
+    <Card title={t('profile')}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
         <div style={{
           width: 56, height: 56, borderRadius: '50%', background: 'var(--gold-d)',
@@ -46,7 +48,7 @@ function ProfileSection({ user }) {
         </div>
       </div>
 
-      <SettingRow label="Full Name">
+      <SettingRow label={t('fullName')}>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           <input
             className="form-inp"
@@ -55,31 +57,32 @@ function ProfileSection({ user }) {
             style={{ width: 180, fontSize: 12, padding: '6px 10px' }}
           />
           <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving} style={{ padding: '5px 12px', fontSize: 11 }}>
-            {saving ? '...' : 'Save'}
+            {saving ? '...' : t('save')}
           </button>
         </div>
       </SettingRow>
 
-      <SettingRow label="Email">
+      <SettingRow label={t('email')}>
         <span style={{ fontSize: 12, color: 'var(--t3)' }}>{user?.email}</span>
       </SettingRow>
 
-      <SettingRow label="Role">
-        <span className="tag t-gold" style={{ fontSize: 10 }}>Coach</span>
+      <SettingRow label={t('role')}>
+        <span className="tag t-gold" style={{ fontSize: 10 }}>{t('coach')}</span>
       </SettingRow>
     </Card>
   );
 }
 
 function DefaultsSection() {
+  const t = useT();
   const [stepTarget, setStepTarget] = useState(10000);
   const [defaultCalories, setDefaultCalories] = useState(2400);
   const [defaultProtein, setDefaultProtein] = useState(180);
   const { showToast } = useUIStore();
 
   return (
-    <Card title="Coaching Defaults" subtitle="Applied to new clients">
-      <SettingRow label="Default Step Target">
+    <Card title={t('coachingDefaults')} subtitle={t('appliedToNewClients')}>
+      <SettingRow label={t('defaultStepTarget')}>
         <input
           className="form-inp"
           type="number"
@@ -88,7 +91,7 @@ function DefaultsSection() {
           style={{ width: 90, fontSize: 12, padding: '6px 10px', textAlign: 'right' }}
         />
       </SettingRow>
-      <SettingRow label="Default Calories">
+      <SettingRow label={t('defaultCalories')}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <input
             className="form-inp"
@@ -97,10 +100,10 @@ function DefaultsSection() {
             onChange={e => setDefaultCalories(e.target.value)}
             style={{ width: 80, fontSize: 12, padding: '6px 10px', textAlign: 'right' }}
           />
-          <span style={{ fontSize: 11, color: 'var(--t3)' }}>kcal</span>
+          <span style={{ fontSize: 11, color: 'var(--t3)' }}>{t('kcal')}</span>
         </div>
       </SettingRow>
-      <SettingRow label="Default Protein Target">
+      <SettingRow label={t('defaultProteinTarget')}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <input
             className="form-inp"
@@ -109,12 +112,12 @@ function DefaultsSection() {
             onChange={e => setDefaultProtein(e.target.value)}
             style={{ width: 80, fontSize: 12, padding: '6px 10px', textAlign: 'right' }}
           />
-          <span style={{ fontSize: 11, color: 'var(--t3)' }}>g</span>
+          <span style={{ fontSize: 11, color: 'var(--t3)' }}>{t('g')}</span>
         </div>
       </SettingRow>
       <div style={{ marginTop: 14 }}>
         <button className="btn btn-primary btn-sm" onClick={() => showToast('Defaults saved!', 'success')}>
-          Save Defaults
+          {t('saveDefaults')}
         </button>
       </div>
     </Card>
@@ -122,6 +125,7 @@ function DefaultsSection() {
 }
 
 function InviteCodesSection({ coachId }) {
+  const t = useT();
   const { showToast } = useUIStore();
   const [codes, setCodes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -166,7 +170,7 @@ function InviteCodesSection({ coachId }) {
   const usedCodes = codes.filter(c => c.active === false || (c.used_count >= c.max_uses));
 
   return (
-    <Card title="Invite Codes" subtitle="Generate codes for new clients">
+    <Card title={t('inviteCodes')} subtitle={t('generateCodesDesc')}>
       <div style={{ marginBottom: 14 }}>
         <button
           className="btn btn-primary btn-sm"
@@ -174,7 +178,7 @@ function InviteCodesSection({ coachId }) {
           disabled={creating}
           style={{ width: '100%' }}
         >
-          <Icon name="plus" size={12} /> {creating ? 'Creating...' : 'Generate New Code'}
+          <Icon name="plus" size={12} /> {creating ? t('creating') : t('generateNewCode')}
         </button>
       </div>
 
@@ -182,7 +186,7 @@ function InviteCodesSection({ coachId }) {
         <PageSkeleton />
       ) : activeCodes.length === 0 && usedCodes.length === 0 ? (
         <div style={{ fontSize: 12, color: 'var(--t3)', textAlign: 'center', padding: 16 }}>
-          No invite codes yet. Generate one to share with a new client.
+          {t('noInviteCodesYet')}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -198,21 +202,21 @@ function InviteCodesSection({ coachId }) {
                 {c.code}
               </div>
               <span style={{ fontSize: 10, color: 'var(--t3)' }}>
-                {c.used_count || 0}/{c.max_uses} used
+                {c.used_count || 0}/{c.max_uses} {t('used')}
               </span>
               <button
                 className="btn btn-secondary btn-sm"
                 onClick={() => handleCopy(c.code)}
                 style={{ padding: '4px 8px', fontSize: 10 }}
               >
-                Copy
+                {t('copy')}
               </button>
               <button
                 className="btn btn-secondary btn-sm"
                 onClick={() => handleDeactivate(c.id)}
                 style={{ padding: '4px 8px', fontSize: 10, color: 'var(--red)' }}
               >
-                Revoke
+                {t('revoke')}
               </button>
             </div>
           ))}
@@ -229,7 +233,7 @@ function InviteCodesSection({ coachId }) {
                 {c.code}
               </div>
               <span style={{ fontSize: 10, color: 'var(--t3)' }}>
-                {c.label || 'Used / Revoked'}
+                {c.label || t('usedRevoked')}
               </span>
             </div>
           ))}
@@ -240,13 +244,26 @@ function InviteCodesSection({ coachId }) {
 }
 
 function AppSection({ onSignOut }) {
+  const t = useT();
+  const { lang, setLang } = useLanguage();
   return (
     <Card title="App">
-      <SettingRow label="App Version">
+      <SettingRow label={t('language')}>
+        <div style={{ display: 'flex', gap: 4 }}>
+          {AVAILABLE_LANGS.map(l => (
+            <button key={l.code} className={`chip ${lang === l.code ? 'active' : ''}`}
+              onClick={() => setLang(l.code)}
+              style={{ fontSize: 11, padding: '4px 10px' }}>
+              {l.flag} {l.label}
+            </button>
+          ))}
+        </div>
+      </SettingRow>
+      <SettingRow label={t('appVersion')}>
         <span style={{ fontSize: 12, color: 'var(--t3)', fontFamily: 'var(--fm)' }}>1.0.0</span>
       </SettingRow>
-      <SettingRow label="Theme">
-        <span className="tag" style={{ fontSize: 10 }}>Dark</span>
+      <SettingRow label={t('theme')}>
+        <span className="tag" style={{ fontSize: 10 }}>{t('dark')}</span>
       </SettingRow>
       <div style={{ marginTop: 18 }}>
         <button
@@ -254,7 +271,7 @@ function AppSection({ onSignOut }) {
           style={{ width: '100%', color: 'var(--red)', borderColor: 'var(--red)' }}
           onClick={onSignOut}
         >
-          <Icon name="log-out" size={14} /> Sign Out
+          <Icon name="log-out" size={14} /> {t('signOut')}
         </button>
       </div>
     </Card>

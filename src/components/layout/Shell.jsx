@@ -4,6 +4,7 @@ import Sidebar from './Sidebar';
 import Header from './Header';
 import { useUIStore } from '../../stores/uiStore';
 import { useAuthStore } from '../../stores/authStore';
+import { useT } from '../../i18n';
 import { COACH_NAV, CLIENT_NAV } from '../../utils/constants';
 import { useDataLoader } from '../../hooks/useDataLoader';
 import { ErrorBoundary } from '../ui/ErrorBoundary';
@@ -25,6 +26,7 @@ export default function Shell() {
   // Load all data from Supabase on mount
   useDataLoader();
 
+  const t = useT();
   const { sidebarOpen, closeSidebar, toast } = useUIStore();
   const { role } = useAuthStore();
   const location = useLocation();
@@ -35,7 +37,7 @@ export default function Shell() {
   const navItems = isCoach ? COACH_NAV : CLIENT_NAV;
   const currentPath = location.pathname.split('/').pop();
   const currentNav = navItems.find(item => item.id === currentPath);
-  const pageTitle = currentNav?.label || (isCoach ? 'Coach Dashboard' : 'Dashboard');
+  const pageTitle = currentNav ? t(currentNav.label) : (isCoach ? t('coachDashboard') : t('navDashboard'));
 
   return (
     <div className="shell">
@@ -55,7 +57,7 @@ export default function Shell() {
             color: '#fff', fontSize: 12, fontWeight: 600,
           }}>
             <Icon name="wifi-off" size={14} />
-            You're offline — changes won't sync until you reconnect
+            {t('offlineBanner')}
           </div>
         )}
 

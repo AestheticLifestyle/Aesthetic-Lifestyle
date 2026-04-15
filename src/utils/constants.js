@@ -20,25 +20,25 @@ export function formatVolume(v) {
 
 // Navigation items
 export const COACH_NAV = [
-  { id: 'overview', label: 'Command Center', group: 'Overview', icon: 'grid' },
-  { id: 'clients', label: 'All Clients', group: 'Clients', icon: 'users', badge: true },
-  { id: 'checkins', label: 'Check-ins', group: 'Clients', icon: 'clipboard', badge: true },
-  { id: 'weekly-review', label: 'Weekly Review', group: 'Clients', icon: 'trending-up' },
-  { id: 'workout-builder', label: 'Workout Builder', group: 'Builder', icon: 'dumbbell' },
-  { id: 'nutrition-editor', label: 'Nutrition Editor', group: 'Builder', icon: 'utensils' },
-  { id: 'supplements', label: 'Supplements', group: 'Builder', icon: 'pill' },
-  { id: 'analytics', label: 'Analytics', group: 'Clients', icon: 'bar-chart' },
-  { id: 'chat', label: 'Coach Chat', group: 'System', icon: 'message', badge: true },
-  { id: 'settings', label: 'Settings', group: 'System', icon: 'settings' },
+  { id: 'overview', label: 'navCommandCenter', group: 'navOverview', icon: 'grid' },
+  { id: 'clients', label: 'navAllClients', group: 'navClients', icon: 'users', badge: true },
+  { id: 'checkins', label: 'navCheckins', group: 'navClients', icon: 'clipboard', badge: true },
+  { id: 'weekly-review', label: 'navWeeklyReview', group: 'navClients', icon: 'trending-up' },
+  { id: 'workout-builder', label: 'navWorkoutBuilder', group: 'navBuilder', icon: 'dumbbell' },
+  { id: 'nutrition-editor', label: 'navNutritionEditor', group: 'navBuilder', icon: 'utensils' },
+  { id: 'supplements', label: 'navSupplements', group: 'navBuilder', icon: 'pill' },
+  { id: 'analytics', label: 'navAnalytics', group: 'navClients', icon: 'bar-chart' },
+  { id: 'chat', label: 'navCoachChat', group: 'navSystem', icon: 'message', badge: true },
+  { id: 'settings', label: 'navSettings', group: 'navSystem', icon: 'settings' },
 ];
 
 export const CLIENT_NAV = [
-  { id: 'dashboard', label: 'Dashboard', group: 'Main', icon: 'grid' },
-  { id: 'training', label: 'Training', group: 'Main', icon: 'dumbbell' },
-  { id: 'nutrition', label: 'Nutrition', group: 'Main', icon: 'utensils' },
-  { id: 'supplements', label: 'Supplements', group: 'Main', icon: 'pill' },
-  { id: 'progress', label: 'Progress', group: 'Tracking', icon: 'trending-up' },
-  { id: 'journal', label: 'Journal', group: 'Tracking', icon: 'book' },
-  { id: 'chat', label: 'Chat', group: 'Connect', icon: 'message' },
-  { id: 'settings', label: 'Settings', group: 'Connect', icon: 'settings' },
+  { id: 'dashboard', label: 'navDashboard', group: 'navMain', icon: 'grid' },
+  { id: 'training', label: 'navTraining', group: 'navMain', icon: 'dumbbell' },
+  { id: 'nutrition', label: 'navNutrition', group: 'navMain', icon: 'utensils' },
+  { id: 'supplements', label: 'navSupplements', group: 'navMain', icon: 'pill' },
+  { id: 'progress', label: 'navProgress', group: 'navTracking', icon: 'trending-up' },
+  { id: 'journal', label: 'navJournal', group: 'navTracking', icon: 'book' },
+  { id: 'chat', label: 'navChat', group: 'navConnect', icon: 'message' },
+  { id: 'settings', label: 'navSettings', group: 'navConnect', icon: 'settings' },
 ];

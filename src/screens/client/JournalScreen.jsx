@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { useT } from '../../i18n';
 import { Card, PageSkeleton } from '../../components/ui';
 import { Icon } from '../../utils/icons';
 import { useAuthStore } from '../../stores/authStore';
@@ -15,28 +16,79 @@ function getWeekNumber(d) {
 }
 
 // ── Constants ──
-const MOOD_OPTIONS = [
-  { emoji: '\ud83d\udcaa', label: 'Unstoppable' },
-  { emoji: '\ud83d\ude0a', label: 'Good' },
-  { emoji: '\ud83d\ude10', label: 'Neutral' },
-  { emoji: '\ud83d\ude14', label: 'Low' },
-  { emoji: '\ud83d\ude29', label: 'Struggling' },
-];
+const MOOD_KEYS = {
+  'Unstoppable': 'moodUnstoppable',
+  'Good': 'moodGood',
+  'Neutral': 'moodNeutral',
+  'Low': 'moodLow',
+  'Struggling': 'moodStruggling',
+};
 
-const WEEKLY_MOODS = ['Great Week', 'Good Week', 'Average', 'Tough Week', 'Terrible Week'];
-const STEPS_OPTIONS = ['Every Day', 'Most Days', 'Some Days', 'Rarely'];
-const PAIN_OPTIONS = [
-  { value: 'no', label: 'No Pain' },
-  { value: 'yes-minor', label: 'Yes — Minor' },
-  { value: 'yes-major', label: 'Yes — Major' },
-];
+const WEEKLY_MOOD_KEYS = {
+  'Great Week': 'weekGreat',
+  'Good Week': 'weekGood',
+  'Average': 'weekAverage',
+  'Tough Week': 'weekTough',
+  'Terrible Week': 'weekTerrible',
+};
+
+const STEPS_OPTION_KEYS = {
+  'Every Day': 'stepsEveryDay',
+  'Most Days': 'stepsMostDays',
+  'Some Days': 'stepsSomeDays',
+  'Rarely': 'stepsRarely',
+};
+
+const PAIN_OPTION_KEYS = {
+  'no': 'noPain',
+  'yes-minor': 'yesMinor',
+  'yes-major': 'yesMajor',
+};
+
+function createMoodOptions(t) {
+  return [
+    { emoji: '\ud83d\udcaa', label: t('moodUnstoppable'), key: 'moodUnstoppable' },
+    { emoji: '\ud83d\ude0a', label: t('moodGood'), key: 'moodGood' },
+    { emoji: '\ud83d\ude10', label: t('moodNeutral'), key: 'moodNeutral' },
+    { emoji: '\ud83d\ude14', label: t('moodLow'), key: 'moodLow' },
+    { emoji: '\ud83d\ude29', label: t('moodStruggling'), key: 'moodStruggling' },
+  ];
+}
+
+function createWeeklyMoods(t) {
+  return [
+    t('weekGreat'),
+    t('weekGood'),
+    t('weekAverage'),
+    t('weekTough'),
+    t('weekTerrible'),
+  ];
+}
+
+function createStepsOptions(t) {
+  return [
+    t('stepsEveryDay'),
+    t('stepsMostDays'),
+    t('stepsSomeDays'),
+    t('stepsRarely'),
+  ];
+}
+
+function createPainOptions(t) {
+  return [
+    { value: 'no', label: t('noPain') },
+    { value: 'yes-minor', label: t('yesMinor') },
+    { value: 'yes-major', label: t('yesMajor') },
+  ];
+}
 
 // ── Slider component (compact) ──
-function Slider({ label, value, onChange, color, min = 1, max = 10 }) {
+function Slider({ label, value, onChange, color, min = 1, max = 10, labelKey, t }) {
+  const translatedLabel = labelKey && t ? t(labelKey) : label;
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--t2)' }}>{label}</span>
+        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--t2)' }}>{translatedLabel}</span>
         <span style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--fd)', color, lineHeight: 1 }}>
           {value}<span style={{ fontSize: 9, color: 'var(--t3)', marginLeft: 1 }}>/{max}</span>
         </span>
@@ -92,6 +144,7 @@ function getClientId() {
 }
 
 function DailyCheckin() {
+  const t = useT();
   const { user } = useAuthStore();
   const { showToast } = useUIStore();
   const [selectedDate, setSelectedDate] = useState(getTodayKey());
@@ -106,6 +159,7 @@ function DailyCheckin() {
 
   const isToday = selectedDate === getTodayKey();
   const clientId = getClientId();
+  const MOOD_OPTIONS = createMoodOptions(t);
 
   // Generate last 7 days
   const days = useMemo(() => {
@@ -158,15 +212,15 @@ function DailyCheckin() {
 
   const handleSave = async () => {
     if (!user?.id) {
-      showToast('Please sign in first', 'error');
+      showToast(t('pleaseSignInFirst'), 'error');
       return;
     }
     if (!clientId) {
-      showToast('No client ID — try reloading', 'error');
+      showToast(t('noClientId'), 'error');
       return;
     }
     if (mood === null) {
-      showToast('Select your mood before saving', 'error');
+      showToast(t('selectMoodBeforeSaving'), 'error');
       return;
     }
     setSaving(true);
@@ -187,9 +241,9 @@ function DailyCheckin() {
         ...prev,
         [selectedDate]: { mood: MOOD_OPTIONS[mood]?.label, sleep, energy, stress, note: notes, date: selectedDate },
       }));
-      showToast(isToday ? 'Daily check-in saved!' : `Check-in saved for ${formatDateShort(selectedDate)}!`, 'success');
+      showToast(isToday ? t('checkinSaved').replace('{date}', formatDateShort(selectedDate)) : t('checkinSaved').replace('{date}', formatDateShort(selectedDate)), 'success');
     } else {
-      const msg = (result && result.error) ? `Failed to save: ${result.error}` : 'Failed to save';
+      const msg = (result && result.error) ? `${t('failedToSaveError').replace('{error}', result.error)}` : t('failedToSave');
       showToast(msg, 'error');
     }
   };
@@ -240,7 +294,7 @@ function DailyCheckin() {
           display: 'flex', alignItems: 'center', gap: 6,
         }}>
           <span style={{ fontSize: 11 }}>{hasExisting ? '✅' : '⚠️'}</span>
-          {hasExisting ? 'Update below' : 'Fill in to catch up'}
+          {hasExisting ? t('checkinExists') : t('noCheckinYet')}
         </div>
       )}
 
@@ -250,7 +304,7 @@ function DailyCheckin() {
         borderRadius: 10, padding: '10px 8px', marginBottom: 8,
       }}>
         <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--t3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 }}>
-          Mood
+          {t('mood')}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 4 }}>
           {MOOD_OPTIONS.map((m, i) => {
@@ -281,9 +335,9 @@ function DailyCheckin() {
         borderRadius: 10, padding: '10px 12px', marginBottom: 8,
         display: 'flex', flexDirection: 'column', gap: 10,
       }}>
-        <Slider label="Sleep" value={sleep} onChange={setSleep} color="var(--blue)" />
-        <Slider label="Energy" value={energy} onChange={setEnergy} color="var(--green)" />
-        <Slider label="Stress" value={stress} onChange={setStress} color="var(--orange)" />
+        <Slider label="Sleep" labelKey="sleep" value={sleep} onChange={setSleep} color="var(--blue)" t={t} />
+        <Slider label="Energy" labelKey="energy" value={energy} onChange={setEnergy} color="var(--green)" t={t} />
+        <Slider label="Stress" labelKey="stress" value={stress} onChange={setStress} color="var(--orange)" t={t} />
       </div>
 
       {/* Notes — minimal */}
@@ -293,7 +347,7 @@ function DailyCheckin() {
       }}>
         <textarea
           className="t-area"
-          placeholder="Notes (optional)"
+          placeholder={t('notesOptional')}
           value={notes}
           onChange={e => setNotes(e.target.value)}
           rows={2}
@@ -302,7 +356,7 @@ function DailyCheckin() {
       </div>
 
       <button className="btn btn-primary" style={{ width: '100%', padding: '11px' }} onClick={handleSave} disabled={saving}>
-        {saving ? 'Saving...' : hasExisting ? 'Update Check-in' : 'Save Check-in'}
+        {saving ? t('saving') : hasExisting ? t('updateCheckin') : t('saveCheckin')}
       </button>
     </>
   );
@@ -317,8 +371,12 @@ function formatDateShort(dateStr) {
 // Weekly Check-in Tab
 // ══════════════════════════════════════
 function WeeklyCheckin() {
+  const t = useT();
   const { user } = useAuthStore();
   const { showToast } = useUIStore();
+  const WEEKLY_MOODS = createWeeklyMoods(t);
+  const STEPS_OPTIONS = createStepsOptions(t);
+  const PAIN_OPTIONS = createPainOptions(t);
 
   const currentWeekNum = getWeekNumber(new Date());
   const [weekOffset, setWeekOffset] = useState(0); // 0 = this week, -1 = last week, etc.
@@ -410,16 +468,16 @@ function WeeklyCheckin() {
 
   const handleSave = async () => {
     if (!user?.id) {
-      showToast('Please sign in first', 'error');
+      showToast(t('pleaseSignInFirst'), 'error');
       return;
     }
     const clientId = getClientId();
     if (!clientId) {
-      showToast('No client ID — try reloading', 'error');
+      showToast(t('noClientId'), 'error');
       return;
     }
     if (!weeklyMood) {
-      showToast('Select your weekly mood before saving', 'error');
+      showToast(t('selectWeeklyMoodBeforeSaving'), 'error');
       return;
     }
     setSaving(true);
@@ -446,9 +504,9 @@ function WeeklyCheckin() {
     const ok = result === true || (result && result.ok === true);
     if (ok) {
       setHasExisting(true);
-      showToast(isCurrentWeek ? 'Weekly check-in saved!' : `Week ${weekNum} check-in saved!`, 'success');
+      showToast(isCurrentWeek ? t('checkinSaved').replace('{date}', '') : t('checkinSaved').replace('{date}', ''), 'success');
     } else {
-      const msg = (result && result.error) ? `Failed to save: ${result.error}` : 'Failed to save';
+      const msg = (result && result.error) ? `${t('failedToSaveError').replace('{error}', result.error)}` : t('failedToSave');
       showToast(msg, 'error');
     }
   };
@@ -504,39 +562,39 @@ function WeeklyCheckin() {
           display: 'flex', alignItems: 'center', gap: 6,
         }}>
           <span style={{ fontSize: 11 }}>{hasExisting ? '✅' : '⚠️'}</span>
-          {hasExisting ? 'Check-in exists — update below' : 'No check-in yet — fill it in to catch up'}
+          {hasExisting ? t('checkinExists') : t('noCheckinYet')}
         </div>
       )}
 
       {/* Coach feedback from previous submission */}
       {existingFeedback && (
         <Card style={{ marginBottom: 14, border: '1px solid var(--gold)' }}>
-          <div className="kl" style={{ marginBottom: 6 }}>Coach Feedback</div>
+          <div className="kl" style={{ marginBottom: 6 }}>{t('coachFeedback')}</div>
           <div style={{ fontSize: 13, color: 'var(--t1)', lineHeight: 1.5 }}>{existingFeedback}</div>
         </Card>
       )}
 
       {/* Overall mood */}
-      <Card title="How was your week overall?" style={{ marginBottom: 14 }}>
+      <Card title={t('howWasYourWeek')} style={{ marginBottom: 14 }}>
         <PillSelector options={WEEKLY_MOODS} value={weeklyMood} onChange={setWeeklyMood} />
       </Card>
 
       {/* Body & Recovery */}
-      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t2)', marginBottom: 8, marginTop: 6 }}>Body & Recovery</div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t2)', marginBottom: 8, marginTop: 6 }}>{t('bodyAndRecovery')}</div>
       <div className="g2" style={{ marginBottom: 14 }}>
-        <Slider label="Sleep Quality" value={sleepQuality} onChange={setSleepQuality} color="var(--blue)" />
-        <Slider label="Digestion" value={digestion} onChange={setDigestion} color="var(--green)" />
-        <Slider label="Energy" value={energyLevel} onChange={setEnergyLevel} color="var(--orange)" />
-        <Slider label="Motivation" value={motivation} onChange={setMotivation} color="var(--gold)" />
+        <Slider label="Sleep Quality" labelKey="sleepQuality" value={sleepQuality} onChange={setSleepQuality} color="var(--blue)" t={t} />
+        <Slider label="Digestion" labelKey="digestion" value={digestion} onChange={setDigestion} color="var(--green)" t={t} />
+        <Slider label="Energy" labelKey="energy" value={energyLevel} onChange={setEnergyLevel} color="var(--orange)" t={t} />
+        <Slider label="Motivation" labelKey="motivation" value={motivation} onChange={setMotivation} color="var(--gold)" t={t} />
       </div>
 
       {/* Pain */}
-      <Card title="Any pain or discomfort?" style={{ marginBottom: 14 }}>
+      <Card title={t('painOrDiscomfort')} style={{ marginBottom: 14 }}>
         <PillSelector options={PAIN_OPTIONS} value={pain} onChange={setPain} small />
         {pain !== 'no' && (
           <textarea
             className="t-area"
-            placeholder="Where and what kind of pain?"
+            placeholder={t('painDetails')}
             value={painDetail}
             onChange={e => setPainDetail(e.target.value)}
             rows={2}
@@ -546,11 +604,11 @@ function WeeklyCheckin() {
       </Card>
 
       {/* Adherence */}
-      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t2)', marginBottom: 8, marginTop: 6 }}>Adherence</div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t2)', marginBottom: 8, marginTop: 6 }}>{t('adherence')}</div>
       <div className="g2" style={{ marginBottom: 14 }}>
-        <Slider label="Nutrition Adherence" value={nutritionAdherence} onChange={setNutritionAdherence} color="var(--green)" />
+        <Slider label="Nutrition Adherence" labelKey="nutritionAdherence" value={nutritionAdherence} onChange={setNutritionAdherence} color="var(--green)" t={t} />
         <Card>
-          <div className="kl">Workouts Completed</div>
+          <div className="kl">{t('workoutsCompleted')}</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6 }}>
             <button className="icon-btn" style={{ width: 30, height: 30 }} onClick={() => setWorkoutsCompleted(Math.max(0, workoutsCompleted - 1))}>
               <span style={{ fontSize: 16, lineHeight: 1 }}>−</span>
@@ -565,7 +623,7 @@ function WeeklyCheckin() {
 
       <div className="g2" style={{ marginBottom: 14 }}>
         <Card>
-          <div className="kl">Avg. Water (L/day)</div>
+          <div className="kl">{t('avgWater')}</div>
           <input
             className="form-inp"
             type="number"
@@ -577,7 +635,7 @@ function WeeklyCheckin() {
           />
         </Card>
         <Card>
-          <div className="kl">Steps Goal</div>
+          <div className="kl">{t('stepsGoal')}</div>
           <div style={{ marginTop: 6 }}>
             <PillSelector options={STEPS_OPTIONS} value={stepsGoal} onChange={setStepsGoal} small />
           </div>
@@ -585,42 +643,42 @@ function WeeklyCheckin() {
       </div>
 
       {/* Written responses */}
-      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t2)', marginBottom: 8, marginTop: 6 }}>Reflection</div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t2)', marginBottom: 8, marginTop: 6 }}>{t('reflection')}</div>
 
-      <Card title="What went well this week?" style={{ marginBottom: 14 }}>
+      <Card title={t('whatWentWell')} style={{ marginBottom: 14 }}>
         <textarea
           className="t-area"
-          placeholder="Your wins, progress, things you're proud of..."
+          placeholder={t('whatWentWellPlaceholder')}
           value={whatWentWell}
           onChange={e => setWhatWentWell(e.target.value)}
           rows={3}
         />
       </Card>
 
-      <Card title="Biggest struggle this week?" style={{ marginBottom: 14 }}>
+      <Card title={t('biggestStruggle')} style={{ marginBottom: 14 }}>
         <textarea
           className="t-area"
-          placeholder="What was hard? Where did you slip?"
+          placeholder={t('biggestStrugglePlaceholder')}
           value={biggestStruggle}
           onChange={e => setBiggestStruggle(e.target.value)}
           rows={3}
         />
       </Card>
 
-      <Card title="What do you want to improve next week?" style={{ marginBottom: 14 }}>
+      <Card title={t('whatToImprove')} style={{ marginBottom: 14 }}>
         <textarea
           className="t-area"
-          placeholder="One or two things to focus on..."
+          placeholder={t('whatToImprovePlaceholder')}
           value={whatToImprove}
           onChange={e => setWhatToImprove(e.target.value)}
           rows={2}
         />
       </Card>
 
-      <Card title="Questions for your coach?" style={{ marginBottom: 14 }}>
+      <Card title={t('questionsForCoach')} style={{ marginBottom: 14 }}>
         <textarea
           className="t-area"
-          placeholder="Anything you want to ask or discuss..."
+          placeholder={t('questionsForCoachPlaceholder')}
           value={questionsForCoach}
           onChange={e => setQuestionsForCoach(e.target.value)}
           rows={2}
@@ -628,7 +686,7 @@ function WeeklyCheckin() {
       </Card>
 
       <button className="btn btn-primary" style={{ width: '100%' }} onClick={handleSave} disabled={saving}>
-        {saving ? 'Saving...' : hasExisting ? 'Update Check-in' : 'Save Weekly Check-in'}
+        {saving ? t('saving') : hasExisting ? t('updateCheckin') : t('saveWeeklyCheckin')}
       </button>
     </>
   );
@@ -638,6 +696,7 @@ function WeeklyCheckin() {
 // Main — tabs for Daily / Weekly
 // ══════════════════════════════════════
 export default function JournalScreen() {
+  const t = useT();
   const [tab, setTab] = useState('daily');
 
   return (
@@ -645,10 +704,10 @@ export default function JournalScreen() {
       {/* Tab switcher */}
       <div className="modal-tabs" style={{ marginBottom: 10 }}>
         <div className={`mtab ${tab === 'daily' ? 'active' : ''}`} onClick={() => setTab('daily')}>
-          Daily Check-in
+          {t('dailyCheckinTitle')}
         </div>
         <div className={`mtab ${tab === 'weekly' ? 'active' : ''}`} onClick={() => setTab('weekly')}>
-          Weekly Check-in
+          {t('weeklyCheckinTitle')}
         </div>
       </div>
 

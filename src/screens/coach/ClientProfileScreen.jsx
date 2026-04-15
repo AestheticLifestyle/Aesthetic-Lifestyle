@@ -5,6 +5,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { Card, ProgressRing } from '../../components/ui';
 import { Icon } from '../../utils/icons';
 import { useUIStore } from '../../stores/uiStore';
+import { useT } from '../../i18n';
 import { detectPlateau, analyzeWeightTrend, suggestCalorieAdjustment } from '../../utils/coachingInsights';
 import { updateClientSettings, archiveClient, GOAL_LABELS } from '../../services/chat';
 
@@ -33,11 +34,12 @@ function daysAgo(d) {
 
 // ── Section: Header ──
 function ProfileHeader({ client, onBack, onManage }) {
+  const t = useT();
   const name = client.client_name || client.name || 'Client';
   const statusMap = {
-    'on-track': { label: 'On Track', cls: 't-gr' },
-    'attention': { label: 'Attention', cls: 't-or' },
-    'at-risk': { label: 'At Risk', cls: 't-rd' },
+    'on-track': { label: t('onTrack'), cls: 't-gr' },
+    'attention': { label: t('attention'), cls: 't-or' },
+    'at-risk': { label: t('atRisk'), cls: 't-rd' },
   };
   const s = statusMap[client.status || 'on-track'] || statusMap['on-track'];
 
@@ -60,7 +62,7 @@ function ProfileHeader({ client, onBack, onManage }) {
       <div style={{ flex: 1 }}>
         <div style={{ fontSize: 18, fontWeight: 600, letterSpacing: 0.5 }}>{name}</div>
         <div style={{ fontSize: 11, color: 'var(--t3)' }}>
-          {client.goal || 'No goal set'}{client.start_date ? ` · Started ${formatDate(client.start_date)}` : ''}
+          {client.goal || t('noGoalSet')}{client.start_date ? ` · ${t('started')} ${formatDate(client.start_date)}` : ''}
         </div>
       </div>
       <span className={`tag ${s.cls}`}>{s.label}</span>
@@ -75,6 +77,7 @@ function ProfileHeader({ client, onBack, onManage }) {
 
 // ── Section: Key Metrics ──
 function KeyMetrics({ weightLog, checkins, weeklyCheckins }) {
+  const t = useT();
   const latestWeight = (weightLog || []).length ? (weightLog || [])[weightLog.length - 1] : null;
 
   // Weight change over last 7 days
@@ -124,14 +127,14 @@ function KeyMetrics({ weightLog, checkins, weeklyCheckins }) {
   return (
     <div className="g4" style={{ marginBottom: 18 }}>
       <Card>
-        <div className="kl">Weight</div>
+        <div className="kl">{t('weight')}</div>
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, margin: '4px 0' }}>
           <span className="kv">{latestWeight ? latestWeight.weight : '—'}</span>
-          {latestWeight && <span className="ku">kg</span>}
+          {latestWeight && <span className="ku">{t('kg')}</span>}
         </div>
         {weightChange !== null && (
           <div style={{ fontSize: 10, color: parseFloat(weightChange) <= 0 ? 'var(--green)' : 'var(--orange)' }}>
-            {parseFloat(weightChange) > 0 ? '+' : ''}{weightChange} kg this week
+            {parseFloat(weightChange) > 0 ? '+' : ''}{weightChange} {t('kg')} this week
           </div>
         )}
         {latestWeight && (
@@ -141,20 +144,20 @@ function KeyMetrics({ weightLog, checkins, weeklyCheckins }) {
         )}
       </Card>
       <Card>
-        <div className="kl">Avg Steps</div>
+        <div className="kl">{t('avgSteps')}</div>
         <div className="kv" style={{ color: 'var(--green)', margin: '4px 0' }}>{avgSteps.toLocaleString()}</div>
-        <div style={{ fontSize: 10, color: 'var(--t3)' }}>Last 7 days</div>
+        <div style={{ fontSize: 10, color: 'var(--t3)' }}>{t('last7Days')}</div>
       </Card>
       <Card>
-        <div className="kl">Avg Water</div>
+        <div className="kl">{t('avgWaterProfile')}</div>
         <div className="kv" style={{ color: 'var(--blue)', margin: '4px 0' }}>{avgWater}</div>
-        <div style={{ fontSize: 10, color: 'var(--t3)' }}>L / day (7d)</div>
+        <div style={{ fontSize: 10, color: 'var(--t3)' }}>{t('lDayProfile')}</div>
       </Card>
       <Card>
-        <div className="kl">Streak</div>
+        <div className="kl">{t('streak')}</div>
         <div className="kv" style={{ color: 'var(--gold)', margin: '4px 0' }}>{streak}</div>
         <div style={{ fontSize: 10, color: 'var(--t3)' }}>
-          {streak === 1 ? 'day' : 'days'} · {checkinCount} check-ins
+          {streak === 1 ? t('day') : t('days')} · {checkinCount} {t('checkIns')}
         </div>
       </Card>
     </div>
@@ -163,11 +166,12 @@ function KeyMetrics({ weightLog, checkins, weeklyCheckins }) {
 
 // ── Section: Weight Trend ──
 function WeightTrend({ weightLog }) {
+  const t = useT();
   if ((weightLog || []).length < 2) {
     return (
-      <Card title="Weight Trend">
+      <Card title={t('weightTrend')}>
         <div style={{ textAlign: 'center', padding: 20, color: 'var(--t3)', fontSize: 12 }}>
-          Not enough data to show a trend yet.
+          {t('notEnoughData')}
         </div>
       </Card>
     );
@@ -181,7 +185,7 @@ function WeightTrend({ weightLog }) {
   const chartH = 100;
 
   return (
-    <Card title="Weight Trend" subtitle={`${last30.length} entries`}>
+    <Card title={t('weightTrend')} subtitle={`${last30.length} ${t('entries')}`}>
       <svg width="100%" height={chartH + 30} viewBox={`0 0 ${last30.length * 20} ${chartH + 30}`} style={{ overflow: 'visible' }}>
         {/* Grid lines */}
         {[0, 0.25, 0.5, 0.75, 1].map(pct => {
@@ -225,6 +229,7 @@ function WeightTrend({ weightLog }) {
 
 // ── Section: Nutrition Overview with Macro Adjust ──
 function NutritionOverview({ nutritionHistory, mealPlan, clientId, coachId }) {
+  const t = useT();
   const [adjusting, setAdjusting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ calories: '', protein: '', carbs: '', fat: '' });
@@ -285,13 +290,13 @@ function NutritionOverview({ nutritionHistory, mealPlan, clientId, coachId }) {
 
   if (!mealPlan?.length && !nutritionHistory.length) {
     return (
-      <Card title="Nutrition">
+      <Card title={t('nutrition')}>
         <div style={{ textAlign: 'center', padding: 20, color: 'var(--t3)', fontSize: 12 }}>
-          No meal plan or nutrition data yet.
+          {t('noMealPlanYet')}
         </div>
         {clientId && (
           <button className="btn btn-primary btn-sm" style={{ width: '100%', marginTop: 8 }} onClick={handleOpenAdjust}>
-            <Icon name="edit" size={10} /> Set Macro Targets
+            <Icon name="edit" size={10} /> {t('setMacroTargets')}
           </button>
         )}
         {adjusting && (
@@ -302,20 +307,20 @@ function NutritionOverview({ nutritionHistory, mealPlan, clientId, coachId }) {
   }
 
   return (
-    <Card title="Nutrition" subtitle="7-day average">
+    <Card title={t('nutrition')} subtitle="7-day average">
       {macroTargets.calories > 0 && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
           <div style={{ fontSize: 11, color: 'var(--t3)' }}>
-            Targets: {macroTargets.calories} kcal · {macroTargets.protein}P · {macroTargets.carbs}C · {macroTargets.fat}F
+            {t('targets')}: {macroTargets.calories} {t('kcal')} · {macroTargets.protein}P · {macroTargets.carbs}C · {macroTargets.fat}F
           </div>
           <button className="btn btn-ghost btn-sm" style={{ fontSize: 10, padding: '2px 8px' }} onClick={handleOpenAdjust}>
-            <Icon name="edit" size={9} /> Adjust
+            <Icon name="edit" size={9} /> {t('adjust')}
           </button>
         </div>
       )}
       {!macroTargets.calories && clientId && (
         <button className="btn btn-ghost btn-sm" style={{ fontSize: 10, marginBottom: 8 }} onClick={handleOpenAdjust}>
-          <Icon name="edit" size={9} /> Set Targets
+          <Icon name="edit" size={9} /> {t('setTargets')}
         </button>
       )}
       {adjusting && (
@@ -324,10 +329,10 @@ function NutritionOverview({ nutritionHistory, mealPlan, clientId, coachId }) {
       {avgMacros ? (
         <div style={{ display: 'flex', gap: 20, justifyContent: 'center' }}>
           {[
-            { label: 'Calories', val: avgMacros.kcal, max: macroTargets.calories, unit: '', color: 'var(--gold)' },
-            { label: 'Protein', val: avgMacros.protein, max: macroTargets.protein, unit: 'g', color: 'var(--green)' },
-            { label: 'Carbs', val: avgMacros.carbs, max: macroTargets.carbs, unit: 'g', color: 'var(--blue)' },
-            { label: 'Fat', val: avgMacros.fat, max: macroTargets.fat, unit: 'g', color: 'var(--orange)' },
+            { label: t('calories'), val: avgMacros.kcal, max: macroTargets.calories, unit: '', color: 'var(--gold)' },
+            { label: t('protein'), val: avgMacros.protein, max: macroTargets.protein, unit: t('g'), color: 'var(--green)' },
+            { label: t('carbs'), val: avgMacros.carbs, max: macroTargets.carbs, unit: t('g'), color: 'var(--blue)' },
+            { label: t('fat'), val: avgMacros.fat, max: macroTargets.fat, unit: t('g'), color: 'var(--orange)' },
           ].map(m => (
             <div key={m.label} style={{ textAlign: 'center' }}>
               <ProgressRing value={m.val} max={m.max || 1} size={52} stroke={4} color={m.color}>
@@ -344,12 +349,12 @@ function NutritionOverview({ nutritionHistory, mealPlan, clientId, coachId }) {
         </div>
       ) : (
         <div style={{ textAlign: 'center', padding: 10, color: 'var(--t3)', fontSize: 12 }}>
-          No nutrition logs yet.
+          {t('noNutritionLogs')}
         </div>
       )}
       {avgMacros && (
         <div style={{ textAlign: 'center', marginTop: 12, fontSize: 11, color: 'var(--t3)' }}>
-          Meal adherence: <span style={{ color: avgMacros.adherence >= 80 ? 'var(--green)' : avgMacros.adherence >= 50 ? 'var(--orange)' : 'var(--red)', fontWeight: 600 }}>
+          {t('mealAdherence')} <span style={{ color: avgMacros.adherence >= 80 ? 'var(--green)' : avgMacros.adherence >= 50 ? 'var(--orange)' : 'var(--red)', fontWeight: 600 }}>
             {avgMacros.adherence}%
           </span>
         </div>
@@ -360,11 +365,12 @@ function NutritionOverview({ nutritionHistory, mealPlan, clientId, coachId }) {
 
 // ── Inline Macro Adjust Form ──
 function MacroAdjustForm({ form, setForm, saving, onSave, onCancel }) {
+  const t = useT();
   const fields = [
-    { key: 'calories', label: 'Calories', unit: 'kcal', color: 'var(--gold)' },
-    { key: 'protein', label: 'Protein', unit: 'g', color: 'var(--green)' },
-    { key: 'carbs', label: 'Carbs', unit: 'g', color: 'var(--blue)' },
-    { key: 'fat', label: 'Fat', unit: 'g', color: 'var(--orange)' },
+    { key: 'calories', label: t('calories'), unit: t('kcal'), color: 'var(--gold)' },
+    { key: 'protein', label: t('protein'), unit: t('g'), color: 'var(--green)' },
+    { key: 'carbs', label: t('carbs'), unit: t('g'), color: 'var(--blue)' },
+    { key: 'fat', label: t('fat'), unit: t('g'), color: 'var(--orange)' },
   ];
 
   return (
@@ -388,9 +394,9 @@ function MacroAdjustForm({ form, setForm, saving, onSave, onCancel }) {
       </div>
       <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
         <button className="btn btn-primary btn-sm" onClick={onSave} disabled={saving} style={{ flex: 1 }}>
-          {saving ? 'Saving...' : 'Push to Client'}
+          {saving ? t('saving') : 'Push to Client'}
         </button>
-        <button className="btn btn-ghost btn-sm" onClick={onCancel}>Cancel</button>
+        <button className="btn btn-ghost btn-sm" onClick={onCancel}>{t('cancel')}</button>
       </div>
     </div>
   );
@@ -398,6 +404,7 @@ function MacroAdjustForm({ form, setForm, saving, onSave, onCancel }) {
 
 // ── Section: Training Summary ──
 function TrainingSummary({ trainingPlan, workoutHistory }) {
+  const t = useT();
   const recentSessions = useMemo(() => {
     if (!workoutHistory) return [];
     const all = [];
@@ -408,7 +415,7 @@ function TrainingSummary({ trainingPlan, workoutHistory }) {
   }, [workoutHistory]);
 
   return (
-    <Card title="Training" subtitle={trainingPlan?.name || 'No plan'}>
+    <Card title={t('navTraining')} subtitle={trainingPlan?.name || 'No plan'}>
       {trainingPlan?.days?.length ? (
         <div style={{ marginBottom: 12 }}>
           <div style={{ fontSize: 11, color: 'var(--t3)', marginBottom: 8 }}>
@@ -428,7 +435,7 @@ function TrainingSummary({ trainingPlan, workoutHistory }) {
 
       {recentSessions.length > 0 && (
         <>
-          <div className="kl" style={{ marginTop: 10, marginBottom: 6 }}>Recent Sessions</div>
+          <div className="kl" style={{ marginTop: 10, marginBottom: 6 }}>Recent Workouts</div>
           {recentSessions.map((s, i) => (
             <div key={i} style={{
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -449,7 +456,7 @@ function TrainingSummary({ trainingPlan, workoutHistory }) {
         </>
       )}
       {recentSessions.length === 0 && (
-        <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 6 }}>No workout sessions logged yet.</div>
+        <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 6 }}>No recent workouts logged yet.</div>
       )}
     </Card>
   );
@@ -457,6 +464,7 @@ function TrainingSummary({ trainingPlan, workoutHistory }) {
 
 // ── Section: Weekly Snapshot Card (This Week vs Last Week) ──
 function WeeklySnapshotCard({ dailyCheckins, nutritionHistory, workoutHistory, weightLog }) {
+  const t = useT();
   const snapshot = useMemo(() => {
     const today = new Date();
     const dayOfWeek = today.getDay() || 7; // Mon=1..Sun=7
@@ -549,12 +557,12 @@ function WeeklySnapshotCard({ dailyCheckins, nutritionHistory, workoutHistory, w
         <span style={{ fontSize: 9, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: 1, width: 50, textAlign: 'right' }}>Δ</span>
       </div>
       <CompareRow label="Avg Calories" thisVal={snapshot.thisWeek.avgCalories} lastVal={snapshot.lastWeek.avgCalories} unit="" />
-      <CompareRow label="Avg Protein" thisVal={snapshot.thisWeek.avgProtein} lastVal={snapshot.lastWeek.avgProtein} unit="g" />
+      <CompareRow label="Avg Protein" thisVal={snapshot.thisWeek.avgProtein} lastVal={snapshot.lastWeek.avgProtein} unit={t('g')} />
       <CompareRow label="Avg Steps" thisVal={snapshot.thisWeek.avgSteps} lastVal={snapshot.lastWeek.avgSteps} unit="" />
       <CompareRow label="Sleep Quality" thisVal={snapshot.thisWeek.avgSleep} lastVal={snapshot.lastWeek.avgSleep} unit="/10" />
       <CompareRow label="Workouts" thisVal={snapshot.thisWeek.workouts} lastVal={snapshot.lastWeek.workouts} unit="" />
       {(snapshot.thisWeek.weightDelta || snapshot.lastWeek.weightDelta) && (
-        <CompareRow label="Weight Δ" thisVal={snapshot.thisWeek.weightDelta} lastVal={snapshot.lastWeek.weightDelta} unit=" kg" lowerIsBetter />
+        <CompareRow label="Weight Δ" thisVal={snapshot.thisWeek.weightDelta} lastVal={snapshot.lastWeek.weightDelta} unit={` ${t('kg')}`} lowerIsBetter />
       )}
     </Card>
   );
@@ -562,6 +570,7 @@ function WeeklySnapshotCard({ dailyCheckins, nutritionHistory, workoutHistory, w
 
 // ── Section: Daily Check-in Heatmap (14 days) ──
 function DailyCheckinHeatmap({ checkins }) {
+  const t = useT();
   const days = useMemo(() => {
     const result = [];
     const today = new Date();
@@ -595,6 +604,7 @@ function DailyCheckinHeatmap({ checkins }) {
 
   return (
     <Card title="Daily Check-ins" subtitle={`${completed}/14 days logged`}>
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(14, 1fr)', gap: 4, marginBottom: 8 }}>
         {days.map(d => (
           <div key={d.key} style={{ textAlign: 'center' }}>
@@ -632,6 +642,7 @@ function DailyCheckinHeatmap({ checkins }) {
 
 // ── Section: Adherence Timeline (14 days) ──
 function AdherenceTimeline({ dailyCheckins, nutritionHistory, workoutHistory }) {
+  const t = useT();
   const timeline = useMemo(() => {
     const result = [];
     const today = new Date();
@@ -707,6 +718,7 @@ function AdherenceTimeline({ dailyCheckins, nutritionHistory, workoutHistory }) 
 
 // ── Section: Full Weekly Check-ins (Last 2 Weeks — ALL fields) ──
 function FullWeeklyCheckins({ checkins }) {
+  const t = useT();
   const [expandedId, setExpandedId] = useState(null);
   const recent = (checkins || []).slice(-2).reverse();
 
@@ -807,6 +819,7 @@ function FullWeeklyCheckins({ checkins }) {
 
                 {/* ── Body & Recovery ── */}
                 <SectionLabel>Body & Recovery</SectionLabel>
+
                 <div style={{ marginBottom: 4 }}>
                   {ci.sleep_quality != null && <MetricBar label="Sleep Quality" value={ci.sleep_quality} />}
                   {ci.digestion != null && <MetricBar label="Digestion" value={ci.digestion} />}
@@ -997,11 +1010,12 @@ function FullWeeklyCheckins({ checkins }) {
 
 // ── Section: Measurements (with selectable comparison) ──
 function MeasurementsSection({ measurements }) {
+  const t = useT();
   const [compareIdx, setCompareIdx] = useState(null);
 
   if (!measurements?.length) {
     return (
-      <Card title="Measurements">
+      <Card title={t('measurements')}>
         <div style={{ textAlign: 'center', padding: 20, color: 'var(--t3)', fontSize: 12 }}>
           No measurements recorded yet.
         </div>
@@ -1017,10 +1031,10 @@ function MeasurementsSection({ measurements }) {
     : prevEntries.length > 0 ? prevEntries[0] : null;
 
   const fields = [
-    { label: 'Waist', key: 'waist', unit: 'cm' },
-    { label: 'Chest', key: 'chest', unit: 'cm' },
-    { label: 'Arms', key: 'arms', unit: 'cm' },
-    { label: 'Thighs', key: 'thighs', unit: 'cm' },
+    { label: t('waist'), key: 'waist', unit: 'cm' },
+    { label: t('chest'), key: 'chest', unit: 'cm' },
+    { label: t('arm'), key: 'arms', unit: 'cm' },
+    { label: t('thigh'), key: 'thighs', unit: 'cm' },
   ];
 
   return (
@@ -1096,6 +1110,7 @@ function MeasurementsSection({ measurements }) {
 
 // ── Section: Progress Photo Comparison ──
 function ProgressPhotoComparison({ photos }) {
+  const t = useT();
   const photoArr = Array.isArray(photos) ? photos : [];
   const [compareMode, setCompareMode] = useState('4w');
 
@@ -1238,6 +1253,7 @@ function ProgressPhotoComparison({ photos }) {
 
 // ── Section: Coaching Intelligence ──
 function CoachingIntelligence({ weightLog, goalId, mealPlan }) {
+  const t = useT();
   const trend = useMemo(() => analyzeWeightTrend(weightLog, { days: 21 }), [weightLog]);
   const plateau = useMemo(() => detectPlateau(weightLog), [weightLog]);
 
@@ -1328,6 +1344,7 @@ const GOALS = [
 ];
 
 function CoachGoalSelector({ clientId, currentGoal, onGoalChange }) {
+  const t = useT();
   const [saving, setSaving] = useState(false);
 
   const handleSelect = async (goalId) => {
@@ -1339,7 +1356,7 @@ function CoachGoalSelector({ clientId, currentGoal, onGoalChange }) {
   };
 
   return (
-    <Card title="Training Goal">
+    <Card title={t('trainingGoal')}>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
         {GOALS.map(g => {
           const isActive = currentGoal === g.id;
@@ -1366,6 +1383,7 @@ function CoachGoalSelector({ clientId, currentGoal, onGoalChange }) {
 
 // ── Section: Quick Actions ──
 function QuickActions({ clientId, clientName, navigate, data, goalId, coachName }) {
+  const t = useT();
   const [generating, setGenerating] = useState(false);
   const { showToast } = useUIStore();
 
@@ -1433,7 +1451,7 @@ function QuickActions({ clientId, clientName, navigate, data, goalId, coachName 
           <Icon name="clipboard" size={12} /> Check-ins
         </button>
         <button className="btn btn-secondary btn-sm" onClick={handleGenerateReport} disabled={generating}>
-          <Icon name="download" size={12} /> {generating ? 'Generating...' : 'PDF Report'}
+          <Icon name="download" size={12} /> {generating ? t('generating') : 'PDF Report'}
         </button>
       </div>
     </Card>
@@ -1442,6 +1460,7 @@ function QuickActions({ clientId, clientName, navigate, data, goalId, coachName 
 
 // ── Section: Client Onboarding Info ──
 function OnboardingInfo({ clientId }) {
+  const t = useT();
   const [info, setInfo] = useState(null);
   const [expanded, setExpanded] = useState(false);
 
@@ -1502,6 +1521,7 @@ function OnboardingInfo({ clientId }) {
 
 // ── Main Screen ──
 export default function ClientProfileScreen() {
+  const t = useT();
   const { clientId } = useParams();
   const navigate = useNavigate();
   const { clients } = useCoachStore();
@@ -1573,6 +1593,7 @@ export default function ClientProfileScreen() {
       </div>
     );
   }
+
 
   const clientName = client.client_name || client.name || 'Client';
 

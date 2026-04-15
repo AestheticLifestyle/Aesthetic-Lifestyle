@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useCallback } from 'react';
+import { useT } from '../../i18n';
 import { useClientStore } from '../../stores/clientStore';
 import { useAuthStore } from '../../stores/authStore';
 import { useUIStore } from '../../stores/uiStore';
@@ -88,11 +89,11 @@ function WeekNavigator({ weekMonday, onPrev, onNext, canNext }) {
 }
 
 // ── Weight Chart ──
-function WeightChart({ data, height = 120 }) {
+function WeightChart({ data, height = 120, t }) {
   if (data.length < 2) {
     return (
       <div style={{ height, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--t3)', fontSize: 12 }}>
-        Log at least 2 weights to see your chart
+        {t('logWeightsToSeeChart')}
       </div>
     );
   }
@@ -129,7 +130,7 @@ function WeightChart({ data, height = 120 }) {
 }
 
 // ── Weight Section (this week's daily weights) ──
-function WeightSection({ weightLog, weekDates }) {
+function WeightSection({ weightLog, weekDates, t }) {
   const { user } = useAuthStore();
   const { addWeight } = useClientStore();
   const { showToast } = useUIStore();
@@ -157,30 +158,30 @@ function WeightSection({ weightLog, weekDates }) {
 
   const handleSave = async (date) => {
     const w = parseFloat(inputVal);
-    if (!w || w < 20 || w > 300) { showToast('Enter a valid weight', 'error'); return; }
+    if (!w || w < 20 || w > 300) { showToast(t('enterValidWeight'), 'error'); return; }
     setSaving(true);
     addWeight(date, w);
     const ok = await saveWeight(getClientId(), date, w);
     setSaving(false);
     setEditingDate(null);
     setInputVal('');
-    showToast(ok ? 'Weight logged!' : 'Failed to save', ok ? 'success' : 'error');
+    showToast(ok ? t('weightLogged') : t('failedToSave'), ok ? 'success' : 'error');
   };
 
   const today = getTodayKey();
 
   return (
-    <Card title="Body Weight" subtitle={weekLatest ? `Latest: ${weekLatest.weight} kg` : 'No weigh-ins this week'}>
+    <Card title={t('bodyWeight')} subtitle={weekLatest ? `Latest: ${weekLatest.weight} kg` : t('noWeighInsThisWeek')}>
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, marginBottom: 12 }}>
         <span className="kv">{weekLatest?.weight ?? '—'}</span>
-        <span className="ku">kg</span>
+        <span className="ku">{t('kg')}</span>
         {weekChange && (
           <span style={{
             fontSize: 11, padding: '2px 8px', borderRadius: 4,
             background: parseFloat(weekChange) <= 0 ? 'rgba(76,175,80,.15)' : 'rgba(255,152,0,.15)',
             color: parseFloat(weekChange) <= 0 ? 'var(--green)' : 'var(--orange)',
           }}>
-            {parseFloat(weekChange) > 0 ? '+' : ''}{weekChange} kg this week
+            {parseFloat(weekChange) > 0 ? '+' : ''}{weekChange} {t('kgThisWeek')}
           </span>
         )}
         {!weekChange && totalChange && (
@@ -194,11 +195,11 @@ function WeightSection({ weightLog, weekDates }) {
         )}
       </div>
 
-      <WeightChart data={weekEntries} />
+      <WeightChart data={weekEntries} t={t} />
 
       {/* Daily weight entries for this week */}
       <div style={{ marginTop: 14 }}>
-        <div className="kl" style={{ marginBottom: 8 }}>Daily Weigh-ins</div>
+        <div className="kl" style={{ marginBottom: 8 }}>{t('dailyWeighIns')}</div>
         {weekWeights.map(({ date, weight }) => {
           const isFuture = date > today;
           const dayLabel = new Date(date + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
@@ -256,7 +257,7 @@ function WeightSection({ weightLog, weekDates }) {
 }
 
 // ── Photo Upload Section ──
-function PhotoSection({ allPhotos, weekDates, weekMonday }) {
+function PhotoSection({ allPhotos, weekDates, weekMonday, t }) {
   const { user } = useAuthStore();
   const { addPhoto } = useClientStore();
   const { showToast } = useUIStore();
@@ -317,10 +318,10 @@ function PhotoSection({ allPhotos, weekDates, weekMonday }) {
 
   return (
     <Card
-      title="Progress Photos"
+      title={t('progressPhotos')}
       subtitle={hasAnyThisWeek
-        ? `${Object.keys(weekPhotos).length}/3 poses · ${weeksWithPhotos} week${weeksWithPhotos !== 1 ? 's' : ''} total`
-        : 'No photos this week'
+        ? `${Object.keys(weekPhotos).length}/3 poses · ${weeksWithPhotos} week${weeksWithPhotos !== 1 ? 's' : ''} ${t('weeksTotal')}`
+        : t('noPhotosThisWeek')
       }
     >
       <div className="photo-grid">
@@ -342,18 +343,18 @@ function PhotoSection({ allPhotos, weekDates, weekMonday }) {
                     padding: '16px 6px 6px', textAlign: 'center',
                     fontSize: 10, color: '#fff', textTransform: 'capitalize',
                   }}>
-                    {pos} — tap to replace
+                    {pos} — {t('tapToReplace')}
                   </div>
                 </>
               ) : (
                 <>
                   {uploading === pos ? (
-                    <div style={{ fontSize: 11, color: 'var(--gold)' }}>Uploading...</div>
+                    <div style={{ fontSize: 11, color: 'var(--gold)' }}>{t('uploading')}</div>
                   ) : (
                     <>
                       <Icon name="camera" size={24} style={{ color: 'var(--t3)', opacity: 0.4 }} />
                       <span className="photo-label" style={{ textTransform: 'capitalize' }}>{pos}</span>
-                      <span style={{ fontSize: 10, color: 'var(--gold)', marginTop: 4 }}>Tap to upload</span>
+                      <span style={{ fontSize: 10, color: 'var(--gold)', marginTop: 4 }}>{t('tapToUpload')}</span>
                     </>
                   )}
                 </>
@@ -375,7 +376,7 @@ function PhotoSection({ allPhotos, weekDates, weekMonday }) {
 }
 
 // ── Measurements Form Section ──
-function MeasurementsSection({ measurements, weekDates, weekMonday }) {
+function MeasurementsSection({ measurements, weekDates, weekMonday, t }) {
   const { user } = useAuthStore();
   const { addMeasurement } = useClientStore();
   const { showToast } = useUIStore();
@@ -398,10 +399,10 @@ function MeasurementsSection({ measurements, weekDates, weekMonday }) {
   const displayMeasurement = weekMeasurement || null;
 
   const fields = [
-    { key: 'waist', label: 'Waist', unit: 'cm' },
-    { key: 'chest', label: 'Chest', unit: 'cm' },
-    { key: 'arms', label: 'Arms', unit: 'cm' },
-    { key: 'thighs', label: 'Thighs', unit: 'cm' },
+    { key: 'waist', label: t('waist'), unit: 'cm' },
+    { key: 'chest', label: t('chest'), unit: 'cm' },
+    { key: 'arm', label: t('arm'), unit: 'cm' },
+    { key: 'thigh', label: t('thigh'), unit: 'cm' },
   ];
 
   const [form, setForm] = useState({ waist: '', chest: '', arms: '', thighs: '' });
@@ -423,7 +424,7 @@ function MeasurementsSection({ measurements, weekDates, weekMonday }) {
       const val = parseFloat(form[f.key]);
       if (!isNaN(val) && val > 0) data[f.key] = val;
     });
-    if (Object.keys(data).length === 0) { showToast('Enter at least one measurement', 'error'); return; }
+    if (Object.keys(data).length === 0) { showToast(t('enterAtLeastOneMeasurement') || 'Enter at least one measurement', 'error'); return; }
 
     setSaving(true);
     // Save to the selected week's monday date so it groups with that week
@@ -432,7 +433,7 @@ function MeasurementsSection({ measurements, weekDates, weekMonday }) {
     const ok = await saveMeasurement(getClientId(), date, data);
     setSaving(false);
     setEditing(false);
-    showToast(ok ? 'Measurements saved!' : 'Failed to save', ok ? 'success' : 'error');
+    showToast(ok ? t('measurementsSaved') || 'Measurements saved!' : t('failedToSave'), ok ? 'success' : 'error');
   };
 
   if (editing) {
@@ -457,9 +458,9 @@ function MeasurementsSection({ measurements, weekDates, weekMonday }) {
         </div>
         <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
           <button className="btn btn-primary btn-sm" style={{ flex: 1 }} onClick={handleSave} disabled={saving}>
-            {saving ? 'Saving...' : 'Save Measurements'}
+            {saving ? t('saving') : t('setTargets')}
           </button>
-          <button className="btn btn-secondary btn-sm" onClick={() => setEditing(false)}>Cancel</button>
+          <button className="btn btn-secondary btn-sm" onClick={() => setEditing(false)}>{t('cancel')}</button>
         </div>
       </Card>
     );
@@ -467,7 +468,7 @@ function MeasurementsSection({ measurements, weekDates, weekMonday }) {
 
   return (
     <Card
-      title="Measurements"
+      title={t('measurements')}
       subtitle={null}
     >
       {displayMeasurement ? (
@@ -499,7 +500,7 @@ function MeasurementsSection({ measurements, weekDates, weekMonday }) {
       )}
 
       <button className="btn btn-secondary btn-sm" style={{ marginTop: 14, width: '100%' }} onClick={startEditing}>
-        <Icon name="edit" size={12} /> {displayMeasurement ? 'Update Measurements' : 'Add Measurements'}
+        <Icon name="edit" size={12} /> {displayMeasurement ? t('setTargets') : t('add')}
       </button>
     </Card>
   );
@@ -687,6 +688,7 @@ function PhotoComparison({ allPhotos }) {
 }
 
 export default function ProgressScreen() {
+  const t = useT();
   const { weightLog, measurements, photos, goals, workoutHistory } = useClientStore();
   const today = getTodayKey();
   const currentWeekMonday = getWeekKey(today);
@@ -721,18 +723,18 @@ export default function ProgressScreen() {
 
       {/* Weight + stats in 70/30 */}
       <div className="g7030">
-        <WeightSection weightLog={weightLog} weekDates={weekDates} />
+        <WeightSection weightLog={weightLog} weekDates={weekDates} t={t} />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <Card>
             <div className="kl">Starting Weight</div>
             <div className="kv" style={{ marginTop: 4 }}>{weightLog.length ? weightLog[0].weight : '—'}</div>
-            <div className="ku">kg</div>
+            <div className="ku">{t('kg')}</div>
           </Card>
           {goals.targetWeight && (
             <Card>
               <div className="kl">Target Weight</div>
               <div className="kv" style={{ marginTop: 4, color: 'var(--gold)' }}>{goals.targetWeight}</div>
-              <div className="ku">kg</div>
+              <div className="ku">{t('kg')}</div>
             </Card>
           )}
           {(weightLog?.length || 0) >= 2 && (
@@ -747,7 +749,7 @@ export default function ProgressScreen() {
                   return `${parseFloat(diff) > 0 ? '+' : ''}${diff}`;
                 })()}
               </div>
-              <div className="ku">kg</div>
+              <div className="ku">{t('kg')}</div>
             </Card>
           )}
         </div>
@@ -755,7 +757,7 @@ export default function ProgressScreen() {
 
       {/* Photos */}
       <div style={{ marginTop: 14 }}>
-        <PhotoSection allPhotos={photos} weekDates={weekDates} weekMonday={weekMonday} />
+        <PhotoSection allPhotos={photos} weekDates={weekDates} weekMonday={weekMonday} t={t} />
       </div>
 
       {/* Photo Comparison (appears when 2+ weeks have photos) */}
@@ -765,7 +767,7 @@ export default function ProgressScreen() {
 
       {/* Measurements */}
       <div style={{ marginTop: 14 }}>
-        <MeasurementsSection measurements={measurements} weekDates={weekDates} weekMonday={weekMonday} />
+        <MeasurementsSection measurements={measurements} weekDates={weekDates} weekMonday={weekMonday} t={t} />
       </div>
 
       {/* Training Volume */}

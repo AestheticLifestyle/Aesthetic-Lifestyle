@@ -4,12 +4,14 @@ import { useAuthStore } from '../../stores/authStore';
 import { Card } from '../../components/ui';
 import { Icon } from '../../utils/icons';
 import { useUIStore } from '../../stores/uiStore';
+import { useT } from '../../i18n';
 import { formatShortDate } from '../../utils/constants';
 import { saveCoachFeedback } from '../../services/checkins';
 import { fetchPendingCheckins } from '../../services/chat';
 
 // ── Check-in card ──
 function CheckinCard({ checkin, onReview }) {
+  const t = useT();
   const name = checkin.client_name || 'Client';
   const isWeekly = checkin.type === 'weekly';
   const isDaily = checkin.type === 'daily';
@@ -17,11 +19,11 @@ function CheckinCard({ checkin, onReview }) {
   // Daily check-ins: show "Logged" or "Commented" instead of Pending/Reviewed
   const getStatusTag = () => {
     if (isDaily) {
-      if (checkin.coach_feedback) return { cls: 't-gr', label: 'Commented' };
-      return { cls: '', label: 'Logged', style: { background: 'var(--s3)', color: 'var(--t2)' } };
+      if (checkin.coach_feedback) return { cls: 't-gr', label: t('commented') };
+      return { cls: '', label: t('logged'), style: { background: 'var(--s3)', color: 'var(--t2)' } };
     }
-    if (checkin.status === 'pending') return { cls: 't-or', label: 'Needs Review' };
-    return { cls: 't-gr', label: 'Reviewed' };
+    if (checkin.status === 'pending') return { cls: 't-or', label: t('needsReview') };
+    return { cls: 't-gr', label: t('reviewed') };
   };
   const tag = getStatusTag();
 
@@ -52,19 +54,19 @@ function CheckinCard({ checkin, onReview }) {
       <div style={{ display: 'flex', gap: 16, marginBottom: 10, flexWrap: 'wrap' }}>
         {checkin.weight != null && (
           <div>
-            <div style={{ fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--t3)' }}>Weight</div>
-            <div style={{ fontSize: 14, fontFamily: 'var(--fd)' }}>{checkin.weight} kg</div>
+            <div style={{ fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--t3)' }}>{t('weight')}</div>
+            <div style={{ fontSize: 14, fontFamily: 'var(--fd)' }}>{checkin.weight} {t('kg')}</div>
           </div>
         )}
         {checkin.mood && (
           <div>
-            <div style={{ fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--t3)' }}>Mood</div>
+            <div style={{ fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--t3)' }}>{t('mood')}</div>
             <div style={{ fontSize: 14 }}>{checkin.mood}</div>
           </div>
         )}
         {checkin.sleep != null && (
           <div>
-            <div style={{ fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--t3)' }}>Sleep</div>
+            <div style={{ fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--t3)' }}>{t('sleep')}</div>
             <div style={{ fontSize: 14, fontFamily: 'var(--fd)', color: checkin.sleep >= 7 ? 'var(--green)' : 'var(--orange)' }}>
               {checkin.sleep}/10
             </div>
@@ -72,7 +74,7 @@ function CheckinCard({ checkin, onReview }) {
         )}
         {checkin.energy != null && (
           <div>
-            <div style={{ fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--t3)' }}>Energy</div>
+            <div style={{ fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--t3)' }}>{t('energy')}</div>
             <div style={{ fontSize: 14, fontFamily: 'var(--fd)', color: checkin.energy >= 7 ? 'var(--green)' : 'var(--orange)' }}>
               {checkin.energy}/10
             </div>
@@ -80,7 +82,7 @@ function CheckinCard({ checkin, onReview }) {
         )}
         {checkin.stress != null && (
           <div>
-            <div style={{ fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--t3)' }}>Stress</div>
+            <div style={{ fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--t3)' }}>{t('stress')}</div>
             <div style={{ fontSize: 14, fontFamily: 'var(--fd)', color: checkin.stress <= 4 ? 'var(--green)' : 'var(--orange)' }}>
               {checkin.stress}/10
             </div>
@@ -88,7 +90,7 @@ function CheckinCard({ checkin, onReview }) {
         )}
         {isWeekly && checkin.nutrition_adherence != null && (
           <div>
-            <div style={{ fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--t3)' }}>Nutrition</div>
+            <div style={{ fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--t3)' }}>{t('nutrition')}</div>
             <div style={{ fontSize: 14, fontFamily: 'var(--fd)', color: checkin.nutrition_adherence >= 7 ? 'var(--green)' : 'var(--orange)' }}>
               {checkin.nutrition_adherence}/10
             </div>
@@ -123,8 +125,10 @@ function StatRow({ label, value, color, suffix }) {
   );
 }
 
+
 // ── Review panel (slide-in) ──
 function ReviewPanel({ checkin, onClose, onFeedbackSaved, queueInfo }) {
+  const t = useT();
   const [feedback, setFeedback] = useState(checkin?.coach_feedback || '');
   const [saving, setSaving] = useState(false);
   const { showToast } = useUIStore();
@@ -139,11 +143,11 @@ function ReviewPanel({ checkin, onClose, onFeedbackSaved, queueInfo }) {
     const result = await saveCoachFeedback(checkin.id, feedback.trim(), checkin.type || 'weekly');
     setSaving(false);
     if (result.ok) {
-      showToast('Feedback submitted!', 'success');
+      showToast(t('feedbackSubmitted'), 'success');
       onFeedbackSaved(checkin.id, feedback.trim());
       onClose();
     } else {
-      showToast('Failed to save feedback', 'error');
+      showToast(t('failedToSave'), 'error');
     }
   };
 
@@ -156,11 +160,11 @@ function ReviewPanel({ checkin, onClose, onFeedbackSaved, queueInfo }) {
         </h3>
         {isWeekly ? (
           <span className={`tag ${checkin.status === 'pending' ? 't-or' : 't-gr'}`} style={{ fontSize: 10 }}>
-            {checkin.status === 'pending' ? 'Needs Review' : 'Reviewed'}
+            {checkin.status === 'pending' ? t('needsReview') : t('reviewed')}
           </span>
         ) : (
           <span className="tag" style={{ fontSize: 10, background: checkin.coach_feedback ? 'var(--green)' : 'var(--s3)', color: checkin.coach_feedback ? '#fff' : 'var(--t2)' }}>
-            {checkin.coach_feedback ? 'Commented' : 'Daily Log'}
+            {checkin.coach_feedback ? t('commented') : 'Daily Log'}
           </span>
         )}
         <button className="icon-btn" onClick={onClose}><Icon name="x" size={14} /></button>
@@ -182,25 +186,25 @@ function ReviewPanel({ checkin, onClose, onFeedbackSaved, queueInfo }) {
 
         {/* Stats grid */}
         <Card style={{ marginBottom: 14 }}>
-          <StatRow label="Sleep Quality" value={checkin.sleep} suffix="/10" color={checkin.sleep >= 7 ? 'var(--green)' : 'var(--orange)'} />
-          <StatRow label="Energy" value={checkin.energy} suffix="/10" color={checkin.energy >= 7 ? 'var(--green)' : 'var(--orange)'} />
-          {checkin.stress != null && <StatRow label="Stress" value={checkin.stress} suffix="/10" color={checkin.stress <= 4 ? 'var(--green)' : 'var(--orange)'} />}
-          {checkin.weight != null && <StatRow label="Weight" value={checkin.weight} suffix=" kg" />}
+          <StatRow label={t('sleepQuality')} value={checkin.sleep} suffix="/10" color={checkin.sleep >= 7 ? 'var(--green)' : 'var(--orange)'} />
+          <StatRow label={t('energy')} value={checkin.energy} suffix="/10" color={checkin.energy >= 7 ? 'var(--green)' : 'var(--orange)'} />
+          {checkin.stress != null && <StatRow label={t('stress')} value={checkin.stress} suffix="/10" color={checkin.stress <= 4 ? 'var(--green)' : 'var(--orange)'} />}
+          {checkin.weight != null && <StatRow label={t('weight')} value={checkin.weight} suffix={` ${t('kg')}`} />}
           {isWeekly && <>
-            <StatRow label="Digestion" value={checkin.digestion} suffix="/10" />
-            <StatRow label="Motivation" value={checkin.motivation} suffix="/10" color={checkin.motivation >= 7 ? 'var(--green)' : 'var(--orange)'} />
-            <StatRow label="Nutrition Adherence" value={checkin.nutrition_adherence} suffix="/10" color={checkin.nutrition_adherence >= 7 ? 'var(--green)' : 'var(--orange)'} />
-            <StatRow label="Workouts Completed" value={checkin.workouts_completed} color="var(--blue)" />
-            <StatRow label="Avg Water" value={checkin.water_avg} suffix=" L/day" />
-            <StatRow label="Steps Goal" value={checkin.steps_goal} />
-            <StatRow label="Pain" value={checkin.pain === 'no' ? 'None' : checkin.pain === 'yes-minor' ? 'Minor' : checkin.pain === 'yes-major' ? 'Major' : checkin.pain} />
+            <StatRow label={t('digestion')} value={checkin.digestion} suffix="/10" />
+            <StatRow label={t('motivation')} value={checkin.motivation} suffix="/10" color={checkin.motivation >= 7 ? 'var(--green)' : 'var(--orange)'} />
+            <StatRow label={t('nutritionAdherence')} value={checkin.nutrition_adherence} suffix="/10" color={checkin.nutrition_adherence >= 7 ? 'var(--green)' : 'var(--orange)'} />
+            <StatRow label={t('workoutsCompleted')} value={checkin.workouts_completed} color="var(--blue)" />
+            <StatRow label={t('avgWater')} value={checkin.water_avg} suffix={` ${t('lDayProfile')}`} />
+            <StatRow label={t('stepsGoal')} value={checkin.steps_goal} />
+            <StatRow label={t('painOrDiscomfort')} value={checkin.pain === 'no' ? t('noPain') : checkin.pain === 'yes-minor' ? t('painMinor') : checkin.pain === 'yes-major' ? t('painMajor') : checkin.pain} />
           </>}
         </Card>
 
         {/* Pain detail */}
         {isWeekly && checkin.pain !== 'no' && checkin.pain_detail && (
           <div style={{ marginBottom: 14 }}>
-            <div className="kl" style={{ marginBottom: 6 }}>Pain Details</div>
+            <div className="kl" style={{ marginBottom: 6 }}>{t('painDetails')}</div>
             <div style={{ fontSize: 13, color: 'var(--t2)', background: 'var(--s2)', padding: 12, borderRadius: 9, border: '1px solid var(--border)', lineHeight: 1.5 }}>
               {checkin.pain_detail}
             </div>
@@ -212,7 +216,7 @@ function ReviewPanel({ checkin, onClose, onFeedbackSaved, queueInfo }) {
           <>
             {checkin.what_went_well && (
               <div style={{ marginBottom: 14 }}>
-                <div className="kl" style={{ marginBottom: 6 }}>What Went Well</div>
+                <div className="kl" style={{ marginBottom: 6 }}>{t('whatWentWell')}</div>
                 <div style={{ fontSize: 13, color: 'var(--t2)', background: 'var(--s2)', padding: 12, borderRadius: 9, border: '1px solid var(--border)', lineHeight: 1.5 }}>
                   {checkin.what_went_well}
                 </div>
@@ -220,7 +224,7 @@ function ReviewPanel({ checkin, onClose, onFeedbackSaved, queueInfo }) {
             )}
             {checkin.biggest_struggle && (
               <div style={{ marginBottom: 14 }}>
-                <div className="kl" style={{ marginBottom: 6 }}>Biggest Struggle</div>
+                <div className="kl" style={{ marginBottom: 6 }}>{t('biggestStruggle')}</div>
                 <div style={{ fontSize: 13, color: 'var(--t2)', background: 'var(--s2)', padding: 12, borderRadius: 9, border: '1px solid var(--border)', lineHeight: 1.5 }}>
                   {checkin.biggest_struggle}
                 </div>
@@ -228,7 +232,7 @@ function ReviewPanel({ checkin, onClose, onFeedbackSaved, queueInfo }) {
             )}
             {checkin.what_to_improve && (
               <div style={{ marginBottom: 14 }}>
-                <div className="kl" style={{ marginBottom: 6 }}>What to Improve</div>
+                <div className="kl" style={{ marginBottom: 6 }}>{t('whatToImprove')}</div>
                 <div style={{ fontSize: 13, color: 'var(--t2)', background: 'var(--s2)', padding: 12, borderRadius: 9, border: '1px solid var(--border)', lineHeight: 1.5 }}>
                   {checkin.what_to_improve}
                 </div>
@@ -236,7 +240,7 @@ function ReviewPanel({ checkin, onClose, onFeedbackSaved, queueInfo }) {
             )}
             {checkin.questions_for_coach && (
               <div style={{ marginBottom: 14 }}>
-                <div className="kl" style={{ marginBottom: 6 }}>Questions for Coach</div>
+                <div className="kl" style={{ marginBottom: 6 }}>{t('questionsForCoach')}</div>
                 <div style={{ fontSize: 13, color: 'var(--gold)', background: 'var(--gold-d)', padding: 12, borderRadius: 9, border: '1px solid var(--gold)', lineHeight: 1.5 }}>
                   {checkin.questions_for_coach}
                 </div>
@@ -248,7 +252,7 @@ function ReviewPanel({ checkin, onClose, onFeedbackSaved, queueInfo }) {
         {/* Daily notes */}
         {!isWeekly && checkin.notes && (
           <div style={{ marginBottom: 14 }}>
-            <div className="kl" style={{ marginBottom: 6 }}>Client Notes</div>
+            <div className="kl" style={{ marginBottom: 6 }}>{t('clientNotes')}</div>
             <div style={{ fontSize: 13, color: 'var(--t2)', background: 'var(--s2)', padding: 12, borderRadius: 9, border: '1px solid var(--border)', lineHeight: 1.5 }}>
               {checkin.notes}
             </div>
@@ -258,7 +262,7 @@ function ReviewPanel({ checkin, onClose, onFeedbackSaved, queueInfo }) {
         {/* Existing coach feedback */}
         {checkin.coach_feedback && (
           <div style={{ marginBottom: 14 }}>
-            <div className="kl" style={{ marginBottom: 6 }}>Your Previous Feedback</div>
+            <div className="kl" style={{ marginBottom: 6 }}>{t('yourPreviousFeedback')}</div>
             <div style={{ fontSize: 13, color: 'var(--t1)', background: 'var(--gold-d)', padding: 12, borderRadius: 9, border: '1px solid var(--gold)', lineHeight: 1.5 }}>
               {checkin.coach_feedback}
             </div>
@@ -268,13 +272,13 @@ function ReviewPanel({ checkin, onClose, onFeedbackSaved, queueInfo }) {
         {/* Coach feedback input */}
         <div className="kl" style={{ marginBottom: 6 }}>
           {isWeekly
-            ? (checkin.coach_feedback ? 'Update Feedback' : 'Your Feedback')
-            : (checkin.coach_feedback ? 'Update Comment' : 'Leave a Comment (optional)')
+            ? (checkin.coach_feedback ? t('updateFeedback') : t('yourFeedback'))
+            : (checkin.coach_feedback ? t('updateComment') : t('leaveComment'))
           }
         </div>
         <textarea
           className="t-area"
-          placeholder={isWeekly ? 'Write your feedback, adjustments, or encouragement...' : 'Leave a quick note for your client...'}
+          placeholder={isWeekly ? t('feedbackPlaceholder') : t('commentPlaceholder')}
           value={feedback}
           onChange={e => setFeedback(e.target.value)}
           rows={isWeekly ? 5 : 3}
@@ -289,11 +293,11 @@ function ReviewPanel({ checkin, onClose, onFeedbackSaved, queueInfo }) {
           disabled={!feedback.trim() || saving}
           onClick={handleSubmit}
         >
-          <Icon name="send" size={12} /> {saving ? 'Saving...' : queueInfo ? 'Submit & Next' : isWeekly ? 'Submit Review' : 'Send Comment'}
+          <Icon name="send" size={12} /> {saving ? t('saving') : queueInfo ? t('submitAndNext') : isWeekly ? t('submitReview') : t('sendComment')}
         </button>
         {queueInfo && (
           <button className="btn btn-ghost" onClick={onClose} style={{ fontSize: 12 }}>
-            Exit Queue
+            {t('exitQueue')}
           </button>
         )}
       </div>
@@ -303,16 +307,17 @@ function ReviewPanel({ checkin, onClose, onFeedbackSaved, queueInfo }) {
 
 // ── Empty state ──
 function EmptyState({ filter }) {
+  const t = useT();
   return (
     <Card>
       <div style={{ textAlign: 'center', padding: 50, color: 'var(--t3)' }}>
         <Icon name="clipboard" size={28} style={{ opacity: 0.2, display: 'block', margin: '0 auto 12px' }} />
         <div style={{ fontSize: 13 }}>
           {filter === 'pending'
-            ? 'All caught up! No weekly check-ins to review.'
+            ? t('allCaughtUp')
             : filter === 'daily'
-            ? 'No daily check-ins yet.'
-            : 'No check-ins found.'
+            ? t('noDailyCheckinsYet')
+            : t('noCheckinsFound')
           }
         </div>
       </div>
@@ -324,6 +329,7 @@ function EmptyState({ filter }) {
 // Main
 // ══════════════════════════════════════
 export default function CheckinsScreen() {
+  const t = useT();
   const { pendingCheckins, setPendingCheckins } = useCoachStore();
   const { user } = useAuthStore();
   const { showToast } = useUIStore();
@@ -350,8 +356,8 @@ export default function CheckinsScreen() {
     const data = await fetchPendingCheckins(user.id);
     setPendingCheckins(data || []);
     setRefreshing(false);
-    showToast('Check-ins refreshed', 'success');
-  }, [user?.id, setPendingCheckins, showToast]);
+    showToast(t('refresh'), 'success');
+  }, [user?.id, setPendingCheckins, showToast, t]);
 
   const handleFeedbackSaved = useCallback((checkinId, feedback) => {
     // Update local state to mark as reviewed
@@ -367,7 +373,10 @@ export default function CheckinsScreen() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
         <div>
           <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 4 }}>
-            {pendingCount > 0 ? `${pendingCount} weekly check-in${pendingCount > 1 ? 's' : ''} need${pendingCount === 1 ? 's' : ''} your review` : 'All weekly check-ins reviewed'}
+            {pendingCount > 0
+              ? t('weeklyCheckinsNeedReview', { count: pendingCount })
+              : t('allWeeklyReviewed')
+            }
           </div>
         </div>
         <button
@@ -376,22 +385,25 @@ export default function CheckinsScreen() {
           disabled={refreshing}
           style={{ fontSize: 11 }}
         >
-          <Icon name="refresh" size={11} /> {refreshing ? 'Refreshing...' : 'Refresh'}
+          <Icon name="refresh" size={11} /> {refreshing ? t('refreshing') : t('refresh')}
         </button>
       </div>
 
       {/* Filter tabs */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
-        {['pending', 'weekly', 'daily', 'reviewed', 'all'].map(f => (
-          <button key={f} className={`chip ${filter === f ? 'active' : ''}`} onClick={() => setFilter(f)}>
-            {f.charAt(0).toUpperCase() + f.slice(1)}
-            {f === 'pending' && pendingCount > 0 && (
-              <span style={{ marginLeft: 4, background: 'var(--orange)', color: '#fff', borderRadius: 10, padding: '1px 6px', fontSize: 10 }}>
-                {pendingCount}
-              </span>
-            )}
-          </button>
-        ))}
+        {['pending', 'weekly', 'daily', 'reviewed', 'all'].map(f => {
+          const filterMap = { pending: t('pending'), weekly: t('weekly'), daily: t('daily'), reviewed: t('reviewed'), all: t('all') };
+          return (
+            <button key={f} className={`chip ${filter === f ? 'active' : ''}`} onClick={() => setFilter(f)}>
+              {filterMap[f]}
+              {f === 'pending' && pendingCount > 0 && (
+                <span style={{ marginLeft: 4, background: 'var(--orange)', color: '#fff', borderRadius: 10, padding: '1px 6px', fontSize: 10 }}>
+                  {pendingCount}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* Check-in list */}
@@ -416,7 +428,7 @@ export default function CheckinsScreen() {
             if (first) setReviewCheckin(first);
           }}
         >
-          <Icon name="zap" size={14} /> Review Queue ({pendingCount})
+          <Icon name="zap" size={14} /> {t('reviewQueue', { count: pendingCount })}
         </button>
       )}
 

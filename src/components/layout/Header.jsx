@@ -1,10 +1,12 @@
 import { useAuthStore } from '../../stores/authStore';
 import { useUIStore } from '../../stores/uiStore';
 import { useNotificationStore } from '../../stores/notificationStore';
+import { useT } from '../../i18n';
 import { Icon } from '../../utils/icons';
 import NotificationPanel from './NotificationPanel';
 
 export default function Header({ title }) {
+  const t = useT();
   const { role } = useAuthStore();
   const { toggleSidebar } = useUIStore();
   const { panelOpen, togglePanel, notifications, smartReminders } = useNotificationStore();

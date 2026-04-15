@@ -4,21 +4,22 @@ import { useAuthStore } from '../../stores/authStore';
 import { useUIStore } from '../../stores/uiStore';
 import { Card } from '../../components/ui';
 import { Icon } from '../../utils/icons';
+import { useT } from '../../i18n';
 import { supabase } from '../../services/supabase';
 
-const STEPS = [
-  { id: 'basics', title: 'About You', icon: 'user' },
-  { id: 'body', title: 'Body & Goals', icon: 'trending-up' },
-  { id: 'training', title: 'Training', icon: 'dumbbell' },
-  { id: 'nutrition', title: 'Nutrition', icon: 'utensils' },
-  { id: 'lifestyle', title: 'Lifestyle', icon: 'heart' },
+const createSteps = (t) => [
+  { id: 'basics', title: t('aboutYou'), icon: 'user' },
+  { id: 'body', title: t('bodyAndGoals'), icon: 'trending-up' },
+  { id: 'training', title: t('training'), icon: 'dumbbell' },
+  { id: 'nutrition', title: t('nutrition'), icon: 'utensils' },
+  { id: 'lifestyle', title: t('lifestyle'), icon: 'heart' },
 ];
 
-const GOAL_OPTIONS = ['Fat Loss', 'Lean Bulk', 'Body Recomp', 'Maintenance', 'Competition Prep'];
-const EXPERIENCE_OPTIONS = ['Beginner (0-1yr)', 'Intermediate (1-3yr)', 'Advanced (3-5yr)', 'Expert (5yr+)'];
-const TRAINING_DAYS = ['3 days', '4 days', '5 days', '6 days'];
-const DIET_TYPES = ['No restrictions', 'Vegetarian', 'Vegan', 'Pescatarian', 'Halal', 'Kosher', 'Keto', 'Other'];
-const ALLERGY_OPTIONS = ['None', 'Gluten', 'Dairy', 'Nuts', 'Eggs', 'Soy', 'Shellfish', 'Other'];
+const createGoalOptions = (t) => [t('fatLoss'), t('leanBulk'), t('bodyRecomp'), t('maintenance'), t('competitionPrep')];
+const createExperienceOptions = (t) => [t('beginner'), t('intermediate'), t('advanced'), t('expert')];
+const createTrainingDays = () => ['3 days', '4 days', '5 days', '6 days'];
+const createDietTypes = (t) => [t('noRestrictions'), t('vegetarian'), t('vegan'), t('pescatarian'), t('halal'), t('kosher'), t('keto'), t('other')];
+const createAllergyOptions = (t) => [t('none'), t('gluten'), t('dairy'), t('nuts'), t('eggs'), t('soy'), t('shellfish'), t('other')];
 
 function PillSelect({ options, value, onChange, multi = false }) {
   const selected = multi ? (value || []) : [value];
@@ -63,6 +64,7 @@ function FieldGroup({ label, sub, children }) {
 }
 
 export default function OnboardingScreen() {
+  const t = useT();
   const { user } = useAuthStore();
   const { showToast } = useUIStore();
   const navigate = useNavigate();
@@ -150,14 +152,21 @@ export default function OnboardingScreen() {
 
       // Update goal on coach_clients if available
       if (form.goal) {
-        const goalMap = { 'Fat Loss': 'cut', 'Lean Bulk': 'lean-bulk', 'Body Recomp': 'recomp', 'Maintenance': 'maintenance', 'Competition Prep': 'competition-prep' };
+        const goalOptions = createGoalOptions(t);
+        const goalMap = {
+          [goalOptions[0]]: 'cut',
+          [goalOptions[1]]: 'lean-bulk',
+          [goalOptions[2]]: 'recomp',
+          [goalOptions[3]]: 'maintenance',
+          [goalOptions[4]]: 'competition-prep'
+        };
         await supabase.from('coach_clients').update({ goal: goalMap[form.goal] || form.goal }).eq('client_id', clientId);
       }
 
-      showToast('Profile complete! Welcome aboard.', 'success');
+      showToast(t('profileComplete') || 'Profile complete! Welcome aboard.', 'success');
       navigate('/app/dashboard');
     } catch (err) {
-      showToast('Saved locally — your coach will see this when connected', 'success');
+      showToast(t('savedLocally') || 'Saved locally — your coach will see this when connected', 'success');
       localStorage.setItem(`onboarding_complete_${user?.id}`, 'true');
       navigate('/app/dashboard');
     } finally {
@@ -166,17 +175,23 @@ export default function OnboardingScreen() {
   };
 
   const renderStep = () => {
+    const goalOptions = createGoalOptions(t);
+    const experienceOptions = createExperienceOptions(t);
+    const trainingDays = createTrainingDays();
+    const dietTypes = createDietTypes(t);
+    const allergyOptions = createAllergyOptions(t);
+
     switch (step) {
       case 0: // Basics
         return (
           <>
-            <FieldGroup label="How old are you?">
+            <FieldGroup label={t('howOldAreYou')}>
               <input className="form-inp" type="number" placeholder="e.g. 28" value={form.age} onChange={e => update('age', e.target.value)} style={{ width: 120 }} />
             </FieldGroup>
-            <FieldGroup label="Height" sub="in cm">
+            <FieldGroup label={t('height')} sub={t('inCm')}>
               <input className="form-inp" type="number" placeholder="e.g. 180" value={form.height} onChange={e => update('height', e.target.value)} style={{ width: 120 }} />
             </FieldGroup>
-            <FieldGroup label="What do you do for work?" sub="Helps us understand your activity level">
+            <FieldGroup label={t('whatDoYouDoForWork')} sub={t('workDescription')}>
               <input className="form-inp" placeholder="e.g. Office job, Construction, Student" value={form.occupation} onChange={e => update('occupation', e.target.value)} style={{ width: '100%' }} />
             </FieldGroup>
           </>
@@ -185,16 +200,16 @@ export default function OnboardingScreen() {
       case 1: // Body & Goals
         return (
           <>
-            <FieldGroup label="Current weight" sub="in kg">
+            <FieldGroup label={t('currentWeight')} sub={t('inKg')}>
               <input className="form-inp" type="number" placeholder="e.g. 85" value={form.currentWeight} onChange={e => update('currentWeight', e.target.value)} style={{ width: 120 }} />
             </FieldGroup>
-            <FieldGroup label="Goal weight" sub="Where do you want to be?">
+            <FieldGroup label={t('goalWeight')} sub={t('whereDoYouWantToBe')}>
               <input className="form-inp" type="number" placeholder="e.g. 78" value={form.goalWeight} onChange={e => update('goalWeight', e.target.value)} style={{ width: 120 }} />
             </FieldGroup>
-            <FieldGroup label="What's your main goal?">
-              <PillSelect options={GOAL_OPTIONS} value={form.goal} onChange={v => update('goal', v)} />
+            <FieldGroup label={t('whatsYourMainGoal')}>
+              <PillSelect options={goalOptions} value={form.goal} onChange={v => update('goal', v)} />
             </FieldGroup>
-            <FieldGroup label="Estimated body fat %" sub="Optional — your coach can help assess">
+            <FieldGroup label={t('estimatedBodyFat')} sub={t('bodyFatOptional')}>
               <input className="form-inp" type="text" placeholder="e.g. 20%" value={form.bodyFatEstimate} onChange={e => update('bodyFatEstimate', e.target.value)} style={{ width: 120 }} />
             </FieldGroup>
           </>
@@ -203,17 +218,17 @@ export default function OnboardingScreen() {
       case 2: // Training
         return (
           <>
-            <FieldGroup label="Training experience">
-              <PillSelect options={EXPERIENCE_OPTIONS} value={form.experience} onChange={v => update('experience', v)} />
+            <FieldGroup label={t('trainingExperience')}>
+              <PillSelect options={experienceOptions} value={form.experience} onChange={v => update('experience', v)} />
             </FieldGroup>
-            <FieldGroup label="How many days can you train per week?">
-              <PillSelect options={TRAINING_DAYS} value={form.trainingDays} onChange={v => update('trainingDays', v)} />
+            <FieldGroup label={t('howManyDaysTrain')}>
+              <PillSelect options={trainingDays} value={form.trainingDays} onChange={v => update('trainingDays', v)} />
             </FieldGroup>
-            <FieldGroup label="Preferred training style" sub="Optional">
-              <input className="form-inp" placeholder="e.g. Push/Pull/Legs, Upper/Lower, Full Body" value={form.preferredSplit} onChange={e => update('preferredSplit', e.target.value)} style={{ width: '100%' }} />
+            <FieldGroup label={t('preferredTrainingStyle')} sub={t('optional')}>
+              <input className="form-inp" placeholder={t('trainingStylePlaceholder')} value={form.preferredSplit} onChange={e => update('preferredSplit', e.target.value)} style={{ width: '100%' }} />
             </FieldGroup>
-            <FieldGroup label="Any injuries or limitations?" sub="Current or past — help your coach plan safely">
-              <textarea className="form-inp" placeholder="e.g. Lower back pain, shoulder impingement, knee surgery in 2022" value={form.injuries} onChange={e => update('injuries', e.target.value)} rows={3} style={{ width: '100%', resize: 'vertical' }} />
+            <FieldGroup label={t('injuriesOrLimitations')} sub={t('injuriesDesc')}>
+              <textarea className="form-inp" placeholder={t('injuriesPlaceholder')} value={form.injuries} onChange={e => update('injuries', e.target.value)} rows={3} style={{ width: '100%', resize: 'vertical' }} />
             </FieldGroup>
           </>
         );
@@ -221,17 +236,17 @@ export default function OnboardingScreen() {
       case 3: // Nutrition
         return (
           <>
-            <FieldGroup label="Dietary preference">
-              <PillSelect options={DIET_TYPES} value={form.dietType} onChange={v => update('dietType', v)} />
+            <FieldGroup label={t('dietaryPreference')}>
+              <PillSelect options={dietTypes} value={form.dietType} onChange={v => update('dietType', v)} />
             </FieldGroup>
-            <FieldGroup label="Allergies or intolerances" sub="Select all that apply">
-              <PillSelect options={ALLERGY_OPTIONS} value={form.allergies} onChange={v => update('allergies', v)} multi />
+            <FieldGroup label={t('allergiesOrIntolerances')} sub={t('selectAllThatApply')}>
+              <PillSelect options={allergyOptions} value={form.allergies} onChange={v => update('allergies', v)} multi />
             </FieldGroup>
-            <FieldGroup label="Preferred meals per day">
+            <FieldGroup label={t('preferredMealsPerDay')}>
               <PillSelect options={['3', '4', '5', '6']} value={form.mealsPerDay} onChange={v => update('mealsPerDay', v)} />
             </FieldGroup>
-            <FieldGroup label="Current supplements" sub="Optional">
-              <input className="form-inp" placeholder="e.g. Whey protein, creatine, multivitamin" value={form.supplements} onChange={e => update('supplements', e.target.value)} style={{ width: '100%' }} />
+            <FieldGroup label={t('currentSupplements')} sub={t('optional')}>
+              <input className="form-inp" placeholder={t('supplementsPlaceholder')} value={form.supplements} onChange={e => update('supplements', e.target.value)} style={{ width: '100%' }} />
             </FieldGroup>
           </>
         );
@@ -239,20 +254,20 @@ export default function OnboardingScreen() {
       case 4: // Lifestyle
         return (
           <>
-            <FieldGroup label="Average sleep per night">
-              <PillSelect options={['< 6 hours', '6-7 hours', '7-8 hours', '8+ hours']} value={form.sleepHours} onChange={v => update('sleepHours', v)} />
+            <FieldGroup label={t('avgSleepPerNight')}>
+              <PillSelect options={[t('sleepLess6'), t('sleep67'), t('sleep78'), t('sleep8Plus')]} value={form.sleepHours} onChange={v => update('sleepHours', v)} />
             </FieldGroup>
-            <FieldGroup label="Stress level">
-              <PillSelect options={['Low', 'Moderate', 'High', 'Very High']} value={form.stressLevel} onChange={v => update('stressLevel', v)} />
+            <FieldGroup label={t('stressLevel')}>
+              <PillSelect options={[t('stressLow'), t('stressModerate'), t('stressHigh'), t('stressVeryHigh')]} value={form.stressLevel} onChange={v => update('stressLevel', v)} />
             </FieldGroup>
-            <FieldGroup label="Average daily steps">
-              <PillSelect options={['< 5,000', '5,000-8,000', '8,000-10,000', '10,000+']} value={form.dailySteps} onChange={v => update('dailySteps', v)} />
+            <FieldGroup label={t('avgDailySteps')}>
+              <PillSelect options={[t('steps5k'), t('steps58k'), t('steps810k'), t('steps10kPlus')]} value={form.dailySteps} onChange={v => update('dailySteps', v)} />
             </FieldGroup>
-            <FieldGroup label="What motivates you?" sub="This helps your coach understand how to keep you on track">
-              <textarea className="form-inp" placeholder="e.g. Want to look good on holiday, health reasons, sport performance..." value={form.motivation} onChange={e => update('motivation', e.target.value)} rows={2} style={{ width: '100%', resize: 'vertical' }} />
+            <FieldGroup label={t('whatMotivatesYou')} sub={t('motivatesDesc')}>
+              <textarea className="form-inp" placeholder={t('motivatesPlaceholder')} value={form.motivation} onChange={e => update('motivation', e.target.value)} rows={2} style={{ width: '100%', resize: 'vertical' }} />
             </FieldGroup>
-            <FieldGroup label="What's your biggest challenge with fitness?" sub="Be honest — your coach needs to know">
-              <textarea className="form-inp" placeholder="e.g. Consistency, late night snacking, skipping workouts, not knowing what to eat..." value={form.biggestChallenge} onChange={e => update('biggestChallenge', e.target.value)} rows={2} style={{ width: '100%', resize: 'vertical' }} />
+            <FieldGroup label={t('biggestChallenge')} sub={t('challengeDesc')}>
+              <textarea className="form-inp" placeholder={t('challengePlaceholder')} value={form.biggestChallenge} onChange={e => update('biggestChallenge', e.target.value)} rows={2} style={{ width: '100%', resize: 'vertical' }} />
             </FieldGroup>
           </>
         );
@@ -261,16 +276,18 @@ export default function OnboardingScreen() {
     }
   };
 
+  const steps = createSteps(t);
+
   return (
     <div className="screen active" style={{ maxWidth: 520, margin: '0 auto' }}>
       {/* Progress header */}
       <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Let's get to know you</div>
+        <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>{t('letsGetToKnowYou')}</div>
         <div style={{ fontSize: 13, color: 'var(--t3)', marginBottom: 16 }}>
-          This helps your coach build the perfect plan for you.
+          {t('onboardingSubtitle')}
         </div>
         <div style={{ display: 'flex', gap: 4 }}>
-          {STEPS.map((s, i) => (
+          {steps.map((s, i) => (
             <div key={s.id} style={{
               flex: 1, height: 4, borderRadius: 2,
               background: i <= step ? 'var(--gold)' : 'var(--c3)',
@@ -279,9 +296,9 @@ export default function OnboardingScreen() {
           ))}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
-          <Icon name={STEPS[step].icon} size={16} style={{ color: 'var(--gold)' }} />
-          <span style={{ fontSize: 14, fontWeight: 600 }}>{STEPS[step].title}</span>
-          <span style={{ fontSize: 11, color: 'var(--t3)', marginLeft: 'auto' }}>Step {step + 1} of {STEPS.length}</span>
+          <Icon name={steps[step].icon} size={16} style={{ color: 'var(--gold)' }} />
+          <span style={{ fontSize: 14, fontWeight: 600 }}>{steps[step].title}</span>
+          <span style={{ fontSize: 11, color: 'var(--t3)', marginLeft: 'auto' }}>{t('stepOf', { step: step + 1, total: steps.length })}</span>
         </div>
       </div>
 
@@ -294,16 +311,16 @@ export default function OnboardingScreen() {
       <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
         {step > 0 && (
           <button className="btn btn-secondary" onClick={() => setStep(step - 1)} style={{ flex: 1 }}>
-            <Icon name="chevron-left" size={12} /> Back
+            <Icon name="chevron-left" size={12} /> {t('back')}
           </button>
         )}
-        {step < STEPS.length - 1 ? (
+        {step < steps.length - 1 ? (
           <button className="btn btn-primary" onClick={() => setStep(step + 1)} disabled={!canNext()} style={{ flex: 2 }}>
-            Continue <Icon name="chevron-right" size={12} />
+            {t('continue')} <Icon name="chevron-right" size={12} />
           </button>
         ) : (
           <button className="btn btn-primary" onClick={handleSubmit} disabled={saving} style={{ flex: 2 }}>
-            {saving ? 'Saving...' : 'Complete Profile'}
+            {saving ? t('saving') : t('completeProfile')}
           </button>
         )}
       </div>
@@ -318,7 +335,7 @@ export default function OnboardingScreen() {
           }}
           style={{ width: '100%', marginTop: 12, fontSize: 12, opacity: 0.6 }}
         >
-          Skip for now — I'll do this later
+          {t('skipForNow')}
         </button>
       )}
     </div>

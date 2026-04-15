@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useCoachStore } from '../../stores/coachStore';
 import { useAuthStore } from '../../stores/authStore';
+import { useT } from '../../i18n';
 import { Card, StatCard } from '../../components/ui';
 import { Icon } from '../../utils/icons';
 import { supabase } from '../../services/supabase';
@@ -73,10 +74,11 @@ function BarRow({ label, value, max, color = 'var(--gold)' }) {
 
 // ── Time range selector ──
 function RangeSelector({ value, onChange }) {
+  const t = useT();
   const ranges = [
-    { id: '7d', label: '7 days' },
-    { id: '30d', label: '30 days' },
-    { id: '90d', label: '90 days' },
+    { id: '7d', label: t('days7') },
+    { id: '30d', label: t('days30') },
+    { id: '90d', label: t('days90') },
   ];
   return (
     <div style={{ display: 'flex', gap: 4 }}>
@@ -95,6 +97,7 @@ function RangeSelector({ value, onChange }) {
 }
 
 export default function AnalyticsScreen() {
+  const t = useT();
   const { user } = useAuthStore();
   const { clients } = useCoachStore();
   const [range, setRange] = useState('30d');
@@ -231,7 +234,7 @@ export default function AnalyticsScreen() {
   if (loading && !metrics) {
     return (
       <div className="screen active" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 300 }}>
-        <div style={{ fontSize: 13, color: 'var(--t3)' }}>Loading analytics...</div>
+        <div style={{ fontSize: 13, color: 'var(--t3)' }}>{t('loading')}</div>
       </div>
     );
   }
@@ -242,8 +245,8 @@ export default function AnalyticsScreen() {
         <Card>
           <div style={{ textAlign: 'center', padding: 60, color: 'var(--t3)' }}>
             <Icon name="bar-chart" size={32} style={{ opacity: 0.2, display: 'block', margin: '0 auto 14px' }} />
-            <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 6, color: 'var(--t2)' }}>No data yet</div>
-            <div style={{ fontSize: 12 }}>Analytics will appear once you have active clients.</div>
+            <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 6, color: 'var(--t2)' }}>{t('noDataYet')}</div>
+            <div style={{ fontSize: 12 }}>{t('analyticsWillAppear')}</div>
           </div>
         </Card>
       </div>
@@ -255,9 +258,9 @@ export default function AnalyticsScreen() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <div>
-          <div className="kl">Analytics</div>
+          <div className="kl">{t('analytics')}</div>
           <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 2 }}>
-            Performance trends across {metrics?.totalClients || 0} client{metrics?.totalClients !== 1 ? 's' : ''}
+            {t('performanceTrends', { count: metrics?.totalClients || 0 })}
           </div>
         </div>
         <RangeSelector value={range} onChange={setRange} />
@@ -265,15 +268,15 @@ export default function AnalyticsScreen() {
 
       {/* Top-level stats */}
       <div className="g4" style={{ marginBottom: 18 }}>
-        <StatCard label="Total Clients" value={metrics?.totalClients || 0} color="var(--gold)" />
-        <StatCard label="Avg Adherence" value={`${metrics?.avgAdherence || 0}%`} color={metrics?.avgAdherence >= 70 ? 'var(--green)' : 'var(--orange)'} />
-        <StatCard label="On Track" value={metrics?.onTrack || 0} color="var(--green)" />
-        <StatCard label="At Risk" value={metrics?.atRisk || 0} color={metrics?.atRisk > 0 ? 'var(--red)' : 'var(--green)'} />
+        <StatCard label={t('totalClients')} value={metrics?.totalClients || 0} color="var(--gold)" />
+        <StatCard label={t('avgAdherence')} value={`${metrics?.avgAdherence || 0}%`} color={metrics?.avgAdherence >= 70 ? 'var(--green)' : 'var(--orange)'} />
+        <StatCard label={t('onTrack')} value={metrics?.onTrack || 0} color="var(--green)" />
+        <StatCard label={t('atRisk')} value={metrics?.atRisk || 0} color={metrics?.atRisk > 0 ? 'var(--red)' : 'var(--green)'} />
       </div>
 
       <div className="g5050" style={{ gap: 14, marginBottom: 14 }}>
         {/* Status Distribution */}
-        <Card title="Client Status" subtitle="Current distribution">
+        <Card title={t('clientStatus')} subtitle={t('currentDistribution')}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 20, padding: '8px 0' }}>
             <DonutChart
               segments={[
@@ -284,9 +287,9 @@ export default function AnalyticsScreen() {
             />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {[
-                { label: 'On Track', value: metrics?.onTrack || 0, color: 'var(--green)' },
-                { label: 'Needs Attention', value: metrics?.attention || 0, color: 'var(--orange)' },
-                { label: 'At Risk', value: metrics?.atRisk || 0, color: 'var(--red)' },
+                { label: t('onTrack'), value: metrics?.onTrack || 0, color: 'var(--green)' },
+                { label: t('needsAttention'), value: metrics?.attention || 0, color: 'var(--orange)' },
+                { label: t('atRisk'), value: metrics?.atRisk || 0, color: 'var(--red)' },
               ].map(s => (
                 <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <div style={{ width: 8, height: 8, borderRadius: '50%', background: s.color }} />

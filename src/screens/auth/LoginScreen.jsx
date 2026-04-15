@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
+import { useT } from '../../i18n';
 import { redeemInviteCode } from '../../services/invites';
 
 export default function LoginScreen() {
+  const t = useT();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isRegister, setIsRegister] = useState(false);
@@ -57,9 +59,9 @@ export default function LoginScreen() {
         {/* Logo */}
         <div className="auth-logo">
           <img src="/logo-al.jpg" alt="AL" className="auth-logo-img" />
-          <div className="auth-brand">AESTHETIC LIFESTYLE</div>
+          <div className="auth-brand">{t('appName')}</div>
           <div className="auth-sub">
-            {isRegister ? 'Create your account' : 'Welcome back'}
+            {isRegister ? t('createAccount') : t('welcomeBack')}
           </div>
         </div>
 
@@ -70,12 +72,12 @@ export default function LoginScreen() {
         <form onSubmit={handleSubmit} className="auth-form">
           {isRegister && (
             <div className="form-group">
-              <label>Full Name</label>
+              <label>{t('fullName')}</label>
               <input
                 type="text"
                 value={fullName}
                 onChange={e => setFullName(e.target.value)}
-                placeholder="Your full name"
+                placeholder={t('yourFullName')}
                 required
                 autoComplete="name"
               />
@@ -83,24 +85,24 @@ export default function LoginScreen() {
           )}
 
           <div className="form-group">
-            <label>Email</label>
+            <label>{t('email')}</label>
             <input
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
-              placeholder="you@example.com"
+              placeholder={t('emailPlaceholder')}
               required
               autoComplete="email"
             />
           </div>
 
           <div className="form-group">
-            <label>Password</label>
+            <label>{t('password')}</label>
             <input
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
-              placeholder="••••••••"
+              placeholder={t('passwordPlaceholder')}
               required
               minLength={6}
               autoComplete={isRegister ? 'new-password' : 'current-password'}
@@ -109,21 +111,21 @@ export default function LoginScreen() {
 
           {isRegister && (
             <div className="form-group">
-              <label>I am a...</label>
+              <label>{t('iAmA')}</label>
               <div className="role-selector">
                 <button
                   type="button"
                   className={`role-btn ${selectedRole === 'client' ? 'active' : ''}`}
                   onClick={() => setSelectedRole('client')}
                 >
-                  Athlete
+                  {t('athlete')}
                 </button>
                 <button
                   type="button"
                   className={`role-btn ${selectedRole === 'coach' ? 'active' : ''}`}
                   onClick={() => setSelectedRole('coach')}
                 >
-                  Coach
+                  {t('coach')}
                 </button>
               </div>
             </div>
@@ -131,12 +133,12 @@ export default function LoginScreen() {
 
           {isRegister && selectedRole === 'client' && (
             <div className="form-group">
-              <label>Coach Invite Code <span style={{ color: 'var(--t3)', fontWeight: 400 }}>(optional)</span></label>
+              <label>{t('coachInviteCode')} <span style={{ color: 'var(--t3)', fontWeight: 400 }}>({t('optional')})</span></label>
               <input
                 type="text"
                 value={inviteCode}
                 onChange={e => setInviteCode(e.target.value.toUpperCase())}
-                placeholder="e.g. ABC123"
+                placeholder={t('inviteCodePlaceholder')}
                 maxLength={6}
                 style={{ letterSpacing: 3, fontFamily: 'var(--fd)', textAlign: 'center', fontSize: 16 }}
                 autoComplete="off"
@@ -152,15 +154,15 @@ export default function LoginScreen() {
             className="auth-submit"
             disabled={loading}
           >
-            {loading ? 'Loading...' : isRegister ? 'Create Account' : 'Sign In'}
+            {loading ? t('loading') : isRegister ? t('createAccountBtn') : t('signIn')}
           </button>
         </form>
 
         {/* Toggle */}
         <div className="auth-toggle">
-          {isRegister ? 'Already have an account?' : "Don't have an account?"}
+          {isRegister ? t('alreadyHaveAccount') : t('dontHaveAccount')}
           <button type="button" onClick={toggleMode} className="auth-link">
-            {isRegister ? 'Sign In' : 'Register'}
+            {isRegister ? t('signIn') : t('register')}
           </button>
         </div>
       </div>

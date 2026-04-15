@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useCoachStore } from '../../stores/coachStore';
 import { useAuthStore } from '../../stores/authStore';
+import { useT } from '../../i18n';
 import { Card, ConfirmDialog } from '../../components/ui';
 import { Icon } from '../../utils/icons';
 import { useUIStore } from '../../stores/uiStore';
@@ -17,14 +18,15 @@ function DragGrip({ style }) {
 
 // ── Macro summary bar ──
 function MacroSummary({ meals, targets }) {
+  const t = useT();
   let totals = { kcal: 0, p: 0, c: 0, f: 0 };
   (meals || []).forEach(m => (m.foods || []).forEach(f => { totals.kcal += f.kcal || 0; totals.p += f.p || 0; totals.c += f.c || 0; totals.f += f.f || 0; }));
 
   const macros = [
-    { label: 'Calories', val: Math.round(totals.kcal), max: targets.calories, unit: 'kcal', color: 'var(--gold)' },
-    { label: 'Protein', val: Math.round(totals.p), max: targets.protein, unit: 'g', color: 'var(--green)' },
-    { label: 'Carbs', val: Math.round(totals.c), max: targets.carbs, unit: 'g', color: 'var(--blue)' },
-    { label: 'Fat', val: Math.round(totals.f), max: targets.fat, unit: 'g', color: 'var(--orange)' },
+    { label: t('calories'), val: Math.round(totals.kcal), max: targets.calories, unit: t('kcal'), color: 'var(--gold)' },
+    { label: t('protein'), val: Math.round(totals.p), max: targets.protein, unit: t('g'), color: 'var(--green)' },
+    { label: t('carbs'), val: Math.round(totals.c), max: targets.carbs, unit: t('g'), color: 'var(--blue)' },
+    { label: t('fat'), val: Math.round(totals.f), max: targets.fat, unit: t('g'), color: 'var(--orange)' },
   ];
 
   return (
@@ -47,6 +49,7 @@ function MacroSummary({ meals, targets }) {
 
 // ── Food Picker with search + categories ──
 function FoodPicker({ onSelect, onCancel }) {
+  const t = useT();
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('All');
   const [selectedFood, setSelectedFood] = useState(null);
@@ -86,20 +89,20 @@ function FoodPicker({ onSelect, onCancel }) {
     return (
       <div style={{ marginTop: 10, padding: 12, background: 'var(--c2)', borderRadius: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-          <div style={{ fontSize: 12, fontWeight: 600 }}>Custom Food</div>
+          <div style={{ fontSize: 12, fontWeight: 600 }}>{t('customFood')}</div>
           <button className="btn btn-ghost btn-sm" style={{ fontSize: 10, padding: '2px 8px' }} onClick={() => setCustomMode(false)}>
-            <Icon name="chevron-left" size={9} /> Back to Search
+            <Icon name="chevron-left" size={9} /> {t('backToSearch')}
           </button>
         </div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-          <input className="form-inp" placeholder="Food name" value={customFood.fname} onChange={e => setCustomFood({ ...customFood, fname: e.target.value })} style={{ flex: 2, minWidth: 120 }} />
-          <input className="form-inp" placeholder="g" value={customFood.grams} onChange={e => setCustomFood({ ...customFood, grams: e.target.value })} style={{ width: 55 }} type="number" />
-          <input className="form-inp" placeholder="kcal" value={customFood.kcal} onChange={e => setCustomFood({ ...customFood, kcal: e.target.value })} style={{ width: 55 }} type="number" />
+          <input className="form-inp" placeholder={t('foodName')} value={customFood.fname} onChange={e => setCustomFood({ ...customFood, fname: e.target.value })} style={{ flex: 2, minWidth: 120 }} />
+          <input className="form-inp" placeholder={t('g')} value={customFood.grams} onChange={e => setCustomFood({ ...customFood, grams: e.target.value })} style={{ width: 55 }} type="number" />
+          <input className="form-inp" placeholder={t('kcal')} value={customFood.kcal} onChange={e => setCustomFood({ ...customFood, kcal: e.target.value })} style={{ width: 55 }} type="number" />
           <input className="form-inp" placeholder="P" value={customFood.p} onChange={e => setCustomFood({ ...customFood, p: e.target.value })} style={{ width: 45 }} type="number" />
           <input className="form-inp" placeholder="C" value={customFood.c} onChange={e => setCustomFood({ ...customFood, c: e.target.value })} style={{ width: 45 }} type="number" />
           <input className="form-inp" placeholder="F" value={customFood.f} onChange={e => setCustomFood({ ...customFood, f: e.target.value })} style={{ width: 45 }} type="number" />
-          <button className="btn btn-primary btn-sm" onClick={handleCustomAdd}>Add</button>
-          <button className="btn btn-ghost btn-sm" onClick={onCancel}>Cancel</button>
+          <button className="btn btn-primary btn-sm" onClick={handleCustomAdd}>{t('add')}</button>
+          <button className="btn btn-ghost btn-sm" onClick={onCancel}>{t('cancel')}</button>
         </div>
       </div>
     );
@@ -141,8 +144,8 @@ function FoodPicker({ onSelect, onCancel }) {
           </div>
         )}
         <div style={{ display: 'flex', gap: 6 }}>
-          <button className="btn btn-primary btn-sm" onClick={handleSelectFromDB}>Add to Meal</button>
-          <button className="btn btn-ghost btn-sm" onClick={onCancel}>Cancel</button>
+          <button className="btn btn-primary btn-sm" onClick={handleSelectFromDB}>{t('addToMeal')}</button>
+          <button className="btn btn-ghost btn-sm" onClick={onCancel}>{t('cancel')}</button>
         </div>
       </div>
     );

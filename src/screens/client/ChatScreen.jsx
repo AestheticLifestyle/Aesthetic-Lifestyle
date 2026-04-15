@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { Icon } from '../../utils/icons';
+import { useT } from '../../i18n';
 import { fetchMessages, sendMessage, subscribeToMessages } from '../../services/chat';
 import { supabase } from '../../services/supabase';
 
@@ -38,6 +39,7 @@ function MessageBubble({ msg, isOwn }) {
 }
 
 export default function ChatScreen({ otherUserId: propOtherUserId, otherUserName: propOtherUserName }) {
+  const t = useT();
   const { user, role } = useAuthStore();
   const isCoach = role === 'coach';
   const [messages, setMessages] = useState([]);
@@ -62,7 +64,7 @@ export default function ChatScreen({ otherUserId: propOtherUserId, otherUserName
           // Get coach name
           supabase.from('profiles').select('full_name').eq('id', data.coach_id).single()
             .then(({ data: profile }) => {
-              setResolvedOther({ id: data.coach_id, name: profile?.full_name || 'Your Coach' });
+              setResolvedOther({ id: data.coach_id, name: profile?.full_name || t('yourCoach') });
             });
         }
       });
@@ -132,22 +134,22 @@ export default function ChatScreen({ otherUserId: propOtherUserId, otherUserName
       if (!ok) {
         // Remove optimistic message on failure
         setMessages(prev => prev.filter(m => m.id !== tempId));
-        setSendError('Message failed to send. Tap to retry.');
+        setSendError(t('messageFailed'));
         setInput(text); // Restore input so user can retry
       }
     }
   };
 
-  const displayName = otherUserName || (isCoach ? 'Client' : 'Your Coach');
+  const displayName = otherUserName || (isCoach ? 'Client' : t('yourCoach'));
 
   // No coach assigned — show helpful empty state
   if (!isCoach && !otherUserId && !loading) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 'calc(100vh - var(--hdr) - 44px)', color: 'var(--t3)', textAlign: 'center', padding: 40 }}>
         <Icon name="message" size={40} style={{ opacity: 0.15, marginBottom: 16 }} />
-        <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--t2)', marginBottom: 6 }}>No Coach Connected</div>
+        <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--t2)', marginBottom: 6 }}>{t('noCoachConnected')}</div>
         <div style={{ fontSize: 13, lineHeight: 1.5, maxWidth: 280 }}>
-          You don't have a coach assigned yet. Ask your coach for an invite code to get connected.
+          {t('noCoachConnectedDesc')}
         </div>
       </div>
     );
@@ -181,7 +183,7 @@ export default function ChatScreen({ otherUserId: propOtherUserId, otherUserName
         ) : messages.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 60, color: 'var(--t3)', fontSize: 13 }}>
             <Icon name="message" size={28} style={{ opacity: 0.2, display: 'block', margin: '0 auto 12px' }} />
-            No messages yet. Start the conversation!
+            {t('noMessagesYet')}
           </div>
         ) : (
           messages.map(msg => (
@@ -214,7 +216,7 @@ export default function ChatScreen({ otherUserId: propOtherUserId, otherUserName
           className="form-inp"
           value={input}
           onChange={e => setInput(e.target.value)}
-          placeholder="Type a message..."
+          placeholder={t('typeAMessage')}
           style={{ flex: 1 }}
         />
         <button type="submit" className="btn btn-primary btn-sm" disabled={!input.trim()}>

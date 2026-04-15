@@ -2,10 +2,12 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { useCoachStore } from '../../stores/coachStore';
 import { useUIStore } from '../../stores/uiStore';
+import { useT } from '../../i18n';
 import { Icon } from '../../utils/icons';
 import { COACH_NAV, CLIENT_NAV } from '../../utils/constants';
 
 export default function Sidebar() {
+  const t = useT();
   const { user, role, actualRole, logout } = useAuthStore();
   const { sidebarOpen, closeSidebar } = useUIStore();
   const navigate = useNavigate();
@@ -64,7 +66,7 @@ export default function Sidebar() {
       {/* Nav groups */}
       {Object.entries(groups).map(([group, items]) => (
         <div className="nav-grp" key={group}>
-          <div className="nav-grp-label">{group}</div>
+          <div className="nav-grp-label">{t(group)}</div>
           {items.map(item => (
             <NavLink
               key={item.id}
@@ -75,7 +77,7 @@ export default function Sidebar() {
               onClick={closeSidebar}
             >
               <Icon name={item.icon} />
-              {item.label}
+              {t(item.label)}
             </NavLink>
           ))}
         </div>
@@ -94,7 +96,7 @@ export default function Sidebar() {
           </div>
           <div>
             <div className="u-name">{fullName}</div>
-            <div className="u-role">{isCoach ? 'Head Coach' : 'Athlete'}</div>
+            <div className="u-role">{isCoach ? t('headCoach') : t('athlete')}</div>
           </div>
           <div className="rt-dot" style={{ marginLeft: 'auto' }} title="Live sync active" />
         </div>
@@ -106,7 +108,7 @@ export default function Sidebar() {
             style={{ marginTop: 8, opacity: 0.7, fontSize: 12 }}
           >
             <Icon name="refresh" />
-            Switch to {isCoach ? 'Client' : 'Coach'} View
+            {t('switchTo')} {isCoach ? t('clientView') : t('coachView')}
           </button>
         )}
         <button
@@ -115,7 +117,7 @@ export default function Sidebar() {
           style={{ marginTop: 4, opacity: 0.6 }}
         >
           <Icon name="log-out" />
-          Sign Out
+          {t('signOut')}
         </button>
       </div>
     </nav>

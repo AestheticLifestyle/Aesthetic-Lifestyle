@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { useClientStore } from '../../stores/clientStore';
 import { useUIStore } from '../../stores/uiStore';
+import { useT } from '../../i18n';
 import { Card, ProgressRing, DateNavigator } from '../../components/ui';
 import { Icon } from '../../utils/icons';
 import { getTodayKey, formatShortDate } from '../../utils/constants';
@@ -25,11 +26,11 @@ function getClientId() {
     : authState.user?.id;
 }
 
-function getGreeting() {
+function getGreeting(t) {
   const h = new Date().getHours();
-  if (h < 12) return 'Good Morning';
-  if (h < 17) return 'Good Afternoon';
-  return 'Good Evening';
+  if (h < 12) return t('goodMorning');
+  if (h < 17) return t('goodAfternoon');
+  return t('goodEvening');
 }
 
 function getStreakDays() {
@@ -56,18 +57,18 @@ const GOAL_META = {
 };
 
 // ---------- sub-components ----------
-function MissionBriefing({ name, streak, goal }) {
+function MissionBriefing({ name, streak, goal, t }) {
   const gm = GOAL_META[goal];
   return (
     <Card className="mission-card">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
-          <div className="kl">Today's Mission Briefing</div>
+          <div className="kl">{t('todaysMissionBriefing')}</div>
           <div style={{ fontFamily: 'var(--fd)', fontSize: 22, letterSpacing: 1.5, marginTop: 6 }}>
-            {getGreeting().toUpperCase()} {name.split(' ')[0].toUpperCase()}
+            {getGreeting(t).toUpperCase()} {name.split(' ')[0].toUpperCase()}
           </div>
           <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 4 }}>
-            {gm ? gm.tip : 'Stay focused. Stay disciplined. Let\'s make it count.'}
+            {gm ? gm.tip : t('tipDefault')}
           </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
@@ -78,7 +79,7 @@ function MissionBriefing({ name, streak, goal }) {
           )}
           {streak > 0 && (
             <div className="tag t-gr" style={{ fontSize: 11, padding: '4px 10px' }}>
-              {streak} day streak
+              {streak} {t('dayStreak')}
             </div>
           )}
         </div>
@@ -88,7 +89,7 @@ function MissionBriefing({ name, streak, goal }) {
 }
 
 // ---------- Weight card with inline logger ----------
-function WeightCard({ weightLog, selectedDate }) {
+function WeightCard({ weightLog, selectedDate, t }) {
   const { user } = useAuthStore();
   const { addWeight } = useClientStore();
   const { showToast } = useUIStore();
@@ -102,20 +103,20 @@ function WeightCard({ weightLog, selectedDate }) {
 
   const handleSave = async () => {
     const w = parseFloat(inputVal);
-    if (!w || w < 20 || w > 300) { showToast('Enter a valid weight', 'error'); return; }
+    if (!w || w < 20 || w > 300) { showToast(t('enterValidWeight'), 'error'); return; }
     setSaving(true);
     addWeight(selectedDate, w);
     const ok = await saveWeight(getClientId(), selectedDate, w);
     setSaving(false);
     setEditing(false);
     setInputVal('');
-    showToast(ok ? 'Weight logged!' : 'Failed to save', ok ? 'success' : 'error');
+    showToast(ok ? t('weightLogged') : t('failedToSave'), ok ? 'success' : 'error');
   };
 
   if (editing) {
     return (
       <Card>
-        <div className="kl">Log Weight — {formatShortDate(selectedDate)}</div>
+        <div className="kl">{t('logWeight')} — {formatShortDate(selectedDate)}</div>
         <div style={{ display: 'flex', gap: 6, marginTop: 8, alignItems: 'center' }}>
           <input
             className="form-inp"
@@ -128,13 +129,13 @@ function WeightCard({ weightLog, selectedDate }) {
             autoFocus
             style={{ flex: 1, fontSize: 18, fontFamily: 'var(--fd)', textAlign: 'center' }}
           />
-          <span style={{ fontSize: 14, color: 'var(--t3)' }}>kg</span>
+          <span style={{ fontSize: 14, color: 'var(--t3)' }}>{t('kg')}</span>
         </div>
         <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
           <button className="btn btn-primary btn-sm" style={{ flex: 1 }} onClick={handleSave} disabled={saving}>
-            {saving ? 'Saving...' : 'Save'}
+            {saving ? t('saving') : t('save')}
           </button>
-          <button className="btn btn-secondary btn-sm" onClick={() => setEditing(false)}>Cancel</button>
+          <button className="btn btn-secondary btn-sm" onClick={() => setEditing(false)}>{t('cancel')}</button>
         </div>
       </Card>
     );
@@ -142,10 +143,10 @@ function WeightCard({ weightLog, selectedDate }) {
 
   return (
     <Card>
-      <div className="kl">Body Weight</div>
+      <div className="kl">{t('bodyWeight')}</div>
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, margin: '6px 0' }}>
         <span className="kv">{displayWeight ?? '—'}</span>
-        {displayWeight && <span className="ku">kg</span>}
+        {displayWeight && <span className="ku">{t('kg')}</span>}
       </div>
       {dateWeight && (
         <div style={{ fontSize: 10, color: 'var(--green)', marginBottom: 6 }}>
@@ -155,14 +156,14 @@ function WeightCard({ weightLog, selectedDate }) {
       <button className="btn btn-secondary btn-sm" style={{ marginTop: 4, width: '100%' }}
         onClick={() => { setEditing(true); setInputVal(dateWeight ? String(dateWeight.weight) : ''); }}
       >
-        {dateWeight ? 'Update Weight' : 'Log Weight'}
+        {dateWeight ? t('updateWeight') : t('logWeight')}
       </button>
     </Card>
   );
 }
 
 // ---------- Steps card with manual input ----------
-function StepsCard({ currentSteps, stepGoal, selectedDate }) {
+function StepsCard({ currentSteps, stepGoal, selectedDate, t }) {
   const { user } = useAuthStore();
   const { setSteps } = useClientStore();
   const { showToast } = useUIStore();
@@ -173,21 +174,21 @@ function StepsCard({ currentSteps, stepGoal, selectedDate }) {
 
   const handleSave = async () => {
     const s = parseInt(inputVal);
-    if (isNaN(s) || s < 0) { showToast('Enter valid steps', 'error'); return; }
+    if (isNaN(s) || s < 0) { showToast(t('enterValidSteps'), 'error'); return; }
     setSaving(true);
     setSteps(s);
     const result = await saveDailyCheckin({ client_id: getClientId(), date: selectedDate, steps: s }).catch(() => ({ ok: false, error: 'Network error' }));
     const ok = result === true || (result && result.ok === true);
     setSaving(false);
     setEditing(false);
-    const errMsg = result && result.error ? `Failed to save: ${result.error}` : 'Failed to save';
-    showToast(ok ? 'Steps saved!' : errMsg, ok ? 'success' : 'error');
+    const errMsg = result && result.error ? `${t('failedToSave')}: ${result.error}` : t('failedToSave');
+    showToast(ok ? t('stepsSaved') : errMsg, ok ? 'success' : 'error');
   };
 
   if (editing) {
     return (
       <Card>
-        <div className="kl">Log Steps — {formatShortDate(selectedDate)}</div>
+        <div className="kl">{t('logSteps')} — {formatShortDate(selectedDate)}</div>
         <div style={{ display: 'flex', gap: 6, marginTop: 8, alignItems: 'center' }}>
           <input
             className="form-inp"
@@ -199,13 +200,13 @@ function StepsCard({ currentSteps, stepGoal, selectedDate }) {
             autoFocus
             style={{ flex: 1, fontSize: 18, fontFamily: 'var(--fd)', textAlign: 'center' }}
           />
-          <span style={{ fontSize: 14, color: 'var(--t3)' }}>steps</span>
+          <span style={{ fontSize: 14, color: 'var(--t3)' }}>{t('steps')}</span>
         </div>
         <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
           <button className="btn btn-primary btn-sm" style={{ flex: 1 }} onClick={handleSave} disabled={saving}>
-            {saving ? 'Saving...' : 'Save'}
+            {saving ? t('saving') : t('save')}
           </button>
-          <button className="btn btn-secondary btn-sm" onClick={() => setEditing(false)}>Cancel</button>
+          <button className="btn btn-secondary btn-sm" onClick={() => setEditing(false)}>{t('cancel')}</button>
         </div>
       </Card>
     );
@@ -213,7 +214,7 @@ function StepsCard({ currentSteps, stepGoal, selectedDate }) {
 
   return (
     <Card>
-      <div className="kl">Steps</div>
+      <div className="kl">{t('steps')}</div>
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, margin: '6px 0' }}>
         <span className="kv" style={{ color: 'var(--green)' }}>{(currentSteps || 0).toLocaleString()}</span>
         <span className="ku">/ {stepGoal.toLocaleString()}</span>
@@ -224,14 +225,14 @@ function StepsCard({ currentSteps, stepGoal, selectedDate }) {
       <button className="btn btn-secondary btn-sm" style={{ marginTop: 10, width: '100%' }}
         onClick={() => { setEditing(true); setInputVal(currentSteps > 0 ? String(currentSteps) : ''); }}
       >
-        {currentSteps > 0 ? 'Update Steps' : 'Log Steps'}
+        {currentSteps > 0 ? t('updateSteps') : t('logSteps')}
       </button>
     </Card>
   );
 }
 
 // ---------- Water card with auto-save ----------
-function WaterCard({ current, goal, selectedDate }) {
+function WaterCard({ current, goal, selectedDate, t }) {
   const { user } = useAuthStore();
   const { addWater } = useClientStore();
   const saveTimer = useRef(null);
@@ -256,7 +257,7 @@ function WaterCard({ current, goal, selectedDate }) {
 
   return (
     <Card>
-      <div className="kl">Water</div>
+      <div className="kl">{t('water')}</div>
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, margin: '6px 0' }}>
         <span className="kv" style={{ color: 'var(--blue)' }}>{liters}</span>
         <span className="ku">/ {goalL}L</span>
@@ -272,7 +273,7 @@ function WaterCard({ current, goal, selectedDate }) {
   );
 }
 
-function CaloriesCard({ meals, targets }) {
+function CaloriesCard({ meals, targets, t }) {
   const totals = useMemo(() => {
     let kcal = 0, p = 0, c = 0, f = 0;
     meals.forEach(m => {
@@ -288,7 +289,7 @@ function CaloriesCard({ meals, targets }) {
 
   return (
     <Card>
-      <div className="kl">Calories</div>
+      <div className="kl">{t('calories')}</div>
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, margin: '6px 0' }}>
         <span className="kv" style={{ color: 'var(--gold)' }}>{totals.kcal}</span>
         <span className="ku">/ {targets.calories}</span>
@@ -298,9 +299,9 @@ function CaloriesCard({ meals, targets }) {
       </div>
       <div style={{ display: 'flex', gap: 16, marginTop: 10 }}>
         {[
-          { label: 'Protein', val: totals.p, max: targets.protein, color: 'var(--green)' },
-          { label: 'Carbs', val: totals.c, max: targets.carbs, color: 'var(--blue)' },
-          { label: 'Fat', val: totals.f, max: targets.fat, color: 'var(--orange)' },
+          { label: t('protein'), val: totals.p, max: targets.protein, color: 'var(--green)' },
+          { label: t('carbs'), val: totals.c, max: targets.carbs, color: 'var(--blue)' },
+          { label: t('fat'), val: totals.f, max: targets.fat, color: 'var(--orange)' },
         ].map(m => (
           <div key={m.label} style={{ flex: 1 }}>
             <ProgressRing value={m.val} max={m.max} size={40} stroke={3} color={m.color}>
@@ -316,23 +317,23 @@ function CaloriesCard({ meals, targets }) {
   );
 }
 
-function DailyChecklist({ items }) {
+function DailyChecklist({ items, t }) {
   const navigate = useNavigate();
   const done = items.filter(i => i.checked).length;
   const pct = items.length ? done / items.length : 0;
 
   if (items.length === 0) {
     return (
-      <Card title="Daily Checklist" subtitle="0/0 completed">
+      <Card title={t('dailyChecklist')} subtitle={`0/0 ${t('completed')}`}>
         <div style={{ textAlign: 'center', padding: 20, color: 'var(--t3)', fontSize: 12 }}>
-          No checklist items yet.
+          {t('noChecklistItems')}
         </div>
       </Card>
     );
   }
 
   return (
-    <Card title="Daily Checklist" subtitle={`${done}/${items.length} completed`}>
+    <Card title={t('dailyChecklist')} subtitle={`${done}/${items.length} ${t('completed')}`}>
       <div className="pbar" style={{ marginBottom: 14, marginTop: -4 }}>
         <div className="pfill gr" style={{ width: `${pct * 100}%` }} />
       </div>
@@ -359,10 +360,10 @@ function DailyChecklist({ items }) {
   );
 }
 
-function StreakCalendar({ dailyLog }) {
+function StreakCalendar({ dailyLog, t }) {
   const days = getStreakDays();
   return (
-    <Card title="This Week">
+    <Card title={t('thisWeek')}>
       <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
         {days.map(d => {
           const log = dailyLog[d.dateKey];
@@ -381,35 +382,35 @@ function StreakCalendar({ dailyLog }) {
   );
 }
 
-function TodayWorkout({ plan, dayIdx }) {
+function TodayWorkout({ plan, dayIdx, t }) {
   const navigate = useNavigate();
   if (!plan || !plan.days || !plan.days[dayIdx]) {
     return (
-      <Card title="Today's Workout">
-        <div style={{ fontSize: 12, color: 'var(--t3)' }}>No workout assigned yet.</div>
+      <Card title={t('todaysWorkout')}>
+        <div style={{ fontSize: 12, color: 'var(--t3)' }}>{t('noWorkoutAssigned')}</div>
       </Card>
     );
   }
   const day = plan.days[dayIdx];
   return (
-    <Card title="Today's Workout">
+    <Card title={t('todaysWorkout')}>
       <div style={{ fontWeight: 500, fontSize: 14, marginBottom: 4 }}>{day.name}</div>
       <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 12 }}>
-        {day.exercises?.length || 0} exercises
+        {day.exercises?.length || 0} {t('exercises')}
       </div>
       <button
         className="btn btn-primary btn-sm"
         style={{ width: '100%' }}
         onClick={() => navigate('/app/training')}
       >
-        Start Workout
+        {t('startWorkout')}
       </button>
     </Card>
   );
 }
 
 // ---------- build checklist from real data ----------
-function buildChecklist({ meals, dayData, stepGoal, waterGoal, macroTargets, weightLog, dailyLog, selectedDate, checkinDone }) {
+function buildChecklist({ meals, dayData, stepGoal, waterGoal, macroTargets, weightLog, dailyLog, selectedDate, checkinDone, t }) {
   const dateWeight = weightLog.find(w => w.date === selectedDate);
   const currentSteps = dayData.currentSteps || 0;
   const waterML = dayData.waterML || 0;
@@ -421,19 +422,19 @@ function buildChecklist({ meals, dayData, stepGoal, waterGoal, macroTargets, wei
   const workoutDone = dailyLog[selectedDate]?.workout;
 
   const items = [];
-  items.push({ label: 'Morning weigh-in', checked: !!dateWeight });
-  items.push({ label: `Cardio / ${stepGoal.toLocaleString()} steps`, checked: currentSteps >= stepGoal, sub: `${currentSteps.toLocaleString()}/${stepGoal.toLocaleString()}` });
-  items.push({ label: 'Log all meals', checked: mealsLogged >= meals.length && meals.length > 0, link: '/app/nutrition' });
-  items.push({ label: 'Hit protein target', checked: totalProtein >= (macroTargets.protein || 180), link: '/app/nutrition' });
-  items.push({ label: 'Complete workout', checked: !!workoutDone, link: '/app/training' });
+  items.push({ label: t('morningWeighIn'), checked: !!dateWeight });
+  items.push({ label: `${t('cardioSteps').replace('{goal}', stepGoal.toLocaleString())}`, checked: currentSteps >= stepGoal, sub: `${currentSteps.toLocaleString()}/${stepGoal.toLocaleString()}` });
+  items.push({ label: t('logAllMeals'), checked: mealsLogged >= meals.length && meals.length > 0, link: '/app/nutrition' });
+  items.push({ label: t('hitProteinTarget'), checked: totalProtein >= (macroTargets.protein || 180), link: '/app/nutrition' });
+  items.push({ label: t('completeWorkout'), checked: !!workoutDone, link: '/app/training' });
   const wGoal = waterGoal || 3000;
-  items.push({ label: `Water intake: ${(wGoal / 1000).toFixed(1)}L`, checked: waterML >= wGoal, sub: `${(waterML / 1000).toFixed(1)}L` });
-  items.push({ label: 'Daily check-in', checked: checkinDone, sub: checkinDone ? 'Submitted' : 'Mood, sleep & energy', link: '/app/journal' });
+  items.push({ label: t('waterIntake').replace('{goal}', (wGoal / 1000).toFixed(1)), checked: waterML >= wGoal, sub: `${(waterML / 1000).toFixed(1)}L` });
+  items.push({ label: t('dailyCheckin'), checked: checkinDone, sub: checkinDone ? t('submitted') : t('moodSleepEnergy'), link: '/app/journal' });
   return items;
 }
 
 // ---------- Progress Insights ----------
-function ProgressInsights({ weightLog, goal }) {
+function ProgressInsights({ weightLog, goal, t }) {
   const trend = useMemo(() => analyzeWeightTrend(weightLog, { days: 14 }), [weightLog]);
   const plateau = useMemo(() => detectPlateau(weightLog), [weightLog]);
 
@@ -448,13 +449,13 @@ function ProgressInsights({ weightLog, goal }) {
 
   return (
     <Card>
-      <div className="kl" style={{ marginBottom: 8 }}>Progress Insights</div>
+      <div className="kl" style={{ marginBottom: 8 }}>{t('progressInsights')}</div>
       {/* Weight trend */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
         <span style={{ fontSize: 20, color: trendColor, fontWeight: 700 }}>{trendArrow}</span>
         <div>
           <div style={{ fontSize: 13, fontWeight: 500, color: trendColor }}>
-            {trend.weekChange != null ? `${trend.weekChange > 0 ? '+' : ''}${trend.weekChange} kg this week` : `${trend.totalChange > 0 ? '+' : ''}${trend.totalChange} kg trend`}
+            {trend.weekChange != null ? `${trend.weekChange > 0 ? '+' : ''}${trend.weekChange} ${t('kgThisWeek')}` : `${trend.totalChange > 0 ? '+' : ''}${trend.totalChange} kg trend`}
           </div>
           <div style={{ fontSize: 10, color: 'var(--t3)' }}>
             Avg: {trend.currentAvg} kg · Rate: {trend.weeklyRate > 0 ? '+' : ''}{trend.weeklyRate} kg/wk
@@ -477,6 +478,7 @@ function ProgressInsights({ weightLog, goal }) {
 
 // ---------- main ----------
 export default function DashboardScreen() {
+  const t = useT();
   const { user, roleOverride } = useAuthStore();
   const navigate = useNavigate();
   const store = useClientStore();
@@ -540,8 +542,8 @@ export default function DashboardScreen() {
 
   // Build checklist from real per-date data
   const checklist = useMemo(() => buildChecklist({
-    meals, dayData, stepGoal, waterGoal, macroTargets, weightLog, dailyLog, selectedDate, checkinDone,
-  }), [meals, dayData, stepGoal, waterGoal, macroTargets, weightLog, dailyLog, selectedDate, checkinDone]);
+    meals, dayData, stepGoal, waterGoal, macroTargets, weightLog, dailyLog, selectedDate, checkinDone, t,
+  }), [meals, dayData, stepGoal, waterGoal, macroTargets, weightLog, dailyLog, selectedDate, checkinDone, t]);
 
   const { setSmartReminders } = useNotificationStore();
 
@@ -580,7 +582,7 @@ export default function DashboardScreen() {
   return (
     <div className="screen active">
       {/* Mission Briefing */}
-      <MissionBriefing name={fullName} streak={streak} goal={goal} />
+      <MissionBriefing name={fullName} streak={streak} goal={goal} t={t} />
 
       {/* Smart Reminders */}
       {isToday && <ReminderCards navigate={navigate} />}
@@ -590,21 +592,21 @@ export default function DashboardScreen() {
 
       {/* 4 metric cards */}
       <div className="g4">
-        <WeightCard weightLog={weightLog} selectedDate={selectedDate} />
-        <StepsCard currentSteps={currentSteps} stepGoal={stepGoal} selectedDate={selectedDate} />
-        <WaterCard current={waterML} goal={waterGoal || 3000} selectedDate={selectedDate} />
-        <CaloriesCard meals={meals} targets={macroTargets} />
+        <WeightCard weightLog={weightLog} selectedDate={selectedDate} t={t} />
+        <StepsCard currentSteps={currentSteps} stepGoal={stepGoal} selectedDate={selectedDate} t={t} />
+        <WaterCard current={waterML} goal={waterGoal || 3000} selectedDate={selectedDate} t={t} />
+        <CaloriesCard meals={meals} targets={macroTargets} t={t} />
       </div>
 
       {/* Bottom 70/30 */}
       <div className="g7030">
         <div>
-          <DailyChecklist items={checklist} />
+          <DailyChecklist items={checklist} t={t} />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <ProgressInsights weightLog={weightLog} goal={goal} />
-          <StreakCalendar dailyLog={dailyLog} />
-          <TodayWorkout plan={trainingPlan} dayIdx={activeWorkoutDay} />
+          <ProgressInsights weightLog={weightLog} goal={goal} t={t} />
+          <StreakCalendar dailyLog={dailyLog} t={t} />
+          <TodayWorkout plan={trainingPlan} dayIdx={activeWorkoutDay} t={t} />
         </div>
       </div>
     </div>
