@@ -16,16 +16,20 @@ import nl from './nl';
 
 const LANGS = { en, nl };
 const STORAGE_KEY = 'aes_lang';
-const DEFAULT_LANG = 'nl'; // Dutch default — most clients are Dutch
+const DEFAULT_LANG = 'en'; // Locked to English — Dutch option removed
 
 // ── Read / write language preference ──
+// Always return English — Dutch support is disabled.
 function storedLang() {
-  try { return localStorage.getItem(STORAGE_KEY) || DEFAULT_LANG; }
-  catch { return DEFAULT_LANG; }
+  // Force-overwrite any legacy Dutch setting so users who previously
+  // switched to NL are returned to English.
+  try { localStorage.setItem(STORAGE_KEY, DEFAULT_LANG); } catch { /* noop */ }
+  return DEFAULT_LANG;
 }
 
-function storeLang(lang) {
-  try { localStorage.setItem(STORAGE_KEY, lang); } catch { /* noop */ }
+function storeLang(_lang) {
+  // Language is locked to English — ignore writes.
+  try { localStorage.setItem(STORAGE_KEY, DEFAULT_LANG); } catch { /* noop */ }
 }
 
 // ── Context ──
@@ -91,8 +95,7 @@ export function setLanguage(lang) {
   if (LANGS[lang]) storeLang(lang);
 }
 
-/** Available languages */
+/** Available languages — currently English only */
 export const AVAILABLE_LANGS = [
   { code: 'en', label: 'English', flag: '🇬🇧' },
-  { code: 'nl', label: 'Nederlands', flag: '🇳🇱' },
 ];

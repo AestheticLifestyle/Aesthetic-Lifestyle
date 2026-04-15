@@ -7,7 +7,7 @@ import { Icon } from '../../utils/icons';
 import { saveClientGoal } from '../../services/checkins';
 import { redeemInviteCode, getMyCoachLink, getCoachName, disconnectFromCoach } from '../../services/invites';
 import { supabase } from '../../services/supabase';
-import { useT, useLanguage, AVAILABLE_LANGS } from '../../i18n';
+import { useT } from '../../i18n';
 
 // ── Goal config (labels & descriptions will be translated via i18n) ──
 const GOALS = [
@@ -308,7 +308,6 @@ function CoachConnection() {
 // ══════════════════════════════════════
 export default function SettingsScreen() {
   const t = useT();
-  const { lang, setLang } = useLanguage();
   const { user, logout } = useAuthStore();
   const { stepGoal, macroTargets } = useClientStore();
   const { showToast } = useUIStore();
@@ -316,7 +315,7 @@ export default function SettingsScreen() {
   const [showEditProfile, setShowEditProfile] = useState(false);
 
   // Preferences — loaded from Supabase, persisted on change
-  const [prefs, setPrefs] = useState({ notifications: true, reminders: true, darkMode: true, units: 'metric', language: 'en' });
+  const [prefs, setPrefs] = useState({ notifications: true, reminders: true, darkMode: true, units: 'metric' });
   const [prefsLoaded, setPrefsLoaded] = useState(false);
 
   useEffect(() => {
@@ -324,12 +323,10 @@ export default function SettingsScreen() {
     loadPreferences(user.id).then(p => {
       if (p && Object.keys(p).length) {
         setPrefs(prev => ({ ...prev, ...p }));
-        // Sync language from prefs to i18n context
-        if (p?.language) setLang(p.language);
       }
       setPrefsLoaded(true);
     });
-  }, [user?.id, setLang]);
+  }, [user?.id]);
 
   const updatePref = useCallback((key, value) => {
     setPrefs(prev => {
@@ -341,11 +338,6 @@ export default function SettingsScreen() {
       return next;
     });
   }, [user?.id, showToast, t]);
-
-  const handleLangChange = (newLang) => {
-    setLang(newLang);
-    updatePref('language', newLang);
-  };
 
   const fullName = user?.user_metadata?.full_name || 'Athlete';
   const email = user?.email || '';
@@ -392,16 +384,6 @@ export default function SettingsScreen() {
 
       {/* Preferences */}
       <Card title={t('preferences')} style={{ marginTop: 14 }}>
-        <SettingRow label={t('language')} sub={t('languageDesc')}>
-          <div style={{ display: 'flex', gap: 4 }}>
-            {AVAILABLE_LANGS.map(l => (
-              <button key={l.code} className={`chip ${lang === l.code ? 'active' : ''}`}
-                onClick={() => handleLangChange(l.code)}>
-                {l.flag} {l.label}
-              </button>
-            ))}
-          </div>
-        </SettingRow>
         <SettingRow label={t('pushNotifications')} sub={t('pushNotificationsDesc')}>
           <Toggle checked={prefs.notifications} onChange={() => updatePref('notifications', !prefs.notifications)} />
         </SettingRow>

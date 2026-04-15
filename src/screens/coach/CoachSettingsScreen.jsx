@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { useUIStore } from '../../stores/uiStore';
-import { useT, useLanguage, AVAILABLE_LANGS } from '../../i18n';
+import { useT } from '../../i18n';
 import { Card, PageSkeleton } from '../../components/ui';
 import { Icon } from '../../utils/icons';
 import { supabase } from '../../services/supabase';
@@ -245,20 +245,8 @@ function InviteCodesSection({ coachId }) {
 
 function AppSection({ onSignOut }) {
   const t = useT();
-  const { lang, setLang } = useLanguage();
   return (
     <Card title="App">
-      <SettingRow label={t('language')}>
-        <div style={{ display: 'flex', gap: 4 }}>
-          {AVAILABLE_LANGS.map(l => (
-            <button key={l.code} className={`chip ${lang === l.code ? 'active' : ''}`}
-              onClick={() => setLang(l.code)}
-              style={{ fontSize: 11, padding: '4px 10px' }}>
-              {l.flag} {l.label}
-            </button>
-          ))}
-        </div>
-      </SettingRow>
       <SettingRow label={t('appVersion')}>
         <span style={{ fontSize: 12, color: 'var(--t3)', fontFamily: 'var(--fm)' }}>1.0.0</span>
       </SettingRow>
