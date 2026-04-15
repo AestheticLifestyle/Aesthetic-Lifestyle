@@ -142,7 +142,7 @@ export async function redeemInviteCode(clientId, code) {
         setup.trainingPlan.days,
       );
     } catch (err) {
-      console.warn('[redeemInviteCode] training plan error:', err);
+      /* swallow */
     }
   }
 
@@ -156,7 +156,7 @@ export async function redeemInviteCode(clientId, code) {
         setup.nutritionPlan.name,
       );
     } catch (err) {
-      console.warn('[redeemInviteCode] nutrition plan error:', err);
+      /* swallow */
     }
   }
 

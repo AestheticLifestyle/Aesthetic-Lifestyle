@@ -42,7 +42,6 @@ export const useGamificationStore = create((set, get) => ({
         loaded: true,
       });
     } catch (err) {
-      console.warn('[GamificationStore] Load error:', err);
       set({ loaded: true });
     }
   },

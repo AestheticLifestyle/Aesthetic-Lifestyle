@@ -63,7 +63,6 @@ export async function loadGamificationData(clientId) {
     // Fallback: profiles.gamification JSONB
     return await loadFromProfiles(clientId);
   } catch (err) {
-    console.warn('[Gamification] Load error, using fallback:', err);
     return await loadFromProfiles(clientId);
   }
 }
@@ -86,7 +85,7 @@ async function loadFromProfiles(clientId) {
       };
     }
   } catch (err) {
-    console.warn('[Gamification] Profiles fallback error:', err);
+    /* swallow */
   }
   return getDefaults();
 }
@@ -167,7 +166,6 @@ export async function saveGamificationData(clientId, data) {
     // Fallback: save to profiles.gamification
     return await saveToProfiles(clientId, data);
   } catch (err) {
-    console.warn('[Gamification] Save error, using fallback:', err);
     return await saveToProfiles(clientId, data);
   }
 }
@@ -187,13 +185,8 @@ async function saveToProfiles(clientId, data) {
       .update({ gamification })
       .eq('id', clientId);
 
-    if (error) {
-      console.warn('[Gamification] Profiles save error:', error);
-      return false;
-    }
-    return true;
+    return !error;
   } catch (err) {
-    console.warn('[Gamification] Profiles fallback save error:', err);
     return false;
   }
 }

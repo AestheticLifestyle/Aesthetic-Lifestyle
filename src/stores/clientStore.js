@@ -559,7 +559,7 @@ async function _saveCurrentDayToSupabase(state) {
       });
     }
   } catch (err) {
-    console.warn('[AutoSave] Error:', err);
+    /* swallow */
   }
 }
 
@@ -660,7 +660,6 @@ async function _loadDayIfNeeded(dateKey, getState) {
     });
 
   } catch (err) {
-    console.warn('[LoadDay] Error:', err);
     // Mark as loaded anyway so we don't retry endlessly
     state._setDayData(dateKey, { loaded: true });
   }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Card } from '../../components/ui';
+import { Card, PageSkeleton } from '../../components/ui';
 import { Icon } from '../../utils/icons';
 import { useAuthStore } from '../../stores/authStore';
 import { useUIStore } from '../../stores/uiStore';
@@ -165,11 +165,15 @@ function DailyCheckin() {
       showToast('No client ID — try reloading', 'error');
       return;
     }
+    if (mood === null) {
+      showToast('Select your mood before saving', 'error');
+      return;
+    }
     setSaving(true);
     const result = await saveDailyCheckin({
       client_id: clientId,
       date: selectedDate,
-      mood: mood !== null ? MOOD_OPTIONS[mood].label : null,
+      mood: MOOD_OPTIONS[mood].label,
       sleep,
       energy,
       stress,
@@ -414,6 +418,10 @@ function WeeklyCheckin() {
       showToast('No client ID — try reloading', 'error');
       return;
     }
+    if (!weeklyMood) {
+      showToast('Select your weekly mood before saving', 'error');
+      return;
+    }
     setSaving(true);
     const result = await saveWeeklyCheckin(clientId, {
       week_number: weekNum,
@@ -446,11 +454,7 @@ function WeeklyCheckin() {
   };
 
   if (!loaded) {
-    return (
-      <Card>
-        <div style={{ textAlign: 'center', padding: 30, color: 'var(--t3)', fontSize: 13 }}>Loading...</div>
-      </Card>
-    );
+    return <PageSkeleton />;
   }
 
   return (

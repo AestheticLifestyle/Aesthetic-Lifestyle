@@ -47,7 +47,6 @@ export async function saveMealPlan(clientId, coachId, meals, planName = 'Meal Pl
     console.error('[saveMealPlan] insert error:', error);
     return { ok: false, error: error.message };
   }
-  console.log('[saveMealPlan] success, id:', data?.[0]?.id);
   return { ok: true };
 }
 
@@ -80,7 +79,6 @@ export async function saveNutritionTemplate(coachId, plan) {
     }).select('id');
     if (error) { console.error('[saveTemplate] insert error:', error); return { ok: false, error: error.message }; }
     const newId = data?.[0]?.id;
-    console.log('[saveTemplate] created:', newId);
     return { ok: true, id: newId };
   }
 }

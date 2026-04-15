@@ -150,7 +150,7 @@ export function useDataLoader() {
 
     } catch (err) {
       console.error('[DataLoader] Client data error:', err);
-      store.setDataLoaded(true); // still mark loaded so screens don't hang
+      store.setDataLoaded(true);
     }
   }
 

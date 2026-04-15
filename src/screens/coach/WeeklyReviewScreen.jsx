@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useCoachStore } from '../../stores/coachStore';
 import { useUIStore } from '../../stores/uiStore';
-import { Card } from '../../components/ui';
+import { Card, PageSkeleton } from '../../components/ui';
 import { Icon } from '../../utils/icons';
 import { fetchWeightLog, fetchProgressPhotos } from '../../services/progress';
 import { fetchDailyCheckins, fetchWeeklyCheckins, saveCoachFeedback } from '../../services/checkins';
@@ -319,7 +319,7 @@ export default function WeeklyReviewScreen() {
   const goPrev = () => { if (currentIdx > 0) setCurrentIdx(currentIdx - 1); };
 
   // ── Empty / loading states ──
-  if (loading) return <div className="screen active" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 300 }}><div style={{ opacity: 0.3 }}>Loading...</div></div>;
+  if (loading) return <PageSkeleton />;
 
   if (!queue.length) {
     return (

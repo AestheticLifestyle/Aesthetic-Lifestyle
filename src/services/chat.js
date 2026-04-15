@@ -422,7 +422,6 @@ export async function fetchNutritionTemplates(coachId) {
     .eq('coach_id', coachId)
     .is('client_id', null)
     .order('created_at', { ascending: false });
-  if (error) console.warn('[fetchNutritionTemplates] error:', error.message);
   if (!data?.length) return [];
 
   return data.map(plan => ({

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { useUIStore } from '../../stores/uiStore';
-import { Card } from '../../components/ui';
+import { Card, PageSkeleton } from '../../components/ui';
 import { Icon } from '../../utils/icons';
 import { supabase } from '../../services/supabase';
 import { createInviteCode, fetchInviteCodes, deactivateInviteCode } from '../../services/invites';
@@ -179,7 +179,7 @@ function InviteCodesSection({ coachId }) {
       </div>
 
       {loading ? (
-        <div style={{ fontSize: 12, color: 'var(--t3)', textAlign: 'center', padding: 16 }}>Loading...</div>
+        <PageSkeleton />
       ) : activeCodes.length === 0 && usedCodes.length === 0 ? (
         <div style={{ fontSize: 12, color: 'var(--t3)', textAlign: 'center', padding: 16 }}>
           No invite codes yet. Generate one to share with a new client.

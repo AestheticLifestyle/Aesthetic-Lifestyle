@@ -38,7 +38,6 @@ export default function SupplementsScreen() {
           .eq('is_active', true)
           .order('sort_order')
           .order('created_at');
-        if (error) console.warn('[SupplementsScreen] coach preview error:', error.message);
         data = rows || [];
       } else {
         data = await fetchClientSupplements(user.id);

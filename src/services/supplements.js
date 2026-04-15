@@ -8,7 +8,6 @@ export async function fetchSupplementsList(coachId) {
     .or(`is_global.eq.true,coach_id.eq.${coachId}`)
     .order('category')
     .order('name');
-  if (error) console.warn('[fetchSupplementsList] error:', error.message);
   return data || [];
 }
 
@@ -21,7 +20,6 @@ export async function fetchClientSupplements(clientId) {
     .eq('is_active', true)
     .order('sort_order')
     .order('created_at');
-  if (error) console.warn('[fetchClientSupplements] error:', error.message);
   return data || [];
 }
 

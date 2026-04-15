@@ -77,7 +77,6 @@ export async function fetchDailyCheckins(clientId, days = 30) {
     .gte('date', since.toISOString().slice(0, 10))
     .order('date', { ascending: false });
   if (error) console.error('[fetchDailyCheckins] error:', error.message, error.details);
-  if (data) console.log('[fetchDailyCheckins] got', data.length, 'rows for', clientId);
   return data || [];
 }
 

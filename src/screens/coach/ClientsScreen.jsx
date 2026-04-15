@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCoachStore } from '../../stores/coachStore';
 import { useAuthStore } from '../../stores/authStore';
 import { useUIStore } from '../../stores/uiStore';
-import { Card } from '../../components/ui';
+import { Card, PageSkeleton } from '../../components/ui';
 import { Icon } from '../../utils/icons';
 import { createInviteCode, fetchInviteCodes, deactivateInviteCode } from '../../services/invites';
 import { fetchTrainingTemplates, fetchNutritionTemplates, fetchClients, updateClientSettings, archiveClient, reactivateClient, GOAL_LABELS } from '../../services/chat';
@@ -723,7 +723,7 @@ function CodesModal({ onClose }) {
         </div>
 
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 20, color: 'var(--t3)', fontSize: 12 }}>Loading...</div>
+          <PageSkeleton />
         ) : codes.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 20, color: 'var(--t3)', fontSize: 12 }}>
             No invite codes yet. Use "Add Client" to create one.

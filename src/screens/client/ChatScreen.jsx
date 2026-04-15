@@ -82,7 +82,7 @@ export default function ChatScreen({ otherUserId: propOtherUserId, otherUserName
         const msgs = await fetchMessages(user.id, otherUserId);
         setMessages(msgs || []);
       } catch (e) {
-        console.error('[Chat] fetch error:', e);
+        /* swallow */
       } finally {
         setLoading(false);
       }

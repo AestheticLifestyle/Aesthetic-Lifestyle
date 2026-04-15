@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { useClientStore } from '../../stores/clientStore';
 import { useUIStore } from '../../stores/uiStore';
@@ -6,6 +6,7 @@ import { Card } from '../../components/ui';
 import { Icon } from '../../utils/icons';
 import { saveClientGoal } from '../../services/checkins';
 import { redeemInviteCode, getMyCoachLink, getCoachName, disconnectFromCoach } from '../../services/invites';
+import { supabase } from '../../services/supabase';
 
 // ── Goal config ──
 const GOALS = [
@@ -23,6 +24,34 @@ function getClientId() {
     : authState.user?.id;
 }
 
+// ── Preferences persistence ──
+async function loadPreferences(userId) {
+  try {
+    const { data } = await supabase.from('profiles').select('preferences').eq('id', userId).single();
+    return data?.preferences || {};
+  } catch { return {}; }
+}
+
+async function savePreferences(userId, prefs) {
+  const { error } = await supabase.from('profiles').update({ preferences: prefs }).eq('id', userId);
+  return !error;
+}
+
+// ── Profile update ──
+async function updateProfile(userId, fields) {
+  // Update Supabase auth metadata
+  const { error: authErr } = await supabase.auth.updateUser({ data: fields });
+  if (authErr) return { ok: false, error: authErr.message };
+  // Also update profiles table
+  const payload = {};
+  if (fields.full_name) payload.full_name = fields.full_name;
+  if (Object.keys(payload).length) {
+    await supabase.from('profiles').update(payload).eq('id', userId);
+  }
+  return { ok: true };
+}
+
+// ── Reusable components ──
 function SettingRow({ label, sub, children }) {
   return (
     <div style={{
@@ -45,6 +74,61 @@ function Toggle({ checked, onChange }) {
       <span className="toggle-track" />
       <span className="toggle-thumb" />
     </label>
+  );
+}
+
+// ── Edit Profile Modal ──
+function EditProfileModal({ user, onClose, onSaved }) {
+  const [name, setName] = useState(user?.user_metadata?.full_name || '');
+  const [saving, setSaving] = useState(false);
+  const { showToast } = useUIStore();
+
+  const handleSave = async () => {
+    if (!name.trim()) { showToast('Name is required', 'error'); return; }
+    setSaving(true);
+    const result = await updateProfile(user.id, { full_name: name.trim() });
+    setSaving(false);
+    if (result.ok) {
+      showToast('Profile updated!', 'success');
+      onSaved?.({ full_name: name.trim() });
+      onClose();
+    } else {
+      showToast(result.error || 'Failed to update', 'error');
+    }
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)' }} onClick={onClose}>
+      <div style={{ background: 'var(--s0)', borderRadius: 14, width: 'min(400px, 90vw)', padding: 24, border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
+        <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>Edit Profile</div>
+
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--t2)', marginBottom: 4, display: 'block' }}>Full Name</label>
+          <input
+            className="form-inp"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            placeholder="Your name"
+            autoFocus
+          />
+        </div>
+
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--t2)', marginBottom: 4, display: 'block' }}>Email</label>
+          <div style={{ fontSize: 13, color: 'var(--t3)', padding: '8px 12px', background: 'var(--s2)', borderRadius: 8 }}>
+            {user?.email || '—'}
+          </div>
+          <div style={{ fontSize: 10, color: 'var(--t3)', marginTop: 4 }}>Email can only be changed via Supabase dashboard</div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
+          <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" style={{ flex: 1 }} disabled={saving} onClick={handleSave}>
+            {saving ? 'Saving...' : 'Save'}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -76,35 +160,20 @@ function GoalSelector() {
               onClick={() => handleSelect(g.id)}
               style={{
                 display: 'flex', alignItems: 'center', gap: 12,
-                padding: '12px 14px',
-                borderRadius: 10,
+                padding: '12px 14px', borderRadius: 10,
                 border: isActive ? '1.5px solid var(--gold)' : '1px solid var(--border)',
                 background: isActive ? 'var(--gold-d)' : 'var(--s2)',
-                cursor: 'pointer',
-                transition: 'all .15s',
-                textAlign: 'left',
+                cursor: 'pointer', transition: 'all .15s', textAlign: 'left',
                 opacity: saving ? 0.6 : 1,
               }}
             >
               <span style={{ fontSize: 22, lineHeight: 1 }}>{g.icon}</span>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{
-                  fontSize: 13, fontWeight: 600,
-                  color: isActive ? 'var(--gold)' : 'var(--t1)',
-                  letterSpacing: 0.3,
-                }}>
-                  {g.label}
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--t3)', marginTop: 2 }}>
-                  {g.desc}
-                </div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: isActive ? 'var(--gold)' : 'var(--t1)', letterSpacing: 0.3 }}>{g.label}</div>
+                <div style={{ fontSize: 11, color: 'var(--t3)', marginTop: 2 }}>{g.desc}</div>
               </div>
               {isActive && (
-                <div style={{
-                  width: 20, height: 20, borderRadius: '50%',
-                  background: 'var(--gold)', display: 'flex',
-                  alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                }}>
+                <div style={{ width: 20, height: 20, borderRadius: '50%', background: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <Icon name="check" size={11} style={{ color: '#000' }} />
                 </div>
               )}
@@ -126,6 +195,7 @@ function CoachConnection() {
   const [code, setCode] = useState('');
   const [redeeming, setRedeeming] = useState(false);
   const [error, setError] = useState('');
+  const [confirmDisconnect, setConfirmDisconnect] = useState(false);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -161,6 +231,7 @@ function CoachConnection() {
       await disconnectFromCoach(user.id);
       setLinked(false);
       setCoachName(null);
+      setConfirmDisconnect(false);
       showToast('Disconnected from coach', 'success');
     } catch {
       showToast('Failed to disconnect', 'error');
@@ -189,13 +260,19 @@ function CoachConnection() {
               <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--gold)' }}>{coachName}</div>
               <div style={{ fontSize: 11, color: 'var(--t3)' }}>Your Coach</div>
             </div>
-            <button
-              className="btn btn-secondary btn-sm"
-              style={{ fontSize: 10, color: 'var(--red)' }}
-              onClick={handleDisconnect}
-            >
-              Disconnect
-            </button>
+            {!confirmDisconnect ? (
+              <button className="btn btn-secondary btn-sm" style={{ fontSize: 10, color: 'var(--red, #e74c3c)' }}
+                onClick={() => setConfirmDisconnect(true)}>
+                Disconnect
+              </button>
+            ) : (
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button className="btn btn-sm" style={{ fontSize: 10, background: 'var(--red, #e74c3c)', color: '#fff' }}
+                  onClick={handleDisconnect}>Confirm</button>
+                <button className="btn btn-sm btn-ghost" style={{ fontSize: 10 }}
+                  onClick={() => setConfirmDisconnect(false)}>Cancel</button>
+              </div>
+            )}
           </div>
         </div>
       ) : (
@@ -205,53 +282,73 @@ function CoachConnection() {
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <input
-              type="text"
-              value={code}
+              type="text" value={code}
               onChange={e => setCode(e.target.value.toUpperCase())}
-              placeholder="ABC123"
-              maxLength={6}
-              style={{
-                flex: 1, letterSpacing: 3, fontFamily: 'var(--fd)',
-                textAlign: 'center', fontSize: 16,
-              }}
+              placeholder="ABC123" maxLength={6}
+              style={{ flex: 1, letterSpacing: 3, fontFamily: 'var(--fd)', textAlign: 'center', fontSize: 16 }}
               autoComplete="off"
             />
-            <button
-              className="btn btn-primary btn-sm"
-              onClick={handleRedeem}
-              disabled={redeeming || !code.trim()}
-            >
+            <button className="btn btn-primary btn-sm" onClick={handleRedeem} disabled={redeeming || !code.trim()}>
               {redeeming ? '...' : 'Connect'}
             </button>
           </div>
-          {error && (
-            <div style={{ fontSize: 11, color: 'var(--red)', marginTop: 6 }}>{error}</div>
-          )}
+          {error && <div style={{ fontSize: 11, color: 'var(--red)', marginTop: 6 }}>{error}</div>}
         </div>
       )}
     </Card>
   );
 }
 
+// ══════════════════════════════════════
+// Main Settings Screen
+// ══════════════════════════════════════
 export default function SettingsScreen() {
   const { user, logout } = useAuthStore();
   const { stepGoal, macroTargets } = useClientStore();
   const { showToast } = useUIStore();
 
-  const [notifications, setNotifications] = useState(true);
-  const [reminders, setReminders] = useState(true);
-  const [darkMode, setDarkMode] = useState(true);
-  const [units, setUnits] = useState('metric');
+  const [showEditProfile, setShowEditProfile] = useState(false);
+
+  // Preferences — loaded from Supabase, persisted on change
+  const [prefs, setPrefs] = useState({ notifications: true, reminders: true, darkMode: true, units: 'metric' });
+  const [prefsLoaded, setPrefsLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    loadPreferences(user.id).then(p => {
+      if (p && Object.keys(p).length) setPrefs(prev => ({ ...prev, ...p }));
+      setPrefsLoaded(true);
+    });
+  }, [user?.id]);
+
+  const updatePref = useCallback((key, value) => {
+    setPrefs(prev => {
+      const next = { ...prev, [key]: value };
+      // Fire-and-forget save
+      if (user?.id) savePreferences(user.id, next).then(ok => {
+        if (!ok) showToast('Preference not saved', 'error');
+      });
+      return next;
+    });
+  }, [user?.id, showToast]);
 
   const fullName = user?.user_metadata?.full_name || 'Athlete';
   const email = user?.email || '';
 
-  const handleLogout = async () => {
-    await logout();
-  };
-
   return (
     <div className="screen active">
+      {/* Edit Profile Modal */}
+      {showEditProfile && (
+        <EditProfileModal
+          user={user}
+          onClose={() => setShowEditProfile(false)}
+          onSaved={() => {
+            // The auth store will pick up the updated metadata on next getUser()
+            showToast('Reload the app to see name change everywhere', 'success');
+          }}
+        />
+      )}
+
       {/* Profile */}
       <Card title="Profile">
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
@@ -267,7 +364,7 @@ export default function SettingsScreen() {
             <div style={{ fontSize: 12, color: 'var(--t3)' }}>{email}</div>
           </div>
         </div>
-        <button className="btn btn-secondary btn-sm" style={{ width: '100%' }}>
+        <button className="btn btn-secondary btn-sm" style={{ width: '100%' }} onClick={() => setShowEditProfile(true)}>
           <Icon name="edit" size={12} /> Edit Profile
         </button>
       </Card>
@@ -281,22 +378,19 @@ export default function SettingsScreen() {
       {/* Preferences */}
       <Card title="Preferences" style={{ marginTop: 14 }}>
         <SettingRow label="Push Notifications" sub="Workout reminders, coach messages">
-          <Toggle checked={notifications} onChange={() => setNotifications(!notifications)} />
+          <Toggle checked={prefs.notifications} onChange={() => updatePref('notifications', !prefs.notifications)} />
         </SettingRow>
         <SettingRow label="Daily Reminders" sub="Morning check-in, meal logging">
-          <Toggle checked={reminders} onChange={() => setReminders(!reminders)} />
+          <Toggle checked={prefs.reminders} onChange={() => updatePref('reminders', !prefs.reminders)} />
         </SettingRow>
-        <SettingRow label="Dark Mode" sub="Always on by default">
-          <Toggle checked={darkMode} onChange={() => setDarkMode(!darkMode)} />
+        <SettingRow label="Dark Mode" sub={prefs.darkMode ? 'On' : 'Off'}>
+          <Toggle checked={prefs.darkMode} onChange={() => updatePref('darkMode', !prefs.darkMode)} />
         </SettingRow>
         <SettingRow label="Units" sub="Weight and measurements">
           <div style={{ display: 'flex', gap: 4 }}>
             {['metric', 'imperial'].map(u => (
-              <button
-                key={u}
-                className={`chip ${units === u ? 'active' : ''}`}
-                onClick={() => setUnits(u)}
-              >
+              <button key={u} className={`chip ${prefs.units === u ? 'active' : ''}`}
+                onClick={() => updatePref('units', u)}>
                 {u === 'metric' ? 'kg/cm' : 'lbs/in'}
               </button>
             ))}
@@ -305,15 +399,15 @@ export default function SettingsScreen() {
       </Card>
 
       {/* Daily Goals */}
-      <Card title="Daily Goals" style={{ marginTop: 14 }}>
-        <SettingRow label="Step Goal" sub={`Currently: ${stepGoal.toLocaleString()}`}>
-          <span className="tag t-gold">{stepGoal.toLocaleString()}</span>
+      <Card title="Daily Goals" subtitle="Set by your coach" style={{ marginTop: 14 }}>
+        <SettingRow label="Step Goal" sub={`Currently: ${stepGoal?.toLocaleString() || '—'}`}>
+          <span className="tag t-gold">{stepGoal?.toLocaleString() || '—'}</span>
         </SettingRow>
-        <SettingRow label="Calorie Target" sub={`Currently: ${macroTargets.calories}`}>
-          <span className="tag t-gold">{macroTargets.calories} kcal</span>
+        <SettingRow label="Calorie Target" sub={`Currently: ${macroTargets?.calories || '—'}`}>
+          <span className="tag t-gold">{macroTargets?.calories || '—'} kcal</span>
         </SettingRow>
-        <SettingRow label="Protein Target" sub={`Currently: ${macroTargets.protein}g`}>
-          <span className="tag t-gr">{macroTargets.protein}g</span>
+        <SettingRow label="Protein Target" sub={`Currently: ${macroTargets?.protein || '—'}g`}>
+          <span className="tag t-gr">{macroTargets?.protein || '—'}g</span>
         </SettingRow>
       </Card>
 
@@ -323,7 +417,7 @@ export default function SettingsScreen() {
           <span className="tag t-gy">React + Capacitor</span>
         </SettingRow>
         <div style={{ marginTop: 12 }}>
-          <button className="btn btn-danger" style={{ width: '100%' }} onClick={handleLogout}>
+          <button className="btn btn-danger" style={{ width: '100%' }} onClick={logout}>
             <Icon name="log-out" size={13} /> Sign Out
           </button>
         </div>

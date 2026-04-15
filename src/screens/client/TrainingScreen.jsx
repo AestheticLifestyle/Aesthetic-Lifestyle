@@ -352,6 +352,35 @@ function extractPrevData(workoutHistory, dayIndex, dayName) {
   return byExercise;
 }
 
+// ---------- Auto-save helpers ----------
+const DRAFT_KEY = 'aes_workout_draft';
+
+function saveDraft(dayIndex, dayName, exercises) {
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({
+      dayIndex, dayName, exercises, savedAt: Date.now(),
+    }));
+  } catch { /* quota exceeded — ignore */ }
+}
+
+function loadDraft() {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    const draft = JSON.parse(raw);
+    // Discard drafts older than 6 hours
+    if (Date.now() - draft.savedAt > 6 * 60 * 60 * 1000) {
+      localStorage.removeItem(DRAFT_KEY);
+      return null;
+    }
+    return draft;
+  } catch { return null; }
+}
+
+function clearDraft() {
+  try { localStorage.removeItem(DRAFT_KEY); } catch { /* noop */ }
+}
+
 // ---------- Main ----------
 export default function TrainingScreen() {
   const {
@@ -376,6 +405,42 @@ export default function TrainingScreen() {
     return buildExerciseSets(currentDay?.exercises, prevHistory);
   });
   const [saving, setSaving] = useState(false);
+  const [draftBanner, setDraftBanner] = useState(null); // { dayIndex, dayName }
+
+  // ── On mount: check for a saved draft ──
+  useEffect(() => {
+    const draft = loadDraft();
+    if (draft && draft.exercises?.length) {
+      setDraftBanner({ dayIndex: draft.dayIndex, dayName: draft.dayName });
+    }
+  }, []);
+
+  const handleResumeDraft = () => {
+    const draft = loadDraft();
+    if (!draft) return;
+    setWorkoutDay(draft.dayIndex);
+    setExercises(draft.exercises);
+    setWorkoutActive(true);
+    setDraftBanner(null);
+    showToast('Workout resumed!', 'success');
+  };
+
+  const handleDiscardDraft = () => {
+    clearDraft();
+    setDraftBanner(null);
+  };
+
+  // ── Auto-save: persist exercises to localStorage every time they change during active workout ──
+  const autoSaveTimer = useRef(null);
+  useEffect(() => {
+    if (!workoutActive) return;
+    // Debounce to avoid writing on every keystroke
+    clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => {
+      saveDraft(activeWorkoutDay, currentDay?.name, exercises);
+    }, 800);
+    return () => clearTimeout(autoSaveTimer.current);
+  }, [exercises, workoutActive, activeWorkoutDay, currentDay?.name]);
 
   // Rebuild exercises when switching days or when workout history loads
   useEffect(() => {
@@ -451,6 +516,7 @@ export default function TrainingScreen() {
       updatedHistory[activeWorkoutDay] = [newSession, ...updatedHistory[activeWorkoutDay]];
       setWorkoutHistory(updatedHistory);
 
+      clearDraft();
       showToast('Workout saved! Great work.', 'success');
       setWorkoutActive(false);
     } else {
@@ -484,6 +550,29 @@ export default function TrainingScreen() {
 
   return (
     <div className="screen active">
+      {/* Resume draft banner */}
+      {draftBanner && !workoutActive && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
+          background: 'var(--gold-d, rgba(255,193,7,0.12))', borderRadius: 10,
+          border: '1px solid var(--gold, #f0b000)', marginBottom: 14,
+        }}>
+          <Icon name="alert-triangle" size={16} style={{ color: 'var(--gold)', flexShrink: 0 }} />
+          <div style={{ flex: 1, fontSize: 12 }}>
+            <strong>Unfinished workout</strong>
+            <div style={{ color: 'var(--t3)', fontSize: 11, marginTop: 2 }}>
+              {draftBanner.dayName} — pick up where you left off?
+            </div>
+          </div>
+          <button className="btn btn-primary btn-sm" style={{ fontSize: 11, padding: '4px 10px' }} onClick={handleResumeDraft}>
+            Resume
+          </button>
+          <button className="btn btn-ghost btn-sm" style={{ fontSize: 11, padding: '4px 8px' }} onClick={handleDiscardDraft}>
+            Discard
+          </button>
+        </div>
+      )}
+
       {/* Day tabs */}
       <div className="modal-tabs" style={{ marginBottom: 18 }}>
         {days.map((day, i) => (

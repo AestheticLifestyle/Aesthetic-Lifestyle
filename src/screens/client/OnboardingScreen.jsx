@@ -139,14 +139,9 @@ export default function OnboardingScreen() {
         completed_at: new Date().toISOString(),
       }, { onConflict: 'client_id' });
 
-      if (error) {
-        console.error('[Onboarding] save error:', error);
-        // If table doesn't exist yet, silently continue — data will be in localStorage
-        if (error.code === '42P01') {
-          localStorage.setItem(`onboarding_${clientId}`, JSON.stringify(form));
-        } else {
-          throw error;
-        }
+      // If table doesn't exist yet, silently continue — data will be in localStorage
+      if (error && error.code !== '42P01') {
+        throw error;
       }
 
       // Also save to localStorage as backup
@@ -162,7 +157,6 @@ export default function OnboardingScreen() {
       showToast('Profile complete! Welcome aboard.', 'success');
       navigate('/app/dashboard');
     } catch (err) {
-      console.error('[Onboarding] error:', err);
       showToast('Saved locally — your coach will see this when connected', 'success');
       localStorage.setItem(`onboarding_complete_${user?.id}`, 'true');
       navigate('/app/dashboard');
