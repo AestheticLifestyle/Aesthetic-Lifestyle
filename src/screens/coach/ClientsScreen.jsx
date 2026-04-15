@@ -223,9 +223,9 @@ function AddClientWizard({ onClose, onCreated }) {
       if (selectedTraining) {
         clientSetup.trainingPlan = {
           name: selectedTraining.name,
-          days: selectedTraining.days.map(d => ({
+          days: (selectedTraining.days || []).map(d => ({
             name: d.name,
-            exercises: d.exercises.map(ex => ({
+            exercises: (d.exercises || []).map(ex => ({
               name: ex.name,
               sets: ex.sets,
               targetReps: ex.reps,
@@ -395,7 +395,7 @@ function AddClientWizard({ onClose, onCreated }) {
                     {t.name}
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--t3)', marginTop: 2 }}>
-                    {t.days.length} day{t.days.length !== 1 ? 's' : ''} — {t.days.map(d => d.name).join(', ')}
+                    {(t.days || []).length} day{(t.days || []).length !== 1 ? 's' : ''} — {(t.days || []).map(d => d.name).join(', ')}
                   </div>
                 </div>
                 {isSelected && (
@@ -564,7 +564,7 @@ function AddClientWizard({ onClose, onCreated }) {
             <>
               <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)', marginBottom: 4 }}>{selectedTraining.name}</div>
               <div style={{ fontSize: 11, color: 'var(--t3)' }}>
-                {selectedTraining.days.length} day{selectedTraining.days.length !== 1 ? 's' : ''}: {selectedTraining.days.map(d => d.name).join(', ')}
+                {selectedTraining?.days?.length || 0} day{(selectedTraining?.days?.length || 0) !== 1 ? 's' : ''}: {(selectedTraining?.days || []).map(d => d.name).join(', ')}
               </div>
             </>
           ) : (
@@ -942,8 +942,8 @@ function ClientManagePanel({ client, onClose, onUpdated, onArchived }) {
   };
 
   const handleArchive = async () => {
-    const ok = await archiveClient(user?.id, clientId);
-    if (ok) {
+    const result = await archiveClient(user?.id, clientId);
+    if (result.ok) {
       showToast(`${clientName} archived`, 'success');
       onArchived?.(clientId);
       onClose();
@@ -1183,8 +1183,8 @@ export default function ClientsScreen() {
   };
 
   const handleReactivate = async (clientId) => {
-    const ok = await reactivateClient(user?.id, clientId);
-    if (ok) {
+    const result = await reactivateClient(user?.id, clientId);
+    if (result.ok) {
       showToast('Client reactivated', 'success');
       setArchivedClients(prev => prev.filter(c => (c.client_id || c.id) !== clientId));
       // Re-fetch active clients so they reappear
@@ -1192,7 +1192,7 @@ export default function ClientsScreen() {
     } else {
       showToast('Failed to reactivate', 'error');
     }
-    return ok;
+    return result.ok;
   };
 
   return (

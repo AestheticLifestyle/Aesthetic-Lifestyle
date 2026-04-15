@@ -83,8 +83,8 @@ export async function archiveClient(coachId, clientId) {
     .update({ archived: true })
     .eq('coach_id', coachId)
     .eq('client_id', clientId);
-  if (error) { console.error('[archiveClient]', error); return false; }
-  return true;
+  if (error) { console.error('[archiveClient]', error); return { ok: false, error: error?.message }; }
+  return { ok: true };
 }
 
 /** Reactivate an archived client */
@@ -93,8 +93,8 @@ export async function reactivateClient(coachId, clientId) {
     .update({ archived: false })
     .eq('coach_id', coachId)
     .eq('client_id', clientId);
-  if (error) { console.error('[reactivateClient]', error); return false; }
-  return true;
+  if (error) { console.error('[reactivateClient]', error); return { ok: false, error: error?.message }; }
+  return { ok: true };
 }
 
 // Fetch all clients for a coach (with real stats: weight, adherence, streak)

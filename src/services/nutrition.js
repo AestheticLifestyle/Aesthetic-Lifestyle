@@ -121,7 +121,7 @@ export async function saveDailyNutritionLog(clientId, meals, dateKey) {
     total_carbs: Math.round(totalC), total_fat: Math.round(totalF),
     meals_data: mealsData,
   }, { onConflict: 'client_id,date' });
-  return !error;
+  return { ok: !error, error: error?.message };
 }
 
 export async function fetchDailyNutritionLog(clientId, date) {
@@ -162,7 +162,7 @@ export async function updateClientMacroTargets(clientId, coachId, newTargets) {
       name: 'Macro Plan', is_active: true, meals: baseMeals,
       targets: newTargets,
     });
-    return !error;
+    return { ok: !error, error: error?.message };
   }
 
   // Calculate current totals from meal plan foods
@@ -193,12 +193,12 @@ export async function updateClientMacroTargets(clientId, coachId, newTargets) {
     const { error } = await supabase.from('meal_plans')
       .update({ meals: scaledMeals, targets: newTargets })
       .eq('id', plan.id);
-    return !error;
+    return { ok: !error, error: error?.message };
   }
 
   // No foods in plan — just store targets metadata
   const { error } = await supabase.from('meal_plans')
     .update({ targets: newTargets })
     .eq('id', plan.id);
-  return !error;
+  return { ok: !error, error: error?.message };
 }

@@ -409,13 +409,13 @@ export default function SupplementsScreen() {
   };
 
   const handleRemove = async (id) => {
-    const ok = await removeClientSupplement(id);
-    if (ok) setAssigned(prev => prev.filter(s => s.id !== id));
+    const result = await removeClientSupplement(id);
+    if (result.ok) setAssigned(prev => prev.filter(s => s.id !== id));
   };
 
   const handleUpdate = async (id, updates) => {
-    const ok = await updateClientSupplement(id, updates);
-    if (ok) setAssigned(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+    const result = await updateClientSupplement(id, updates);
+    if (result.ok) setAssigned(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
   };
 
   const handleCustomAdded = (newSupp) => {

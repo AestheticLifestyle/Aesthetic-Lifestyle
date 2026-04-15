@@ -18,7 +18,7 @@ function DragGrip({ style }) {
 // ── Macro summary bar ──
 function MacroSummary({ meals, targets }) {
   let totals = { kcal: 0, p: 0, c: 0, f: 0 };
-  meals.forEach(m => (m.foods || []).forEach(f => { totals.kcal += f.kcal || 0; totals.p += f.p || 0; totals.c += f.c || 0; totals.f += f.f || 0; }));
+  (meals || []).forEach(m => (m.foods || []).forEach(f => { totals.kcal += f.kcal || 0; totals.p += f.p || 0; totals.c += f.c || 0; totals.f += f.f || 0; }));
 
   const macros = [
     { label: 'Calories', val: Math.round(totals.kcal), max: targets.calories, unit: 'kcal', color: 'var(--gold)' },
@@ -513,7 +513,7 @@ export default function NutritionEditorScreen() {
   // ── Handlers ──
   const handleMealUpdate = (mealIdx, updated) => {
     if (!plan) return;
-    const updatedPlan = { ...plan, meals: plan.meals.map((m, i) => i === mealIdx ? updated : m) };
+    const updatedPlan = { ...plan, meals: (plan.meals || []).map((m, i) => i === mealIdx ? updated : m) };
     setActivePlan(updatedPlan);
     setNutritionTemplates(nutritionTemplates.map(t => t.id === updatedPlan.id ? updatedPlan : t));
     markDirty();
@@ -525,7 +525,7 @@ export default function NutritionEditorScreen() {
 
   const executeMealRemove = () => {
     if (!plan || confirmRemoveMeal === null) return;
-    const updatedPlan = { ...plan, meals: plan.meals.filter((_, i) => i !== confirmRemoveMeal) };
+    const updatedPlan = { ...plan, meals: (plan.meals || []).filter((_, i) => i !== confirmRemoveMeal) };
     setActivePlan(updatedPlan);
     setNutritionTemplates(nutritionTemplates.map(t => t.id === updatedPlan.id ? updatedPlan : t));
     markDirty();

@@ -215,7 +215,7 @@ function StepsCard({ currentSteps, stepGoal, selectedDate }) {
     <Card>
       <div className="kl">Steps</div>
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, margin: '6px 0' }}>
-        <span className="kv" style={{ color: 'var(--green)' }}>{currentSteps.toLocaleString()}</span>
+        <span className="kv" style={{ color: 'var(--green)' }}>{(currentSteps || 0).toLocaleString()}</span>
         <span className="ku">/ {stepGoal.toLocaleString()}</span>
       </div>
       <div className="pbar">

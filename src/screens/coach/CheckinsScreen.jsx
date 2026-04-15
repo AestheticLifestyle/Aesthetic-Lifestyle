@@ -136,9 +136,9 @@ function ReviewPanel({ checkin, onClose, onFeedbackSaved, queueInfo }) {
   const handleSubmit = async () => {
     if (!feedback.trim() || !checkin.id) return;
     setSaving(true);
-    const ok = await saveCoachFeedback(checkin.id, feedback.trim(), checkin.type || 'weekly');
+    const result = await saveCoachFeedback(checkin.id, feedback.trim(), checkin.type || 'weekly');
     setSaving(false);
-    if (ok) {
+    if (result.ok) {
       showToast('Feedback submitted!', 'success');
       onFeedbackSaved(checkin.id, feedback.trim());
       onClose();
@@ -332,7 +332,7 @@ export default function CheckinsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [queueMode, setQueueMode] = useState(false);
 
-  const filtered = pendingCheckins.filter(c => {
+  const filtered = (pendingCheckins || []).filter(c => {
     if (filter === 'all') return true;
     if (filter === 'pending') return c.type === 'weekly' && c.status === 'pending';
     if (filter === 'reviewed') return c.type === 'weekly' && c.status === 'reviewed';
@@ -342,7 +342,7 @@ export default function CheckinsScreen() {
   });
 
   // Only weekly check-ins count as "pending review"
-  const pendingCount = pendingCheckins.filter(c => c.type === 'weekly' && c.status === 'pending').length;
+  const pendingCount = (pendingCheckins || []).filter(c => c.type === 'weekly' && c.status === 'pending').length;
 
   const handleRefresh = useCallback(async () => {
     if (!user?.id) return;
@@ -355,7 +355,7 @@ export default function CheckinsScreen() {
 
   const handleFeedbackSaved = useCallback((checkinId, feedback) => {
     // Update local state to mark as reviewed
-    const updated = pendingCheckins.map(c =>
+    const updated = (pendingCheckins || []).map(c =>
       c.id === checkinId ? { ...c, status: 'reviewed', coach_feedback: feedback } : c
     );
     setPendingCheckins(updated);
@@ -412,7 +412,7 @@ export default function CheckinsScreen() {
           style={{ position: 'fixed', bottom: 80, right: 20, zIndex: 200, padding: '12px 20px', borderRadius: 28, boxShadow: '0 4px 20px rgba(212,175,55,0.3)' }}
           onClick={() => {
             setQueueMode(true);
-            const first = pendingCheckins.find(c => c.type === 'weekly' && c.status === 'pending');
+            const first = (pendingCheckins || []).find(c => c.type === 'weekly' && c.status === 'pending');
             if (first) setReviewCheckin(first);
           }}
         >
@@ -431,7 +431,7 @@ export default function CheckinsScreen() {
               handleFeedbackSaved(id, fb);
               if (queueMode) {
                 // Auto-advance to next pending
-                const remaining = pendingCheckins.filter(c => c.type === 'weekly' && c.status === 'pending' && c.id !== id);
+                const remaining = (pendingCheckins || []).filter(c => c.type === 'weekly' && c.status === 'pending' && c.id !== id);
                 if (remaining.length > 0) {
                   setTimeout(() => setReviewCheckin(remaining[0]), 300);
                 } else {
@@ -442,7 +442,7 @@ export default function CheckinsScreen() {
               }
             }}
             queueInfo={queueMode ? {
-              current: pendingCheckins.filter(c => c.type === 'weekly' && c.status === 'pending').findIndex(c => c.id === reviewCheckin.id) + 1,
+              current: (pendingCheckins || []).filter(c => c.type === 'weekly' && c.status === 'pending').findIndex(c => c.id === reviewCheckin.id) + 1,
               total: pendingCount,
             } : null}
           />

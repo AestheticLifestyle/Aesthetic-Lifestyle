@@ -165,7 +165,7 @@ export default function ChatScreen({ otherUserId: propOtherUserId, otherUserName
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           color: 'var(--gold)', fontFamily: 'var(--fd)', fontSize: 14,
         }}>
-          {displayName.charAt(0)}
+          {(displayName || 'C').charAt(0)}
         </div>
         <div>
           <div style={{ fontSize: 14, fontWeight: 500 }}>{displayName}</div>

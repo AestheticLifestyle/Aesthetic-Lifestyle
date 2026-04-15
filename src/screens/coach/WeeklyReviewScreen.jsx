@@ -266,9 +266,9 @@ export default function WeeklyReviewScreen() {
   const handleSaveFeedback = async () => {
     if (!feedback.trim() || !clientData?.latestWeekly?.id) return;
     setSaving(true);
-    const ok = await saveCoachFeedback(clientData.latestWeekly.id, feedback.trim(), 'weekly');
+    const result = await saveCoachFeedback(clientData.latestWeekly.id, feedback.trim(), 'weekly');
     setSaving(false);
-    if (ok) {
+    if (result.ok) {
       const now = new Date().toISOString();
       const savedId = clientData.latestWeekly.id;
       const savedText = feedback.trim();

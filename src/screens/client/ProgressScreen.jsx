@@ -735,15 +735,15 @@ export default function ProgressScreen() {
               <div className="ku">kg</div>
             </Card>
           )}
-          {weightLog.length >= 2 && (
+          {(weightLog?.length || 0) >= 2 && (
             <Card>
               <div className="kl">Overall Change</div>
               <div className="kv" style={{ marginTop: 4, color: (() => {
-                const diff = weightLog[weightLog.length - 1].weight - weightLog[0].weight;
+                const diff = weightLog?.[weightLog.length - 1]?.weight - weightLog?.[0]?.weight;
                 return diff <= 0 ? 'var(--green)' : 'var(--orange)';
               })() }}>
                 {(() => {
-                  const diff = (weightLog[weightLog.length - 1].weight - weightLog[0].weight).toFixed(1);
+                  const diff = (weightLog?.[weightLog.length - 1]?.weight - weightLog?.[0]?.weight).toFixed(1);
                   return `${parseFloat(diff) > 0 ? '+' : ''}${diff}`;
                 })()}
               </div>

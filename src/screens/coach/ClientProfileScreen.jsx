@@ -75,18 +75,18 @@ function ProfileHeader({ client, onBack, onManage }) {
 
 // ── Section: Key Metrics ──
 function KeyMetrics({ weightLog, checkins, weeklyCheckins }) {
-  const latestWeight = weightLog.length ? weightLog[weightLog.length - 1] : null;
+  const latestWeight = (weightLog || []).length ? (weightLog || [])[weightLog.length - 1] : null;
 
   // Weight change over last 7 days
   const weightChange = useMemo(() => {
-    if (weightLog.length < 2) return null;
-    const recent = weightLog[weightLog.length - 1].weight;
-    const weekAgoIdx = weightLog.findIndex(w => {
+    if ((weightLog || []).length < 2) return null;
+    const recent = (weightLog || [])[(weightLog || []).length - 1].weight;
+    const weekAgoIdx = (weightLog || []).findIndex(w => {
       const diff = (Date.now() - new Date(w.date + 'T00:00:00').getTime()) / 86400000;
       return diff <= 7;
     });
-    if (weekAgoIdx < 0 || weekAgoIdx === weightLog.length - 1) return null;
-    return (recent - weightLog[weekAgoIdx].weight).toFixed(1);
+    if (weekAgoIdx < 0 || weekAgoIdx === (weightLog || []).length - 1) return null;
+    return (recent - (weightLog || [])[weekAgoIdx].weight).toFixed(1);
   }, [weightLog]);
 
   // Avg steps last 7 days
@@ -163,7 +163,7 @@ function KeyMetrics({ weightLog, checkins, weeklyCheckins }) {
 
 // ── Section: Weight Trend ──
 function WeightTrend({ weightLog }) {
-  if (weightLog.length < 2) {
+  if ((weightLog || []).length < 2) {
     return (
       <Card title="Weight Trend">
         <div style={{ textAlign: 'center', padding: 20, color: 'var(--t3)', fontSize: 12 }}>
@@ -173,7 +173,7 @@ function WeightTrend({ weightLog }) {
     );
   }
 
-  const last30 = weightLog.slice(-30);
+  const last30 = (weightLog || []).slice(-30);
   const weights = last30.map(w => w.weight);
   const min = Math.min(...weights);
   const max = Math.max(...weights);
@@ -273,9 +273,9 @@ function NutritionOverview({ nutritionHistory, mealPlan, clientId, coachId }) {
       return;
     }
     setSaving(true);
-    const ok = await updateClientMacroTargets(clientId, coachId, targets);
+    const result = await updateClientMacroTargets(clientId, coachId, targets);
     setSaving(false);
-    if (ok) {
+    if (result.ok) {
       showToast('Macro targets updated — client will see new targets', 'success');
       setAdjusting(false);
     } else {
@@ -1374,7 +1374,7 @@ function QuickActions({ clientId, clientName, navigate, data, goalId, coachName 
     try {
       const { generateProgressReport } = await import('../../utils/progressReport');
       const weightLog = data?.weightLog || [];
-      const weightTrend = weightLog.length >= 2 ? analyzeWeightTrend(weightLog) : null;
+      const weightTrend = (weightLog || []).length >= 2 ? analyzeWeightTrend(weightLog) : null;
 
       // Count workouts and checkins
       const wh = data?.workoutHistory || {};
@@ -1394,8 +1394,8 @@ function QuickActions({ clientId, clientName, navigate, data, goalId, coachName 
         adherence: null, // Would need to calculate
         totalWorkouts,
         totalCheckins,
-        startDate: weightLog[0]?.date,
-        endDate: weightLog[weightLog.length - 1]?.date,
+        startDate: (weightLog || [])[0]?.date,
+        endDate: (weightLog || [])[weightLog.length - 1]?.date,
         coachName,
         measurements: measStart && measCurrent ? { start: measStart, current: measCurrent } : null,
       });

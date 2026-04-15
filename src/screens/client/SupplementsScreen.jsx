@@ -81,7 +81,7 @@ export default function SupplementsScreen() {
         <div>
           <div style={{ fontSize: 18, fontWeight: 600 }}>My Supplements</div>
           <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 2 }}>
-            {supplements.length} supplement{supplements.length !== 1 ? 's' : ''} in your protocol
+            {(supplements || []).length} supplement{(supplements || []).length !== 1 ? 's' : ''} in your protocol
           </div>
         </div>
         <div style={{
@@ -92,7 +92,7 @@ export default function SupplementsScreen() {
         </div>
       </div>
 
-      {supplements.length === 0 ? (
+      {(supplements || []).length === 0 ? (
         <Card>
           <div style={{ textAlign: 'center', padding: 30 }}>
             <div style={{ fontSize: 36, marginBottom: 12 }}>💊</div>

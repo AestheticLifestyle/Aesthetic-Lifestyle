@@ -172,7 +172,7 @@ export async function saveCoachFeedback(checkinId, feedback, type = 'weekly') {
     .update({ coach_feedback: feedback, coach_responded_at: new Date().toISOString() })
     .eq('id', checkinId);
   if (error) console.error('[saveCoachFeedback] error:', error.message, error.details, error.hint);
-  return !error;
+  return { ok: !error, error: error?.message };
 }
 
 // ── Steps & Cardio ──
@@ -191,7 +191,7 @@ export async function saveCardioSession(clientId, session) {
     kcal_burned: session.kcal_burned || 0,
     notes: session.notes || '',
   });
-  return !error;
+  return { ok: !error, error: error?.message };
 }
 
 // ── Goal ──

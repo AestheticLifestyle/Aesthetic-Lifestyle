@@ -357,7 +357,7 @@ export default function SettingsScreen() {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             color: 'var(--gold)', fontFamily: 'var(--fd)', fontSize: 20, fontWeight: 600,
           }}>
-            {fullName.charAt(0).toUpperCase()}
+            {(fullName || 'U').charAt(0).toUpperCase()}
           </div>
           <div>
             <div style={{ fontSize: 16, fontWeight: 600 }}>{fullName}</div>

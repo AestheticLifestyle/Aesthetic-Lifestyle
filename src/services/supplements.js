@@ -53,9 +53,9 @@ export async function updateClientSupplement(id, updates) {
     .eq('id', id);
   if (error) {
     console.error('[updateClientSupplement] error:', error);
-    return false;
+    return { ok: false, error: error?.message };
   }
-  return true;
+  return { ok: true };
 }
 
 // ── Remove (deactivate) a supplement from client ──
@@ -66,9 +66,9 @@ export async function removeClientSupplement(id) {
     .eq('id', id);
   if (error) {
     console.error('[removeClientSupplement] error:', error);
-    return false;
+    return { ok: false, error: error?.message };
   }
-  return true;
+  return { ok: true };
 }
 
 // ── Add a custom supplement to the master list ──

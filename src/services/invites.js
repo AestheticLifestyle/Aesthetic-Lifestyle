@@ -57,11 +57,14 @@ export async function fetchInviteCodes(coachId) {
 
 // ── Coach: Deactivate a code ──
 export async function deactivateInviteCode(codeId) {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('invite_codes')
     .update({ active: false })
-    .eq('id', codeId);
+    .eq('id', codeId)
+    .select()
+    .single();
   if (error) throw error;
+  return data;
 }
 
 // ── Client: Validate an invite code ──
@@ -160,11 +163,19 @@ export async function redeemInviteCode(clientId, code) {
     }
   }
 
-  // 8. Increment used_count
-  await supabase
+  // 8. Atomically increment used_count (check current value to prevent race condition)
+  const { data: updateResult, error: updateError } = await supabase
     .from('invite_codes')
     .update({ used_count: invite.used_count + 1 })
-    .eq('id', invite.id);
+    .eq('id', invite.id)
+    .eq('used_count', invite.used_count)
+    .select()
+    .single();
+
+  if (updateError || !updateResult) {
+    // Update failed because used_count changed (another request redeemed it)
+    return { success: false, error: 'This invite code has already been used' };
+  }
 
   return { success: true, coachId: invite.coach_id };
 }
